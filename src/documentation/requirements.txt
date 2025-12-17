@@ -1,0 +1,11 @@
+node version -- v24.11.1
+npm version -- 11.6.2
+pgAdmin 4 v9.9 (released Oct. 16, 2025)
+Version 9.9
+Application Mode Desktop
+Python Version 3.13.9
+Current User pgadmin4@pgadmin.org
+Electron Version 35.4.0
+
+
+psql (PostgreSQL) 17.7 (Ubuntu 17.7-0ubuntu0.25.10.1)

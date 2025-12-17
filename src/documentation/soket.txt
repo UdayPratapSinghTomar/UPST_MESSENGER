@@ -1,0 +1,18 @@
+1. created controllers->common->chatController.js
+2. created routes->userRoutes.js
+ws://localhost:3000/socket.io/?EIO=4&transport=websocket&token=
+42["message", {"text": "hello"}]
+42["join_Chat",{"Chat_id":2}]
+
+42 → Socket.IO event
+
+join_Chat → event name
+
+15 → Chat ID
+
+42["send_message", {"Chat_id": 2, "content": "hello team!"}]
+
+0	handshake
+40	socket connected
+42	event message
+41	socket disconnected

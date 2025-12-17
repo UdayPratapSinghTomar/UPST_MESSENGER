@@ -1,0 +1,4 @@
+node_modules/
+npm-debug.log*
+bossplan-messenger-firebase-adminsdk-*.json
+firebase-adminsdk*.json

@@ -1,0 +1,394 @@
+┌────────────────────┐
+│       users        │
+├────────────────────┤
+│ id (PK)            │
+│ full_name          │
+│ email              │
+│ image_url          │ 
+│ message_status     │
+│ is_online          │
+│ last_seen          │
+└────────────────────┘
+          ▲ 1
+          │
+          │ n
+┌──────────────────────────┐
+│      Chats       │
+├──────────────────────────┤
+│ id (PK)                  │
+│ type (private/group)     │
+│ name                     │
+│ created_by (FK→users.id) │
+│ created_at               │
+└──────────────────────────┘
+          ▲ 1
+          │
+          │ n
+┌───────────────────────────────┐
+│      Chat_members     │
+├───────────────────────────────┤
+│ id (PK)                       │
+│ Chat_id (FK)          │
+│ user_id (FK)                  │
+│ role (admin/member)           │
+│ joined_at                     │
+└───────────────────────────────┘
+          ▲ 1
+          │
+          │ n
+┌──────────────────────────────────────────┐
+│                 messages                 │
+├──────────────────────────────────────────┤
+│ id (PK)                                  │
+│ Chat_id (FK→Chats.id)    │
+│ sender_id (FK→users.id)                  │
+│ message_type                             │
+│ content                                  │
+│ file_url                                 │
+│ replied_to (FK→messages.id)              │
+│ forwarded_from (FK→messages.id)          │
+│ created_at                               │
+└──────────────────────────────────────────┘
+          ▲ 1               ▲ 1
+          │                 │
+          │ n               │ n
+┌──────────────────────────────┐    ┌───────────────────────────────┐
+│        read_messages         │    │        mention_messages       │
+├──────────────────────────────┤    ├───────────────────────────────┤
+│ id (PK)                      │    │ id (PK)                       │
+│ message_id (FK→messages.id)  │    │ message_id (FK→messages.id)   │
+│ user_id (FK→users.id)        │    │ mentioned_user_id (FK→users)  │
+│ read_at                      │    │ created_at                    │
+└──────────────────────────────┘    └───────────────────────────────┘
+
+                     ▲ 1
+                     │
+                     │ n
+        ┌───────────────────────────────┐
+        │         saved_messages        │
+        ├───────────────────────────────┤
+        │ id (PK)                       │
+        │ user_id (FK→users.id)         │
+        │ message_id (FK→messages.id)   │
+        │ saved_at                      │
+        └───────────────────────────────┘
+
+                     ▲ 1
+                     │
+                     │ n
+        ┌────────────────────────────────────┐
+        │             shared_files           │
+        ├────────────────────────────────────┤
+        │ id (PK)                            │
+        │ message_id (FK→messages.id)        │
+        │ Chat_id (FK→Chats) │
+        │ user_id (FK→users.id)              │
+        │ file_url                           │
+        │ file_type                          │
+        └────────────────────────────────────┘
+
+┌───────────────────────────────┐
+│             tasks             │
+├───────────────────────────────┤
+│ id (PK)                       │
+│ created_by (FK→users.id)      │
+│ assigned_to (FK→users.id)     │
+│ title                         │
+│ description                   │
+│ status (pending/done)         │
+│ created_at                    │
+└───────────────────────────────┘
+
+
+✅ 📌 1. USERS Stores user information shown in chats and active user list.
+ CREATE TABLE users ( 
+    id BIGSERIAL PRIMARY KEY, 
+    full_name VARCHAR(100) NOT NULL, 
+    email VARCHAR(150) UNIQUE, 
+    image_url TEXT, 
+    message_status VARCHAR(255), 
+    is_online BOOLEAN DEFAULT FALSE, 
+    last_seen TIMESTAMP, 
+    created_at TIMESTAMP DEFAULT NOW(), 
+    updated_at TIMESTAMP DEFAULT NOW() 
+    ); 
+    
+✅ 📌 2. ChatS Supports private chat + group chat. 
+CREATE TABLE Chats ( 
+    id BIGSERIAL PRIMARY KEY, 
+    type VARCHAR(20) NOT NULL, -- "private" or "group" 
+    name VARCHAR(150), -- only for groups 
+    created_by BIGINT REFERENCES users(id), 
+    created_at TIMESTAMP DEFAULT NOW() 
+    ); 
+
+✅ 📌 3. Chat MEMBERS Group members + private chat users. 
+CREATE TABLE Chat_members ( 
+    id BIGSERIAL PRIMARY KEY, 
+    Chat_id BIGINT REFERENCES Chats(id) ON DELETE CASCADE, 
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
+    role VARCHAR(20) DEFAULT 'member', -- admin/member 
+    joined_at TIMESTAMP DEFAULT NOW(), 
+    UNIQUE(Chat_id, user_id) 
+    ); 
+    
+✅ 📌 4. MESSAGES Supports text, file, voice note, image, video, replies, forwarding. 
+CREATE TABLE messages ( 
+    id BIGSERIAL PRIMARY KEY, 
+    Chat_id BIGINT REFERENCES Chats(id) ON DELETE CASCADE, 
+    sender_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
+    message_type VARCHAR(20) DEFAULT 'text', -- text, image, video, file, audio 
+    content TEXT, -- text OR caption 
+    file_url TEXT, -- for file, image, audio, video 
+    replied_to BIGINT REFERENCES messages(id), -- reply message forwarded_from BIGINT REFERENCES messages(id), 
+    created_at TIMESTAMP DEFAULT NOW(), 
+    updated_at TIMESTAMP 
+    ); 
+    
+✅ 📌 5. MESSAGE READ RECEIPTS Needed for "Delivered" & "Read". 
+CREATE TABLE read_messages ( 
+    id BIGSERIAL PRIMARY KEY, 
+    message_id BIGINT REFERENCES message s(id) ON DELETE CASCADE, 
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
+    read_at TIMESTAMP DEFAULT NOW(), 
+    UNIQUE(message_id, user_id) 
+    ); 
+
+✅ 📌 6. SAVED MESSAGES ("Bookmark / Save Message") 
+CREATE TABLE saved_messages ( 
+    id BIGSERIAL PRIMARY KEY, 
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, 
+    message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE, 
+    saved_at TIMESTAMP DEFAULT NOW(), 
+    UNIQUE(user_id, message_id) 
+    ); 
+    
+✅ 📌 7. FILE STORAGE (Topbar → Files Page) To list all shared files in a Chat. 
+CREATE TABLE shared_files ( 
+    id BIGSERIAL PRIMARY KEY, 
+    message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE, 
+    Chat_id BIGINT REFERENCES Chats(id), 
+    user_id BIGINT REFERENCES users(id), 
+    file_url TEXT NOT NULL, 
+    file_type VARCHAR(50), 
+    created_at TIMESTAMP DEFAULT NOW() 
+    ); 
+    
+✅ 📌 8. TASKS (Topbar → Task List Page) 
+CREATE TABLE tasks ( 
+    id BIGSERIAL PRIMARY KEY, 
+    created_by BIGINT REFERENCES users(id), 
+    assigned_to BIGINT REFERENCES users(id), 
+    title VARCHAR(200), 
+    description TEXT, 
+    status VARCHAR(20) DEFAULT 'pending', 
+    created_at TIMESTAMP DEFAULT NOW() 
+    ); 
+    
+✅ 📌 9. MENTIONS (@user in group chat) 
+CREATE TABLE mention_messages ( 
+    id BIGSERIAL PRIMARY KEY, 
+    message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE, 
+    mentioned_user_id BIGINT REFERENCES users(id), 
+    created_at TIMESTAMP DEFAULT NOW() 
+);
+
+
+
+// module.exports = (sequelize, DataTypes) => {
+//   const User = sequelize.define(
+//     "User",
+//     {
+//       id: {
+//         type: DataTypes.INTEGER,
+//         primaryKey: true,
+//         autoIncrement: true,
+//         allowNull: false,
+//       },
+//       full_name: { type: DataTypes.STRING(255), allowNull: false },
+//       email: { type: DataTypes.STRING(255), allowNull: false, unique: true },
+//       phone: { type: DataTypes.STRING(20), allowNull: true },
+//       password: { type: DataTypes.STRING(255), allowNull: false },
+//       image_url: { type: DataTypes.TEXT, allowNull: true },
+//       message_status: { type: DataTypes.STRING, allowNull: true },
+//       is_online: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+//       last_seen: { type: DataTypes.DATE, allowNull: true },
+//       organization_id: { type: DataTypes.INTEGER, allowNull: true },
+//       designation: { type: DataTypes.STRING(255), allowNull: true },
+//       location: { type: DataTypes.STRING(255), allowNull: true },
+//       position: { type: DataTypes.STRING(255), allowNull: true },
+//       join_date: { type: DataTypes.STRING(100), allowNull: true },
+//       bio: { type: DataTypes.TEXT, allowNull: true },
+//       two_fa_enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+//       status: { type: DataTypes.STRING(50), allowNull: false, defaultValue: "Active" },
+//       subscription: { type: DataTypes.STRING(50), allowNull: false, defaultValue: "Free" },
+//       reset_token: { type: DataTypes.STRING(255), allowNull: true },
+//       reset_token_expiry: { type: DataTypes.DATE, allowNull: true },
+//     },
+//     {
+//       tableName: "users",
+//       timestamps: true,
+//       underscored: true,
+//     }
+//   );
+
+//   User.associate = (models) => {
+//     // 1️⃣ User belongs to ONE Organization
+//     User.belongsTo(models.Organization, {
+//       foreignKey: "organization_id",
+//       as: "organization",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+
+//     // 2️⃣ User has many RefreshTokens
+//     User.hasMany(models.RefreshToken, {
+//       foreignKey: "user_id",
+//       as: "refresh_tokens",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+
+//     // 3️⃣ User can create many Chats
+//     User.hasMany(models.Chat, {
+//       foreignKey: "created_by",
+//       as: "Chats",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+
+//     // 4️⃣ Many-to-Many: User <-> Chat through ChatMember
+//     User.belongsToMany(models.Chat, {
+//       through: models.ChatMember,
+//       foreignKey: "user_id",
+//       otherKey: "Chat_id",
+//       as: "joined_Chats",
+//     });
+//   };
+
+//   return User;
+// };
+
+// module.exports = (sequelize, DataTypes) => {
+//   const Organization = sequelize.define(
+//     "Organization",
+//     {
+//       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, allowNull: false },
+//       name: { type: DataTypes.STRING, allowNull: false },
+//       employee_size: { type: DataTypes.STRING, allowNull: true },
+//       website: { type: DataTypes.STRING, allowNull: true },
+//     },
+//     {
+//       tableName: "organizations",
+//       timestamps: true,
+//       underscored: true,
+//     }
+//   );
+
+//   Organization.associate = (models) => {
+//     Organization.hasMany(models.User, {
+//       foreignKey: "organization_id",
+//       as: "users",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+//   };
+
+//   return Organization;
+// };
+
+// module.exports = (sequelize, DataTypes) => {
+//   const RefreshToken = sequelize.define(
+//     "RefreshToken",
+//     {
+//       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+//       user_id: { type: DataTypes.INTEGER, allowNull: false },
+//       token: { type: DataTypes.STRING, allowNull: true },
+//       expires_at: { type: DataTypes.DATE, allowNull: false },
+//     },
+//     {
+//       tableName: "refresh_tokens",
+//       timestamps: false,
+//       underscored: true,
+//     }
+//   );
+
+//   RefreshToken.associate = (models) => {
+//     RefreshToken.belongsTo(models.User, {
+//       foreignKey: "user_id",
+//       as: "user",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+//   };
+
+//   return RefreshToken;
+// };
+
+// module.exports = (sequelize, DataTypes) => {
+//   const Chat = sequelize.define(
+//     "Chat",
+//     {
+//       id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false },
+//       type: { type: DataTypes.STRING, allowNull: false },
+//       name: { type: DataTypes.STRING, allowNull: true },
+//       created_by: { type: DataTypes.BIGINT, allowNull: false },
+//     },
+//     {
+//       tableName: "Chats",
+//       timestamps: true,
+//       underscored: true,
+//     }
+//   );
+
+//   Chat.associate = (models) => {
+//     // 1️⃣ Chat belongs to the user who created it
+//     Chat.belongsTo(models.User, {
+//       foreignKey: "created_by",
+//       as: "creator",
+//       onDelete: "CASCADE",
+//       onUpdate: "CASCADE",
+//     });
+
+//     // 2️⃣ Many-to-Many: Chat <-> User through ChatMember
+//     Chat.belongsToMany(models.User, {
+//       through: models.ChatMember,
+//       foreignKey: "Chat_id",
+//       otherKey: "user_id",
+//       as: "members",
+//     });
+//   };
+
+//   return Chat;
+// };
+
+// module.exports = (sequelize, DataTypes) => {
+//   const ChatMember = sequelize.define(
+//     "ChatMember",
+//     {
+//       id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, allowNull: false },
+//       Chat_id: { type: DataTypes.BIGINT, allowNull: false },
+//       user_id: { type: DataTypes.BIGINT, allowNull: false },
+//       role: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "member" },
+//       joined_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+//     },
+//     {
+//       tableName: "Chat_members",
+//       timestamps: false,
+//       underscored: true,
+//       indexes: [
+//         {
+//           unique: true,
+//           fields: ["Chat_id", "user_id"],
+//         },
+//       ],
+//     }
+//   );
+
+//   ChatMember.associate = (models) => {
+//     ChatMember.belongsTo(models.User, { foreignKey: "user_id", as: "user", onDelete: "CASCADE" });
+//     ChatMember.belongsTo(models.Chat, { foreignKey: "Chat_id", as: "Chat", onDelete: "CASCADE" });
+//   };
+
+//   return ChatMember;
+// };
