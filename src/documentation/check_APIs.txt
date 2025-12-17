@@ -1,0 +1,434 @@
+✅ STEP 1: START YOUR SERVER
+1️⃣ Open terminal in project root
+node server.js
+
+
+You should see:
+
+Server running on port 5000
+
+
+⚠️ If you get DB error → PostgreSQL is not running or credentials wrong.
+
+✅ STEP 2: OPEN POSTMAN
+
+Create a New Collection
+Name it:
+
+Chat App Backend
+
+🧪 TEST 1 — REGISTER USER
+➤ Endpoint
+POST http://localhost:5000/api/auth/register
+
+➤ Headers
+Content-Type: application/json
+
+➤ Body → raw → JSON
+{
+  "name": "Uday",
+  "email": "uday@test.com",
+  "password": "123456"
+}
+
+➤ Click SEND
+✅ Expected Response
+{
+  "id": "...",
+  "name": "Uday",
+  "email": "uday@test.com",
+  "password": "hashed..."
+}
+
+
+✔ User saved in database
+✔ Password encrypted
+
+🧪 TEST 2 — REGISTER SECOND USER (IMPORTANT)
+
+We need 2 users to chat.
+
+Endpoint
+POST http://localhost:5000/api/auth/register
+
+Body
+{
+  "name": "Rahul",
+  "email": "rahul@test.com",
+  "password": "123456"
+}
+
+
+✔ Now you have 2 users
+
+🧪 TEST 3 — LOGIN USER
+Endpoint
+POST http://localhost:5000/api/auth/login
+
+Body
+{
+  "email": "uday@test.com",
+  "password": "123456"
+}
+
+✅ Expected Response
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+
+Test 1 -
+📌 IMPORTANT
+
+Copy this token
+
+We will use it in next steps
+
+🧪 TEST 4 — CHECK DATABASE (OPTIONAL BUT GOOD)
+
+Open pgAdmin or psql
+Check tables:
+
+SELECT * FROM "Users";
+
+
+You should see both users.
+
+🧪 TEST 5 — CREATE PRIVATE CHAT
+
+⚠️ Right now this will FAIL because we haven’t added JWT middleware yet.
+
+That’s GOOD.
+
+This is why STEP 1 (Auth Middleware) is next.
+
+❗ COMMON ERRORS & FIXES
+❌ Server not starting
+
+Check .env
+
+PostgreSQL running?
+
+❌ Sequelize error
+
+Database chatdb exists?
+
+CREATE DATABASE chatdb;
+
+🎯 WHAT YOU HAVE SUCCESSFULLY DONE
+
+✔ Express server
+✔ PostgreSQL connection
+✔ Sequelize models
+✔ User registration
+✔ User login
+✔ JWT token generation
+
+This is REAL backend work, not tutorial junk.
+
+=======================================================================================================
+
+Test 2 - 
+1️⃣ LOGIN FIRST
+
+Copy JWT token
+
+2️⃣ CREATE PRIVATE CHAT
+➤ Endpoint
+POST http://localhost:5000/api/chat/private
+
+➤ Headers
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+➤ Body (RAW → JSON)
+{
+  "userId": "SECOND_USER_ID"
+}
+
+
+📌 Get userId from DB or register response.
+
+✅ SUCCESS RESPONSE
+{
+  "id": "chat-uuid",
+  "type": "private",
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+
+🧪 VERIFY IN DATABASE
+SELECT * FROM "Chats";
+SELECT * FROM "ChatMembers";
+
+
+✔ Chat created
+✔ Both users added
+
+❌ COMMON ERRORS
+❌ 401 Unauthorized
+
+Token missing
+
+Token expired
+
+Wrong Authorization format
+
+✔ Correct format:
+
+Authorization: Bearer eyJhbGciOi...
+
+🎉 WHAT YOU JUST BUILT
+
+✔ JWT middleware
+✔ Protected routes
+✔ Secure chat creation
+✔ Real-world auth flow
+
+This is exactly how production apps work.
+
+=======================================================================================================
+
+Test 3 - 
+
+1️⃣ SEND MESSAGE
+➤ Endpoint
+POST http://localhost:5000/api/message
+
+➤ Headers
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+➤ Body
+{
+  "chatId": "CHAT_ID",
+  "content": "Hello from backend!",
+  "type": "text"
+}
+
+✅ Response
+{
+  "id": "...",
+  "chatId": "...",
+  "senderId": "...",
+  "content": "Hello from backend!"
+}
+
+2️⃣ FETCH OLD MESSAGES
+➤ Endpoint
+GET http://localhost:5000/api/message/CHAT_ID
+
+➤ Headers
+Authorization: Bearer YOUR_JWT_TOKEN
+
+✅ Response
+[
+  {
+    "content": "Hello from backend!",
+    "senderId": "..."
+  }
+]
+
+🔍 VERIFY DATABASE
+SELECT * FROM "Messages";
+
+
+✔ Messages stored permanently
+✔ History works like WhatsApp
+
+🎉 WHAT YOU ACHIEVED
+
+✔ Secure message sending
+✔ Chat membership validation
+✔ Message persistence
+✔ Chat history loading
+
+This is core WhatsApp backend logic.
+
+➤ Send TEXT message
+{
+  "chatId": "CHAT_ID",
+  "type": "text",
+  "content": "Hello WhatsApp backend!"
+}
+
+➤ Send IMAGE message
+{
+  "chatId": "CHAT_ID",
+  "type": "image",
+  "fileUrl": "https://cdn.example.com/image.jpg"
+}
+
+➤ Reply to a message
+{
+  "chatId": "CHAT_ID",
+  "type": "text",
+  "content": "This is a reply",
+  "replyToMessageId": "MESSAGE_ID"
+}
+
+=======================================================================================================
+
+Test 4 - 
+1️⃣ TEST ONLINE / OFFLINE
+
+Start server
+
+Connect socket (using testSocket.js)
+
+Check DB:
+
+SELECT name, isOnline, lastSeen FROM "Users";
+
+
+✔ When socket connected → isOnline = true
+✔ When stopped → isOnline = false, lastSeen updated
+
+2️⃣ TEST TYPING INDICATOR
+In testSocket.js, ADD:
+socket.emit('typing', 'CHAT_ID')
+
+setTimeout(() => {
+  socket.emit('stop_typing', 'CHAT_ID')
+}, 3000)
+
+socket.on('user_typing', (data) => {
+  console.log('Typing:', data)
+})
+
+socket.on('user_stop_typing', (data) => {
+  console.log('Stopped typing:', data)
+})
+
+
+✔ You’ll see typing events in console
+✔ Same logic frontend will use
+
+🎉 WHAT YOU HAVE NOW
+
+✔ Online / offline status
+✔ Last seen like WhatsApp
+✔ Typing indicator
+✔ Real-time updates
+
+This is core real-time presence system.
+=======================================================================================================
+
+Test 5 -
+1️⃣ Send message (Socket)
+
+✔ Status created automatically
+
+2️⃣ Check DB
+SELECT * FROM "MessageStatuses";
+
+
+You’ll see:
+
+sent
+delivered
+read
+
+3️⃣ Simulate delivery
+socket.emit('message_delivered', {
+  messageId: 'MESSAGE_ID'
+})
+
+4️⃣ Simulate read
+socket.emit('message_read', {
+  chatId: 'CHAT_ID'
+})
+=======================================================================================================
+
+Test 6 -
+1️⃣ CREATE GROUP
+POST /api/chat/group
+
+Headers
+Authorization: Bearer TOKEN
+
+Body
+{
+  "name": "Backend Developers",
+  "members": ["USER_ID_1", "USER_ID_2"]
+}
+
+
+✔ Creator becomes admin
+✔ Others are members
+
+2️⃣ ADD MEMBER
+POST /api/chat/group/add
+
+{
+  "chatId": "GROUP_CHAT_ID",
+  "userId": "NEW_USER_ID"
+}
+
+
+✔ Only admin allowed
+
+3️⃣ REMOVE MEMBER
+POST /api/chat/group/remove
+
+{
+  "chatId": "GROUP_CHAT_ID",
+  "userId": "USER_ID_TO_REMOVE"
+}
+
+🔍 VERIFY DATABASE
+SELECT * FROM "Chats" WHERE type='group';
+SELECT * FROM "ChatMembers";
+
+=======================================================================================================
+
+Test 7 -
+1️⃣ UPLOAD FILE
+➤ Endpoint
+POST http://localhost:5000/api/media/upload
+
+➤ Headers
+Authorization: Bearer YOUR_JWT_TOKEN
+
+➤ Body
+
+Select form-data
+
+Key: file
+
+Type: File
+
+Choose image/video/audio/pdf
+
+✅ Response
+{
+  "fileUrl": "http://localhost:5000/uploads/abc123.jpg",
+  "fileType": "image/jpeg"
+}
+
+
+📌 Copy fileUrl
+
+2️⃣ SEND MEDIA MESSAGE
+POST http://localhost:5000/api/message
+
+{
+  "chatId": "CHAT_ID",
+  "type": "image",
+  "fileUrl": "http://localhost:5000/uploads/abc123.jpg"
+}
+
+
+✔ Media message saved
+✔ Works with socket too
+
+🧪 SOCKET MEDIA MESSAGE
+socket.emit('send_message', {
+  chatId: 'CHAT_ID',
+  type: 'video',
+  fileUrl: 'http://localhost:5000/uploads/video.mp4'
+})
+
+=======================================================================================================
+
+Test 8 -
