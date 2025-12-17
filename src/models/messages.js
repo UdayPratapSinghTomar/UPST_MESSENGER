@@ -37,12 +37,12 @@ module.exports = (sequelize, DataTypes) => {
         },
         replied_to_message_id: {
             type: DataTypes.UUID,
-            allowNull: false,
+            allowNull: true,
             references: {
                 model: 'messages',
                 key: 'id'
             },
-            onDelete: 'CASCADE',
+            onDelete: 'SET NULL',
             onUpdate: 'CASCADE'
         },
         is_deleted: {

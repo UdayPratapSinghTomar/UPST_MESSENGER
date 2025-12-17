@@ -8,6 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 const db = require('./models')
+console.log("db------",db);
 
 async function syncDatabase() {
   try {
@@ -29,13 +30,15 @@ async function syncDatabase() {
 
 syncDatabase()
 
-const userRoutes = require("./routes/userRoutes");
+const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 const mediaRoutes = require("./routes/mediaRoutes");
 const notificationRoutes = require('./routes/notificationRoutes');
 
-app.use("/user", userRoutes);
+app.use("/auth", authRoutes);
 app.use("/chat", chatRoutes);
+app.use("/message", messageRoutes);
 app.use("/media", mediaRoutes);
 app.use("/notification", notificationRoutes);
 

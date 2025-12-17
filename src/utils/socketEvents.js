@@ -4,6 +4,7 @@ module.exports = {
 
   JOIN_CHAT: "join_Chat",
   LEAVE_CHAT: "leave_Chat",
+  JOINED_CHAT: "joined_chat",
 
   TYPING: "typing",
   STOP_TYPING: "stop_typing",

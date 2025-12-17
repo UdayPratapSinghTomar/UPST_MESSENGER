@@ -1,27 +1,29 @@
 const express = require("express");
 const { Chat, ChatMember, Message, User } = require("../../models");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
-const db = require("../../models/index");
+const db = require("../../models");
 
 exports.createPrivateChat = async (req, res) => {
   try{
       const { user_id } = req.body;
-      if (!user_id || !type) {
-          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "user_id and type are required");
+      if (!user_id) {
+          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User id is required!");
       }
-
-      const chat = await Chat.create({type: "private", created_by: user_id});
-
+      const chat = await Chat.create({type: "private", created_by: req.user.id});
+      console.log('chat-----',chat);
+      
       if (Number(user_id) === Number(req.user.id)) {
           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "You cannot create a private chat with yourself");
       }
-      await ChatMember.bulkCreate([
+      const chatm = await ChatMember.bulkCreate([
           { chat_id: chat.id, user_id: req.user.id},
           { chat_id: chat.id, user_id}
       ]);
-
+      
+      console.log('chatm-----',chatm);
       return sendResponse(res, HttpsStatus.CREATED, true, "Private chat created successfully!", chat, null )
   }catch(err){
+    console.log("error:",err);
       return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
   }
 }
@@ -56,38 +58,6 @@ exports.createGroup = async (req, res) => {
   }
 }
 
-exports.sendMessage = async (req, res) => {
-  try{
-    const {
-        chat_id,
-        content,
-        message_type,
-        file_url,
-        replied_to_message_id
-    } = req.body;
-
-    const isMember = await ChatMember.findOne({
-        where: { chat_id, user_id: req.user.id}
-    });
-
-    if(!isMember){
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Not a chat member")
-    }
-
-    const message = await Message.create({
-        chat_id,
-        sender_id: req.user.id,
-        message_type,
-        content,
-        file_url,
-        replied_to_message_id
-    });
-
-    return sendResponse(res, HttpsStatus.CREATED, true, "Message created successfully!", message, null )
-  }catch(err){
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
-  }
-}
 
 exports.addGroupMember = async (req, res) => {
   try {
@@ -141,34 +111,6 @@ exports.removeGroupMember = async (req, res) => {
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
   }
 }
-
-exports.getMessages = async (req, res) => {
-  try {
-    const { chat_id } = req.params;
-
-    const isMember = await ChatMember.findOne({
-      where: { chat_id, user_id: req.user.id }
-    });
-
-    if (!isMember) {
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized!");
-    }
-
-    const messages = await Message.findAll({
-      where: { chat_id },
-      include: [
-        { model: User, as: 'sender', attributes: ['id', 'full_name'] },
-        { model: MessageStatus } // alias must match association
-      ],
-      order: [[db.sequelize.col('MessageStatus.created_at'), 'ASC']]
-    });
-
-    return sendResponse(res, HttpsStatus.OK, true, "Message retrieved successfully!", messages);
-  } catch (err) {
-    console.error("Sequelize Error:", err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
-  }
-};
 
 // exports.createchat = async (req, res) => {
 //     try {

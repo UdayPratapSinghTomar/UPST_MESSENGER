@@ -231,9 +231,9 @@ module.exports = (io) => {
 
       if (!token) return next(new Error("Token missing"));
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       socket.user = decoded;
-
+      console.log("*************** user id ******************",decoded.id)
       await User.update(
         { is_online: true },
         { where: { id: decoded.id } }
@@ -279,7 +279,7 @@ module.exports = (io) => {
 
         socket.join(`chat_${chat_id}`);
 
-        socket.emit("joined_chat", { chat_id });
+        socket.emit(EVENTS.JOINED_CHAT, { chat_id });
         console.log(
           `User ${socket.user.id} joined chat_${chat_id}`
         );
@@ -292,14 +292,14 @@ module.exports = (io) => {
 
     // ✍️ TYPING
     socket.on(EVENTS.TYPING, (chat_id) => {
-      socket.to(`chat_${chat_id}`).emit(EVENTS.TYPING, {
+      socket.to(`chat_${chat_id}`).emit("user_typing", {
         user_id: socket.user.id,
         chat_id,
       });
     });
 
     socket.on(EVENTS.STOP_TYPING, (chat_id) => {
-      socket.to(`chat_${chat_id}`).emit(EVENTS.STOP_TYPING, {
+      socket.to(`chat_${chat_id}`).emit("user_stop_typing", {
         user_id: socket.user.id,
         chat_id,
       });
@@ -315,7 +315,6 @@ module.exports = (io) => {
           file_url = null,
           replied_to_message_id = null,
         } = data;
-
         if (!chat_id) {
           return socket.emit(EVENTS.ERROR, {
             message: "chat_id is required",
@@ -325,7 +324,6 @@ module.exports = (io) => {
         const members = await ChatMember.findAll({
           where: { chat_id },
         });
-
         if (!members || members.length === 0) {
           return socket.emit(EVENTS.ERROR, {
             message: "You are not a member of this chat",
@@ -340,15 +338,17 @@ module.exports = (io) => {
           file_url,
           replied_to_message_id,
         });
-
+        console.log("************* Message =====================",message)
         // 📌 CREATE MESSAGE STATUS
         const statusData = members.map((m) => ({
           message_id: message.id,
           user_id: m.user_id,
+          chat_id: m.chat_id,
           status:
-            m.user_id === socket.user.id ? "read" : "sent",
+            m.user_id === socket.user.id ? "sent" : "read",
         }));
-
+        console.log("************* statusData =====================",statusData)
+        
         await MessageStatus.bulkCreate(statusData);
 
         // 🔔 PUSH NOTIFICATION (PHASE 9)
@@ -404,6 +404,7 @@ module.exports = (io) => {
         {
           where: {
             user_id: socket.user.id,
+            chat_id,
             status: { [Op.ne]: "read" },
           },
         }

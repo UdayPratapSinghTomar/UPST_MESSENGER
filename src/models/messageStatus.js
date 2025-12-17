@@ -25,6 +25,16 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
+        chat_id: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: 'chats',
+                key: 'id'
+            },
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        },
         status: {
             type: DataTypes.STRING
         }
