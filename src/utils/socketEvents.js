@@ -1,10 +1,15 @@
 module.exports = {
+  CONNECTION: "connection",
+  
   CONNECTED: "connected",
   DISCONNECTED: "disconnect",
+
+  USER_CONNECTED: "user_connected",
 
   JOIN_CHAT: "join_Chat",
   LEAVE_CHAT: "leave_Chat",
   JOINED_CHAT: "joined_chat",
+  LEFT_CHAT: "left_chat",
 
   TYPING: "typing",
   STOP_TYPING: "stop_typing",

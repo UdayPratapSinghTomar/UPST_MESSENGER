@@ -10,9 +10,8 @@ exports.createPrivateChat = async (req, res) => {
           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User id is required!");
       }
       const chat = await Chat.create({type: "private", created_by: req.user.id});
-      console.log('chat-----',chat);
       
-      if (Number(user_id) === Number(req.user.id)) {
+      if (user_id == req.user.id) {
           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "You cannot create a private chat with yourself");
       }
       const chatm = await ChatMember.bulkCreate([
@@ -20,7 +19,6 @@ exports.createPrivateChat = async (req, res) => {
           { chat_id: chat.id, user_id}
       ]);
       
-      console.log('chatm-----',chatm);
       return sendResponse(res, HttpsStatus.CREATED, true, "Private chat created successfully!", chat, null )
   }catch(err){
     console.log("error:",err);
