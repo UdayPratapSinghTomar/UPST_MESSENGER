@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const Contact = sequelize.define("Contact", {
+    const Contact = sequelize.define('Contact', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -29,13 +29,13 @@ module.exports = (sequelize, DataTypes) => {
         // is_blocked
         // is_favorite
     },{
-        tableName: "contacts",
+        tableName: 'contacts',
         timestamps: true,
         underscored: true,
         indexes: [
             {
                 unique: true,
-                fields: ["user_id", "contact_user_id"],
+                fields: ['user_id', 'contact_user_id'],
             },
         ],
     }

@@ -1,8 +1,8 @@
-const jwt = require("jsonwebtoken");
-const { Op } = require("sequelize");
-const admin = require("../config/firebase");
-const { User, ChatMember, Message, MessageStatus } = require("../models");
-const EVENTS = require("../utils/socketEvents");
+const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
+const admin = require('../config/firebase');
+const { User, ChatMember, Message, MessageStatus } = require('../models');
+const EVENTS = require('../utils/socketEvents');
 const { addUser, removeUserBySocket } = require('../utils/onlineUsersRedis');
 
 module.exports = (io) => {
@@ -14,20 +14,20 @@ module.exports = (io) => {
         socket.handshake.auth?.token ||
         socket.handshake.query?.token;
 
-      if (!token) return next(new Error("Token missing"));
+      if (!token) return next(new Error('Token missing'));
 
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       socket.user = decoded;
       next();
     } catch (err) {
-      console.error("Socket auth error:", err.message);
-      next(new Error("Authentication failed"));
+      console.error('Socket auth error:', err.message);
+      next(new Error('Authentication failed'));
     }
   });
 
   // 🔌 SOCKET CONNECTION
   io.on(EVENTS.CONNECTION, async (socket) => {
-    console.log("User connected:", socket.user.id);
+    console.log('User connected:', socket.user.id);
     await User.update(
       { is_online: true },
       { where: { id: socket.user.id } }
@@ -41,14 +41,14 @@ module.exports = (io) => {
     // Personal room (for notifications later)
     socket.join(`user_${socket.user.id}`);
 
-    socket.emit(EVENTS.CONNECTED, { message: "Socket connected" });
+    socket.emit(EVENTS.CONNECTED, { message: 'Socket connected' });
 
     // 🧩 JOIN CHAT ROOM
     socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
       try {
         if (!chat_id) {
           return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "chat_id is required",
+            message: 'chat_id is required',
           });
         }
 
@@ -61,7 +61,7 @@ module.exports = (io) => {
 
         if (!isMember) {
           return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "You are not a member of this chat",
+            message: 'You are not a member of this chat',
           });
         }
 
@@ -73,21 +73,21 @@ module.exports = (io) => {
         );
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, {
-          message: "Failed to join chat",
+          message: 'Failed to join chat',
         });
       }
     });
 
     // ✍️ TYPING
     socket.on(EVENTS.TYPING, (chat_id) => {
-      socket.to(`chat_${chat_id}`).emit("user_typing", {
+      socket.to(`chat_${chat_id}`).emit('user_typing', {
         user_id: socket.user.id,
         chat_id,
       });
     });
 
     socket.on(EVENTS.STOP_TYPING, (chat_id) => {
-      socket.to(`chat_${chat_id}`).emit("user_stop_typing", {
+      socket.to(`chat_${chat_id}`).emit('user_stop_typing', {
         user_id: socket.user.id,
         chat_id,
       });
@@ -99,15 +99,15 @@ module.exports = (io) => {
         const {
           chat_id,
           content,
-          message_type = "text",
+          message_type = 'text',
           file_url = null,
           replied_to_message_id = null,
         } = data;
 
-        console.log("data ********* ",data);
+        // console.log('data ********* ',data);
         if (!chat_id) {
           return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "chat_id is required",
+            message: 'chat_id is required',
           });
         }
 
@@ -116,7 +116,7 @@ module.exports = (io) => {
         });
         if (!members || members.length === 0) {
           return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "You are not a member of this chat",
+            message: 'You are not a member of this chat',
           });
         }
 
@@ -128,16 +128,16 @@ module.exports = (io) => {
           file_url,
           replied_to_message_id,
         });
-        console.log("************* Message =====================",message)
+        // console.log('************* Message =====================',message)
         // 📌 CREATE MESSAGE STATUS
         const statusData = members.map((m) => ({
           message_id: message.id,
           user_id: m.user_id,
           chat_id: m.chat_id,
           status:
-            m.user_id === socket.user.id ? "sent" : "read",
+            m.user_id === socket.user.id ? 'sent' : 'read',
         }));
-        // console.log("************* statusData =====================",statusData)
+        // console.log('************* statusData =====================',statusData)
         
         await MessageStatus.bulkCreate(statusData);
 
@@ -149,8 +149,8 @@ module.exports = (io) => {
               await admin.messaging().send({
                 token: user.fcmToken,
                 notification: {
-                  title: "New Message",
-                  body: content || "Media message",
+                  title: 'New Message',
+                  body: content || 'Media message',
                 },
                 data: {
                   chat_id: String(chat_id),
@@ -168,7 +168,7 @@ module.exports = (io) => {
       } catch (err) {
         console.error(err);
         socket.emit(EVENTS.SOCKET_ERROR, {
-          message: err.message || "Message send failed",
+          message: err.message || 'Message send failed',
         });
       }
     });
@@ -176,12 +176,12 @@ module.exports = (io) => {
     // ✅ MESSAGE DELIVERED
     socket.on(EVENTS.MESSAGE_DELIVERED, async ({ message_id }) => {
       await MessageStatus.update(
-        { status: "delivered" },
+        { status: 'delivered' },
         {
           where: {
             message_id,
             user_id: socket.user.id,
-            status: "sent",
+            status: 'sent',
           },
         }
       );
@@ -190,12 +190,12 @@ module.exports = (io) => {
     // 👁️ MESSAGE READ
     socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
       await MessageStatus.update(
-        { status: "read" },
+        { status: 'read' },
         {
           where: {
             user_id: socket.user.id,
             chat_id,
-            status: { [Op.ne]: "read" },
+            status: { [Op.ne]: 'read' },
           },
         }
       );
@@ -227,7 +227,7 @@ module.exports = (io) => {
       );
 
       await removeUserBySocket(socket.id)
-      console.log("User disconnected:", socket.user.id);
+      console.log('User disconnected:', socket.user.id);
     });
   });
 };

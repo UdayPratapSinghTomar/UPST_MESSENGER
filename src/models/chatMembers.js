@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const ChatMember = sequelize.define("ChatMember", {
+    const ChatMember = sequelize.define('ChatMember', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         role: {
             type: DataTypes.ENUM('admin', 'member'),
-            defaultValue: "member"
+            defaultValue: 'member'
         },
         joined_at: {
             type: DataTypes.DATE,
@@ -42,13 +42,13 @@ module.exports = (sequelize, DataTypes) => {
         // left_at
         // last_read_message_id
     },{
-        tableName: "chat_members",
+        tableName: 'chat_members',
         timestamps: true,
         underscored: true,
         indexes: [
             {
                 unique: true,
-                fields: ["chat_id", "user_id"],
+                fields: ['chat_id', 'user_id'],
             },
         ],
     }

@@ -1,12 +1,12 @@
 module.exports = (sequelize, DataTypes) => {
-  const Chat = sequelize.define("Chat", {
+  const Chat = sequelize.define('Chat', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     type: {
-      type: DataTypes.ENUM("private", "group", "channel"),
+      type: DataTypes.ENUM('private', 'group', 'channel'),
       allowNull: false,
     },
     group_name: {
@@ -35,7 +35,7 @@ module.exports = (sequelize, DataTypes) => {
     // is_muted_global
   },
   {
-    tableName: "chats",
+    tableName: 'chats',
     timestamps: true,
     underscored: true,
   }

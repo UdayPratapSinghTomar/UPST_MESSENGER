@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const Task = sequelize.define("Task", {
+  const Task = sequelize.define('Task', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -43,7 +43,7 @@ module.exports = (sequelize, DataTypes) => {
     // related_chat_id
   },
   {
-    tableName: "tasks",
+    tableName: 'tasks',
     timestamps: true,
     underscored: true,
   }

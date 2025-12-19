@@ -6,7 +6,7 @@ exports.getActiveUsers = async (req, res) => {
     try{
         const currentUserId = req.user.id;
         const onlineUserIds = await getOnlineUsers();
-        console.log("onlineUserIds***********",onlineUserIds)
+        // console.log('onlineUserIds***********',onlineUserIds)
 
         const users = await User.findAll({
             where: {
@@ -18,6 +18,6 @@ exports.getActiveUsers = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Online users!', users);
     }catch(err){
         console.log(err);
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
     }
 }

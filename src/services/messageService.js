@@ -1,10 +1,10 @@
-const { Message, ChatMember } = require("../models");
+const { Message, ChatMember } = require('../models');
 
 const sendMessage = async ({
     Chat_id,
     sender_id,
     content,
-    message_type = "text",
+    message_type = 'text',
 }) => {
     // check user is memeber of Chat
     const isMember = await ChatMember.findOne({
@@ -12,7 +12,7 @@ const sendMessage = async ({
     });
 
     if(!isMember){
-        throw new Error("You are not a memeber of this Chat");
+        throw new Error('You are not a memeber of this Chat');
     }
 
     // save message

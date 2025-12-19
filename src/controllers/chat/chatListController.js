@@ -5,7 +5,7 @@ const { sendResponse, HttpsStatus } = require('../../utils/response')
 exports.getChatList = async (req, res) => {
   try {
     const user_id = req.user.id
-    console.log("---- userid *****",user_id)
+    // console.log('---- userid *****',user_id)
     // 1. Get chat_ids only
     const chatMembers = await ChatMember.findAll({
       where: { user_id },
@@ -14,13 +14,13 @@ exports.getChatList = async (req, res) => {
     
     const chat_ids = chatMembers.map(c => c.chat_id)
     
-    console.log("chat_ids -----------------======================", chat_ids);
+    // console.log('chat_ids -----------------======================', chat_ids);
     // 2. Fetch chats
     const chats = await Chat.findAll({
       where : { id: { [Op.in]: chat_ids } }
     })
 
-    console.log("chats -----------------======================", chats);
+    // console.log('chats -----------------======================', chats);
     const chatList = []
 
     for (const chat of chats) {
@@ -81,11 +81,11 @@ exports.getChatList = async (req, res) => {
       return new Date(t2) - new Date(t1)
     })
 
-    console.log("chat list    ============##################### ",chatList);
+    // console.log('chat list    ============##################### ',chatList);
 
-    return sendResponse(res, HttpsStatus.OK, true, "chat list retrieved!", chatList);
+    return sendResponse(res, HttpsStatus.OK, true, 'chat list retrieved!', chatList);
   } catch (err) {
     console.error(err)
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
   }
 }

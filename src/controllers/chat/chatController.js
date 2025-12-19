@@ -1,28 +1,28 @@
-const express = require("express");
-const { Chat, ChatMember, Message, User } = require("../../models");
-const { sendResponse, HttpsStatus } = require("../../utils/response");
-const db = require("../../models");
+const express = require('express');
+const { Chat, ChatMember, Message, User } = require('../../models');
+const { sendResponse, HttpsStatus } = require('../../utils/response');
+const db = require('../../models');
 
 exports.createPrivateChat = async (req, res) => {
   try{
       const { user_id } = req.body;
       if (!user_id) {
-          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User id is required!");
+          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
       }
-      const chat = await Chat.create({type: "private", created_by: req.user.id});
+      const chat = await Chat.create({type: 'private', created_by: req.user.id});
       
       if (user_id == req.user.id) {
-          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "You cannot create a private chat with yourself");
+          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'You cannot create a private chat with yourself');
       }
       const chatm = await ChatMember.bulkCreate([
           { chat_id: chat.id, user_id: req.user.id},
           { chat_id: chat.id, user_id}
       ]);
       
-      return sendResponse(res, HttpsStatus.CREATED, true, "Private chat created successfully!", chat, null )
+      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
   }catch(err){
-    console.log("error:",err);
-      return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    // console.log('error:',err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
 
@@ -31,7 +31,7 @@ exports.createGroup = async (req, res) => {
     const { group_name, members } = req.body;
     
     const chat = await Chat.create({
-      type: "group",
+      type: 'group',
       group_name
     });
 
@@ -49,10 +49,10 @@ exports.createGroup = async (req, res) => {
 
     await ChatMember.bulkCreate(groupMembers);
 
-    return sendResponse(res, HttpsStatus.CREATED, true, "Group chat created successfully!", chat, null )
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!', chat, null )
   }catch(err){
-    console.error("Sequelize Error:", err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    console.error('Sequelize Error:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
 
@@ -77,10 +77,10 @@ exports.addGroupMember = async (req, res) => {
       user_id,
       role: 'member'
     })
-    return sendResponse(res, HttpsStatus.CREATED, true, "User added!", userCreate);
+    return sendResponse(res, HttpsStatus.CREATED, true, 'User added!', userCreate);
   } catch (err) {
-    console.error("Sequelize Error:", err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    console.error('Sequelize Error:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
 
@@ -103,10 +103,10 @@ exports.removeGroupMember = async (req, res) => {
       where: { chat_id, user_id }
     })
 
-    return sendResponse(res, HttpsStatus.OK, true, "User removed!", removedUser);
+    return sendResponse(res, HttpsStatus.OK, true, 'User removed!', removedUser);
   } catch (err) {
-    console.error("Sequelize Error:", err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    console.error('Sequelize Error:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
 
@@ -116,39 +116,39 @@ exports.removeGroupMember = async (req, res) => {
 //         const creatorId = req.user.id;
 
 //         // ---------- VALIDATION ----------
-//         if (!type || !["private", "group"].includes(type)) {
-//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "chat type must be private or group");
+//         if (!type || !['private', 'group'].includes(type)) {
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'chat type must be private or group');
 //         }
 
 //         if (!Array.isArray(member_ids) || member_ids.length === 0) {
-//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "member_ids must be a non-empty array");
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'member_ids must be a non-empty array');
 //         }
 
-//         if (type === "group" && !name) {
-//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Group name is required");
+//         if (type === 'group' && !name) {
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Group name is required');
 //         }
         
 //         // ---------- PRIVATE chat CHECK ----------
-//         if (type === "private") {
+//         if (type === 'private') {
 //             const existingchat = await chat.findOne({
-//                 where: { type: "private" },
+//                 where: { type: 'private' },
 //                 include: [{
 //                     model: User,
-//                     as: "members",
+//                     as: 'members',
 //                     where: { id: [creatorId, member_ids[0]] },
 //                     through: { attributes: [] }
 //                 }]
 //             });
 
 //             if (existingchat) {
-//                 return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Private chat already exists",null, { chat: existingchat});
+//                 return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Private chat already exists',null, { chat: existingchat});
 //             }
 //         }
 
 //         // ---------- CREATE chat ----------
 //         const chat = await chat.create({
 //             type,
-//             name: type === "group" ? name : null,
+//             name: type === 'group' ? name : null,
 //             created_by: creatorId
 //         });
 
@@ -156,7 +156,7 @@ exports.removeGroupMember = async (req, res) => {
 //         await chatMember.create({
 //             chat_id: chat.id,
 //             user_id: creatorId,
-//             role: type === "group" ? "admin" : "member"
+//             role: type === 'group' ? 'admin' : 'member'
 //         });
 
 //         // ---------- ADD MEMBERS ----------
@@ -165,16 +165,16 @@ exports.removeGroupMember = async (req, res) => {
 //                 await chatMember.create({
 //                     chat_id: chat.id,
 //                     user_id: user_id,
-//                     role: "member"
+//                     role: 'member'
 //                 });
 //             }
 //         }
 
-//         return sendResponse(res, HttpsStatus.CREATED, true, "chat created successfully");
+//         return sendResponse(res, HttpsStatus.CREATED, true, 'chat created successfully');
 
 //     } catch (err) {
-//         console.error("Create chat error:", err);
-//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+//         console.error('Create chat error:', err);
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
 //     }
 // }
 
@@ -185,17 +185,17 @@ exports.removeGroupMember = async (req, res) => {
 //         const chats = await chat.findAll({
 //             include: [{
 //                 model: User,
-//                 as: "members",
+//                 as: 'members',
 //                 where: { id: user_id },
 //                 through: { attributes: [] }
 //             }],
-//             order: [["updated_at", "DESC"]]
+//             order: [['updated_at', 'DESC']]
 //         });
 
-//         return sendResponse(res, HttpsStatus.OK, true, "chat retrieved successfully!", chats, null)
+//         return sendResponse(res, HttpsStatus.OK, true, 'chat retrieved successfully!', chats, null)
 
 //     } catch (err) {
-//         console.error("Get chats error:",err);
-//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+//         console.error('Get chats error:',err);
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
 //     }
 // }

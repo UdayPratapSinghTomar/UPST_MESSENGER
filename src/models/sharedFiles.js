@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const SharedFile = sequelize.define("SharedFile", {
+  const SharedFile = sequelize.define('SharedFile', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -53,7 +53,7 @@ module.exports = (sequelize, DataTypes) => {
     // thumbnail_url
   },
   {
-    tableName: "shared_files",
+    tableName: 'shared_files',
     timestamps: true,
     underscored: true,
   }

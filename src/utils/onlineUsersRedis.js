@@ -1,5 +1,5 @@
 const ONLINE_USERS_SET = 'online_users_set';
-const redisClient = require("../config/redis");
+const redisClient = require('../config/redis');
 
 module.exports = {
     addUser: async (user_id, socket_id) => {
@@ -13,7 +13,7 @@ module.exports = {
         for(const key of keys){
             const storedSocket = await redisClient.get(key);
             if(storedSocket === socket_id){
-                const user_id = key.split(":")[1]
+                const user_id = key.split(':')[1]
                 await redisClient.del(key)
                 await redisClient.sRem(ONLINE_USERS_SET, user_id)
                 await redisClient.set(`user_last_seen:${user_id}`, Date.now())

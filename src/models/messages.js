@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const Message = sequelize.define("Message", {
+    const Message = sequelize.define('Message', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -61,7 +61,7 @@ module.exports = (sequelize, DataTypes) => {
         // system_event_type
         // deleted_for_all_at
     },{
-        tableName: "messages",
+        tableName: 'messages',
         timestamps: true,
         underscored: true,
     }

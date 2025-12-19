@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const Organization = sequelize.define("Organization", {
+  const Organization = sequelize.define('Organization', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
     // billing_email
   },
   {
-    tableName: "organizations",
+    tableName: 'organizations',
     timestamps: true,
     underscored: true,
   }

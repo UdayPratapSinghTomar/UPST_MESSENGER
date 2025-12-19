@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const MessageMention = sequelize.define("MessageMention", {
+    const MessageMention = sequelize.define('MessageMention', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         }
     },
     {
-        tableName: "message_mentions",
+        tableName: 'message_mentions',
         timestamps: true,
         underscored: true
     }

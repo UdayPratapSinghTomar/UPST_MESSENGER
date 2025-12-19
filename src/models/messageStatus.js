@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const MessageStatus = sequelize.define("MessageStatus", {
+    const MessageStatus = sequelize.define('MessageStatus', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -43,13 +43,13 @@ module.exports = (sequelize, DataTypes) => {
         // read_at
     },
     {
-        tableName: "message_status",
+        tableName: 'message_status',
         timestamps: true,
         underscored: true,
         indexes: [
             {
                 unique: true,
-                fields: ["message_id", "user_id"],
+                fields: ['message_id', 'user_id'],
             },
         ]
     }

@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Chat App</title>
 </head>
 <body>
     <h1>Chatting application</h1>
-    <input type="text" id="message" placeholder="enter message....">
-    <button id="sendBtn" onclick="message()">Send</button>
-    <script src="/socket.io/socket.io.js"></script>
+    <input type='text' id='message' placeholder='enter message....'>
+    <button id='sendBtn' onclick='message()'>Send</button>
+    <script src='/socket.io/socket.io.js'></script>
     <script>
         const socket = io();
-        const messageInput = document.getElementById("message");
+        const messageInput = document.getElementById('message');
 
-        socket.on("message--", (message) => console.log(message));
+        socket.on('message--', (message) => console.log(message));
         function message(){
             const message = messageInput.value;
             socket.emit(message);
         }
-        console.log("connected id:", socket.id);
+        console.log('connected id:', socket.id);
     </script>
 </body>
 </html>

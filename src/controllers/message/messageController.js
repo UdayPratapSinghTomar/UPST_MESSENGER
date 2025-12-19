@@ -1,6 +1,6 @@
-const { User, Message, MessageStatus, ChatMember } = require("../../models");
-const { sendResponse, HttpsStatus } = require("../../utils/response")
-const db = require("../../models");
+const { User, Message, MessageStatus, ChatMember } = require('../../models');
+const { sendResponse, HttpsStatus } = require('../../utils/response')
+const db = require('../../models');
 
 exports.sendMessage = async (req, res) => {
   try{
@@ -17,7 +17,7 @@ exports.sendMessage = async (req, res) => {
     });
 
     if(!isMember){
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Not a chat member")
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Not a chat member')
     }
 
     const message = await Message.create({
@@ -29,10 +29,10 @@ exports.sendMessage = async (req, res) => {
         replied_to_message_id: replied_to_message_id || null
     });
 
-    return sendResponse(res, HttpsStatus.CREATED, true, "Message created successfully!", message, null )
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Message created successfully!', message, null )
   }catch(err){
     // console.log(err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
 
@@ -45,7 +45,7 @@ exports.getMessages = async (req, res) => {
     });
 
     if (!isMember) {
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized!");
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not authorized!');
     }
 
     const messages = await Message.findAll({
@@ -59,9 +59,9 @@ exports.getMessages = async (req, res) => {
       ]
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, "Message retrieved successfully!", messages);
+    return sendResponse(res, HttpsStatus.OK, true, 'Message retrieved successfully!', messages);
   } catch (err) {
-    console.error("Sequelize Error from get message *****************:", err);
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+    console.error('Sequelize Error from get message *****************:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 };

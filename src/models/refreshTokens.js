@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const RefreshToken = sequelize.define("RefreshToken", {
+  const RefreshToken = sequelize.define('RefreshToken', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
     // revoked_at
   },
   {
-    tableName: "refresh_tokens",
+    tableName: 'refresh_tokens',
     timestamps: true,
     underscored: true,
   }

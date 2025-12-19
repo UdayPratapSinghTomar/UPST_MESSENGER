@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const SavedMessage = sequelize.define("SavedMessage", {
+  const SavedMessage = sequelize.define('SavedMessage', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -31,13 +31,13 @@ module.exports = (sequelize, DataTypes) => {
     },
   },
   {
-    tableName: "saved_messages",
+    tableName: 'saved_messages',
     timestamps: true,
     underscored: true,
     indexes: [
       {
         unique: true,
-        fields: ["user_id", "message_id"],
+        fields: ['user_id', 'message_id'],
       },
     ],
   }

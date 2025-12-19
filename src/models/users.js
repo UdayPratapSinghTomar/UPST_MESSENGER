@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const User = sequelize.define("User", {
+  const User = sequelize.define('User', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -23,9 +23,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false 
     },
     // login_type: {
-    //   type: DataTypes.ENUM("email", "phone", "oauth"),
+    //   type: DataTypes.ENUM('email', 'phone', 'oauth'),
     //   allowNull: false,
-    //   defaultValue: "email",
+    //   defaultValue: 'email',
     // },
     // is_email_verified: {
     //   type: DataTypes.BOOLEAN,
@@ -72,12 +72,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE
     },
     status: {
-      type: DataTypes.ENUM("active", "blocked", "suspended"),
-      defaultValue: "active",
+      type: DataTypes.ENUM('active', 'blocked', 'suspended'),
+      defaultValue: 'active',
     },
     subscription: {
       type: DataTypes.STRING,
-      defaultValue: "free",
+      defaultValue: 'free',
     },
     is_deleted: {
       type: DataTypes.BOOLEAN,
@@ -132,7 +132,7 @@ module.exports = (sequelize, DataTypes) => {
     // last_active_ip
   },
   {
-    tableName: "users",
+    tableName: 'users',
     timestamps: true,
     underscored: true,
   }
