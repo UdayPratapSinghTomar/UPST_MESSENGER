@@ -35,7 +35,7 @@ module.exports = (sequelize, DataTypes) => {
     //   type: DataTypes.BOOLEAN,
     //   defaultValue: false,
     // },
-    profile_image: { 
+    profile_url: { 
       type: DataTypes.TEXT
     },
     bio: {

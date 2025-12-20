@@ -31,10 +31,12 @@ const Task = require('./tasks')(sequelize, DataTypes)
  * (Microsoft Teams / Slack style org-based users)
  */
 Organization.hasMany(User, {
-  foreignKey: 'organization_id'
+  foreignKey: 'organization_id',
+  as: 'users'
 })
 User.belongsTo(Organization, {
-  foreignKey: 'organization_id'
+  foreignKey: 'organization_id',
+  as: 'organization'
 })
 
 /**
@@ -42,11 +44,12 @@ User.belongsTo(Organization, {
  * A user can create many chats (groups or private)
  */
 User.hasMany(Chat, {
-  foreignKey: 'created_by'
+  foreignKey: 'created_by',
+  as: 'createdChats'
 })
 Chat.belongsTo(User, {
   foreignKey: 'created_by',
-  as: 'creator'
+  as: 'createdBy'
 })
 
 /**
@@ -57,12 +60,14 @@ Chat.belongsTo(User, {
 User.belongsToMany(Chat, {
   through: ChatMember,
   foreignKey: 'user_id',
-  otherKey: 'chat_id'
+  otherKey: 'chat_id',
+  as: 'memberChats'
 })
 Chat.belongsToMany(User, {
   through: ChatMember,
   foreignKey: 'chat_id',
-  otherKey: 'user_id'
+  otherKey: 'user_id',
+  as: 'members'
 })
 
 /**
@@ -70,17 +75,21 @@ Chat.belongsToMany(User, {
  * Used to store role, mute, join date, etc.
  */
 Chat.hasMany(ChatMember, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'memberships'
 })
 ChatMember.belongsTo(Chat, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'chat'
 })
 
 User.hasMany(ChatMember, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'chatMemberships'
 })
 ChatMember.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'user'
 })
 
 /**
@@ -88,10 +97,12 @@ ChatMember.belongsTo(User, {
  * A chat contains many messages
  */
 Chat.hasMany(Message, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'messages'
 })
 Message.belongsTo(Chat, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'chat'
 })
 
 /**
@@ -99,7 +110,8 @@ Message.belongsTo(Chat, {
  * Every message is sent by one user
  */
 User.hasMany(Message, {
-  foreignKey: 'sender_id'
+  foreignKey: 'sender_id',
+  as: 'sentMessages'
 })
 Message.belongsTo(User, {
   foreignKey: 'sender_id',
@@ -112,17 +124,21 @@ Message.belongsTo(User, {
  * WhatsApp double tick / blue tick logic
  */
 Message.hasMany(MessageStatus, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'statuses'
 })
 MessageStatus.belongsTo(Message, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'message'
 })
 
 User.hasMany(MessageStatus, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'messageStatuses'
 })
 MessageStatus.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'user'
 })
 
 /**
@@ -130,17 +146,21 @@ MessageStatus.belongsTo(User, {
  * Used when user mentions @someone in message
  */
 Message.hasMany(MessageMention, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'mentions'
 })
 MessageMention.belongsTo(Message, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'message'
 })
 
 User.hasMany(MessageMention, {
-  foreignKey: 'mentioned_user_id'
+  foreignKey: 'mentioned_user_id',
+  as: 'mentions'
 })
 MessageMention.belongsTo(User, {
-  foreignKey: 'mentioned_user_id'
+  foreignKey: 'mentioned_user_id',
+  as: 'mentionedUser'
 })
 
 /**
@@ -148,24 +168,30 @@ MessageMention.belongsTo(User, {
  * Images, videos, voice notes, documents
  */
 Message.hasMany(SharedFile, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'files'
 })
 SharedFile.belongsTo(Message, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'message'
 })
 
 User.hasMany(SharedFile, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'uploadedFiles'
 })
 SharedFile.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'uploader'
 })
 
 Chat.hasMany(SharedFile, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'files'
 })
 SharedFile.belongsTo(Chat, {
-  foreignKey: 'chat_id'
+  foreignKey: 'chat_id',
+  as: 'chat'
 })
 
 /**
@@ -173,17 +199,21 @@ SharedFile.belongsTo(Chat, {
  * Starred messages feature (WhatsApp)
  */
 User.hasMany(SavedMessage, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'savedMessages'
 })
 SavedMessage.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'user'
 })
 
 Message.hasMany(SavedMessage, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'savedBy'
 })
 SavedMessage.belongsTo(Message, {
-  foreignKey: 'message_id'
+  foreignKey: 'message_id',
+  as: 'message'
 })
 
 /**
@@ -191,15 +221,17 @@ SavedMessage.belongsTo(Message, {
  * User address book (WhatsApp contacts)
  */
 User.hasMany(Contact, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'contacts'
 })
 Contact.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'owner'
 })
 
 User.hasMany(Contact, {
   foreignKey: 'contact_user_id',
-  as: 'contact_of'
+  as: 'asContact'
 })
 
 /**
@@ -207,22 +239,24 @@ User.hasMany(Contact, {
  * Login & session management
  */
 User.hasMany(RefreshToken, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'refreshTokens'
 })
 RefreshToken.belongsTo(User, {
-  foreignKey: 'user_id'
+  foreignKey: 'user_id',
+  as: 'user'
 })
 
 /**
  * USER → TASKS
- * Teams-like task assignment
  */
 User.hasMany(Task, {
-  foreignKey: 'created_by'
+  foreignKey: 'created_by',
+  as: 'createdTasks'
 })
 User.hasMany(Task, {
   foreignKey: 'assigned_to',
-  as: 'assigned_tasks'
+  as: 'assignedTasks'
 })
 
 Task.belongsTo(User, {

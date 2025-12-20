@@ -55,6 +55,7 @@ const activeUsersRoutes = require('./src/routes/activeUsersRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
 const mediaRoutes = require('./src/routes/mediaRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
+const searchRoutes = require('./src/routes/searchRoutes');
 
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
@@ -63,6 +64,7 @@ app.use('/active-users', activeUsersRoutes);
 app.use('/message', messageRoutes);
 app.use('/media', mediaRoutes);
 app.use('/notification', notificationRoutes);
+app.use('/search', searchRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname,  'uploads')));
 

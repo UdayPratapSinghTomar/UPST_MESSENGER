@@ -12,7 +12,7 @@ exports.getActiveUsers = async (req, res) => {
             where: {
                 id: onlineUserIds.filter(id => id !== currentUserId)
             },
-            attributes: ['id', 'full_name', 'profile_image']
+            attributes: ['id', 'full_name', 'profile_url']
         });
 
         return sendResponse(res, HttpsStatus.OK, true, 'Online users!', users);
