@@ -11,6 +11,9 @@ router.post('/group', auth, chatController.createGroup)
 router.post('/group/add-user', auth, chatController.addGroupMember)
 router.post('/group/remove-user', auth, chatController.removeGroupMember)
 
+// open chat
+router.post('/:chat_id', auth, chatController.openChat);
+
 // router.get('/', auth, chatController.gerUserChats);
 
 module.exports = router;

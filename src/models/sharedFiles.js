@@ -35,6 +35,10 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE'
     },
+    file_name: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
     file_url: {
       type: DataTypes.TEXT,
       allowNull: false,

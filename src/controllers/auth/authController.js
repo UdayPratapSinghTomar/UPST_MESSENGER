@@ -149,7 +149,7 @@ exports.login = async (req, res) => {
             expires_at: expiryDateFromNow()
         });
 
-        return sendResponse(res, HttpsStatus.CREATED, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
+        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
 
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });

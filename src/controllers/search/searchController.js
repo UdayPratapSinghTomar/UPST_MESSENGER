@@ -1,4 +1,4 @@
-const { User, Chat, ChatMember, Message } = require('../../models');
+const { User, Chat, ChatMember, Message, SharedFile } = require('../../models');
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 
@@ -112,5 +112,39 @@ exports.searchAll = async (req, res) => {
     }catch(err){
         console.log("search error ------- ", err);
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.messages);
+    }
+}
+
+exports.searchChatMessages = async (req, res) => {
+    try{
+        const { chat_id } = req.params;
+        const { q } = req.query;
+
+        const messages = await Message.findAll({
+            where : {
+                chat_id,
+                [Op.or]:[
+                    {
+                        content: { [Op.iLike]: `%${q}` }
+                    },
+                    {
+                        '$files.file_name$' : { [Op.iLike]: `%${q}` }
+                    }
+                ]
+            },
+            include: [
+                {
+                    model: SharedFile,
+                    as: 'files',
+                    required: false
+                }
+            ],
+            distinct: true
+        });
+
+        return sendResponse(res, HttpsStatus.OK, true, "Chat retrieved successfully!", messages);
+    }catch(err){
+        console.log("error", err);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
     }
 }
