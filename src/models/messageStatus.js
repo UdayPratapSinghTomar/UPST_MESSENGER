@@ -36,11 +36,16 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         status: {
-            type: DataTypes.STRING
+            type: DataTypes.ENUM('sent', 'delivered', 'read'),
+            allowNull: false,
+            defaultValue: 'sent'
+        },
+        delivered_at: {
+            type: DataTypes.DATE,
+        },
+        read_at: {
+            type: DataTypes.DATE,
         }
-        // 🔴 ADD LATER:
-        // delivered_at
-        // read_at
     },
     {
         tableName: 'message_status',
@@ -49,7 +54,7 @@ module.exports = (sequelize, DataTypes) => {
         indexes: [
             {
                 unique: true,
-                fields: ['message_id', 'user_id'],
+                fields: ['message_id', 'user_id', 'chat_id'],
             },
         ]
     }

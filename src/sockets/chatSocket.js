@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
+const { Op, where } = require('sequelize');
 const admin = require('../config/firebase');
 const { User, ChatMember, Message, MessageStatus } = require('../models');
 const EVENTS = require('../utils/socketEvents');
 const { addUser, removeUserBySocket } = require('../utils/onlineUsersRedis');
+const messageStatus = require('../models/messageStatus');
 
 module.exports = (io) => {
 
@@ -68,9 +69,30 @@ module.exports = (io) => {
         socket.join(`chat_${chat_id}`);
 
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
-        console.log(
-          `User ${socket.user.id} joined chat_${chat_id}`
+        console.log(`User ${socket.user.id} joined chat_${chat_id}`);
+
+        // message delivered logic
+        await messageStatus.update(
+          {
+            status: 'delivered',
+            delivered_at: new Date(),
+          },
+          {
+            where: {
+              chat_id,
+              user_id: socket.user.id,
+              status: 'sent',
+            },
+          }
         );
+
+        // notify other users that messages were delivered
+        socket.to(`chat_${chat_id}`).emit(EVENTS.MESSAGE_DELIVERED, {
+          chat_id,
+          user_id: socket.user.id,
+        });
+
+        console.log(`User ${socket.user.id} joined chat_${chat_id}`);
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, {
           message: 'Failed to join chat',
@@ -86,6 +108,7 @@ module.exports = (io) => {
       });
     });
 
+    // Stop typing
     socket.on(EVENTS.STOP_TYPING, (chat_id) => {
       socket.to(`chat_${chat_id}`).emit('user_stop_typing', {
         user_id: socket.user.id,
@@ -134,8 +157,7 @@ module.exports = (io) => {
           message_id: message.id,
           user_id: m.user_id,
           chat_id: m.chat_id,
-          status:
-            m.user_id === socket.user.id ? 'sent' : 'read',
+          status:'sent'
         }));
         // console.log('************* statusData =====================',statusData)
         
@@ -174,27 +196,30 @@ module.exports = (io) => {
     });
 
     // ✅ MESSAGE DELIVERED
-    socket.on(EVENTS.MESSAGE_DELIVERED, async ({ message_id }) => {
-      await MessageStatus.update(
-        { status: 'delivered' },
-        {
-          where: {
-            message_id,
-            user_id: socket.user.id,
-            status: 'sent',
-          },
-        }
-      );
-    });
+    // socket.on(EVENTS.MESSAGE_DELIVERED, async ({ message_id }) => {
+    //   await MessageStatus.update(
+    //     { status: 'delivered' },
+    //     {
+    //       where: {
+    //         message_id,
+    //         user_id: socket.user.id,
+    //         status: 'sent',
+    //       },
+    //     }
+    //   );
+    // });
 
     // 👁️ MESSAGE READ
     socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
       await MessageStatus.update(
-        { status: 'read' },
+        { 
+          status: 'read',
+          read_at: new Date(), 
+        },
         {
           where: {
-            user_id: socket.user.id,
             chat_id,
+            user_id: socket.user.id,
             status: { [Op.ne]: 'read' },
           },
         }
@@ -203,8 +228,8 @@ module.exports = (io) => {
       socket.to(`chat_${chat_id}`).emit(
         EVENTS.MESSAGE_READ_UPDATE,
         {
-          user_id: socket.user.id,
           chat_id,
+          user_id: socket.user.id,
         }
       );
     });

@@ -32,10 +32,20 @@ module.exports = (sequelize, DataTypes) => {
         content: {
             type: DataTypes.TEXT
         },
-        file_url: {
-            type: DataTypes.TEXT
-        },
+        // file_url: {
+        //     type: DataTypes.TEXT
+        // },
         replied_to_message_id: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            references: {
+                model: 'messages',
+                key: 'id'
+            },
+            onDelete: 'SET NULL',
+            onUpdate: 'CASCADE'
+        },
+        forwarded_from_message_id: {
             type: DataTypes.UUID,
             allowNull: true,
             references: {
@@ -56,6 +66,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             defaultValue: 0
         }
+        
         // 🔴 ADD LATER:
         // forwarded_from_message_id
         // system_event_type
