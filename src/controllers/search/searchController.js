@@ -83,7 +83,7 @@ exports.searchAll = async (req, res) => {
             where: {
                 content: { [Op.iLike]: `%${q}` }
             },
-            include: [
+            include: [ 
                 {
                     model: Chat,
                     as: 'chat',
@@ -110,7 +110,7 @@ exports.searchAll = async (req, res) => {
         });
         return sendResponse(res, HttpsStatus.OK, true, 'Data retrieve successfully!', { users, privateChats, groups, messages } );
     }catch(err){
-        console.log("search error ------- ", err);
+        // console.log("search error ------- ", err);
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.messages);
     }
 }
