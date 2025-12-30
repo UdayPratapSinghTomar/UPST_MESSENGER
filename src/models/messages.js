@@ -68,7 +68,6 @@ module.exports = (sequelize, DataTypes) => {
         }
         
         // 🔴 ADD LATER:
-        // forwarded_from_message_id
         // system_event_type
         // deleted_for_all_at
     },{

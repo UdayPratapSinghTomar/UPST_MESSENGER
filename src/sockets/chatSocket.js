@@ -150,9 +150,9 @@ module.exports = (io) => {
           content: message_type === 'text' ? content: null,
           replied_to_message_id,
         });
-
+        const sharedFile = null;
         if (message_type !== 'text' && file) {
-          await SharedFile.create({
+          sharedFile = await SharedFile.create({
             message_id: message.id,
             chat_id,
             user_id: socket.user.id,
@@ -172,7 +172,7 @@ module.exports = (io) => {
           user_id: m.user_id,
           chat_id: m.chat_id,
           status: 'sent'
-          
+
         }));
         // console.log('************* statusData =====================',statusData)
         
@@ -199,9 +199,10 @@ module.exports = (io) => {
 
         // 📢 EMIT MESSAGE
         io.to(`chat_${chat_id}`).emit(
-          EVENTS.NEW_MESSAGE,
-          message
-        );
+          EVENTS.NEW_MESSAGE,{
+            message,
+            file: sharedFile,
+          });
       } catch (err) {
         console.error(err);
         socket.emit(EVENTS.SOCKET_ERROR, {
