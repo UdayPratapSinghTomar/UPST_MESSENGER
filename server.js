@@ -40,8 +40,8 @@ const io = new Server(server, {
         origin: '*',
         methods: ['GET', 'POST']
     },
-    pingInterval: 60000,   // 60 seconds
-    pingTimeout: 60000     // 60 seconds
+    pingInterval: 60000,
+    pingTimeout: 60000
 });
 
 // make io accessible in controllers

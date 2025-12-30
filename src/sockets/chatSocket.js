@@ -123,7 +123,7 @@ module.exports = (io) => {
           chat_id,
           content,
           message_type = 'text',
-          file_url = null,
+          file = null,
           replied_to_message_id = null,
         } = data;
 
@@ -147,17 +147,32 @@ module.exports = (io) => {
           chat_id,
           sender_id: socket.user.id,
           message_type,
-          content,
-          file_url,
+          content: message_type === 'text' ? content: null,
           replied_to_message_id,
         });
+
+        if (message_type !== 'text' && file) {
+          await SharedFile.create({
+            message_id: message.id,
+            chat_id,
+            user_id: socket.user.id,
+            file_name: file.file_name,
+            file_url: file.file_url,
+            file_type: file.file_type,
+            file_size: file.file_size,
+            mime_type: file.mime_type,
+            duration: file.duration || null,
+            thumbnail_url: file.thumbnail_url || null,
+          });
+        }
         // console.log('************* Message =====================',message)
         // 📌 CREATE MESSAGE STATUS
         const statusData = members.map((m) => ({
           message_id: message.id,
           user_id: m.user_id,
           chat_id: m.chat_id,
-          status:'sent'
+          status: 'sent'
+          
         }));
         // console.log('************* statusData =====================',statusData)
         

@@ -50,11 +50,17 @@ module.exports = (sequelize, DataTypes) => {
     file_size: {
       type: DataTypes.STRING,
       allowNull: false
+    },
+    mime_type: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+    },
+    thumbnail_url: {
+      type: DataTypes.TEXT,
     }
-    // 🔴 ADD LATER:
-    // mime_type
-    // duration (audio/video)
-    // thumbnail_url
   },
   {
     tableName: 'shared_files',
