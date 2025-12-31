@@ -150,6 +150,7 @@ module.exports = (io) => {
           content: message_type === 'text' ? content: null,
           replied_to_message_id,
         });
+        
         const sharedFile = null;
         if (message_type !== 'text' && file) {
           sharedFile = await SharedFile.create({
@@ -165,19 +166,44 @@ module.exports = (io) => {
             thumbnail_url: file.thumbnail_url || null,
           });
         }
-        // console.log('************* Message =====================',message)
-        // 📌 CREATE MESSAGE STATUS
-        const statusData = members.map((m) => ({
-          message_id: message.id,
-          user_id: m.user_id,
-          chat_id: m.chat_id,
-          status: 'sent'
-
-        }));
-        // console.log('************* statusData =====================',statusData)
         
-        await MessageStatus.bulkCreate(statusData);
+        await MessageStatus.bulkCreate(
+          members.map((m) => ({
+            message_id: message.id,
+            user_id: m.user_id,
+            chat_id: m.chat_id,
+            status: 'sent',
+          }))
+        );
 
+        if (message_type === 'text' && content) {
+          const matches = content.match(/@(\w+)/g);
+          if (matches) {
+            const usernames = matches.map((u) => u.slice(1));
+            const users = await User.findAll({ where: { username: usernames } });
+
+            for (const user of users) {
+              await MessageMention.create({
+                message_id: message.id,
+                mentioned_user_id: user.id,
+              });
+
+              if (user.fcmToken && user.id !== socket.user.id) {
+                await admin.messaging().send({
+                  token: user.fcmToken,
+                  notification: {
+                    title: 'You were mentioned',
+                    body: content,
+                  },
+                  data: {
+                    chat_id: String(chat_id),
+                    message_id: message.id,
+                  },
+                });
+              }
+            }
+          }
+        }
         // 🔔 PUSH NOTIFICATION (PHASE 9)
         for (const m of members) {
           if (m.user_id !== socket.user.id) {
@@ -198,11 +224,8 @@ module.exports = (io) => {
         }
 
         // 📢 EMIT MESSAGE
-        io.to(`chat_${chat_id}`).emit(
-          EVENTS.NEW_MESSAGE,{
-            message,
-            file: sharedFile,
-          });
+        io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, message);
+        
       } catch (err) {
         console.error(err);
         socket.emit(EVENTS.SOCKET_ERROR, {
