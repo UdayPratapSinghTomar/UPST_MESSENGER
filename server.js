@@ -56,6 +56,8 @@ const messageRoutes = require('./src/routes/messageRoutes');
 const mediaRoutes = require('./src/routes/mediaRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const searchRoutes = require('./src/routes/searchRoutes');
+const projectRoutes = require('./src/routes/projectRoutes');
+const priorities = require('./src/routes/prioritiesRoutes');
 
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
@@ -65,6 +67,9 @@ app.use('/message', messageRoutes);
 app.use('/media', mediaRoutes);
 app.use('/notification', notificationRoutes);
 app.use('/search', searchRoutes);
+
+app.use('/project', projectRoutes);
+app.use('/priorities', priorities);
 
 app.use('/uploads', express.static(path.join(__dirname,  'uploads')));
 

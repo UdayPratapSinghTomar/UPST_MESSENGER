@@ -6,18 +6,22 @@ const { DataTypes } = require('sequelize')
  * MODEL IMPORTS
  * ============================
  */
-const User = require('./users')(sequelize, DataTypes)
-const Organization = require('./organizations')(sequelize, DataTypes)
-const Chat = require('./chats')(sequelize, DataTypes)
-const ChatMember = require('./chatMembers')(sequelize, DataTypes)
-const Message = require('./messages')(sequelize, DataTypes)
-const MessageStatus = require('./messageStatus')(sequelize, DataTypes)
-const MessageMention = require('./messageMentions')(sequelize, DataTypes)
-const SharedFile = require('./sharedFiles')(sequelize, DataTypes)
-const SavedMessage = require('./savedMessages')(sequelize, DataTypes)
-const Contact = require('./contacts')(sequelize, DataTypes)
-const RefreshToken = require('./refreshTokens')(sequelize, DataTypes)
-const Task = require('./tasks')(sequelize, DataTypes)
+const User = require('./users')(sequelize, DataTypes);
+const Organization = require('./organizations')(sequelize, DataTypes);
+const Chat = require('./chats')(sequelize, DataTypes);
+const ChatMember = require('./chatMembers')(sequelize, DataTypes);
+const Message = require('./messages')(sequelize, DataTypes);
+const MessageStatus = require('./messageStatus')(sequelize, DataTypes);
+const MessageMention = require('./messageMentions')(sequelize, DataTypes);
+const SharedFile = require('./sharedFiles')(sequelize, DataTypes);
+const SavedMessage = require('./savedMessages')(sequelize, DataTypes);
+const Contact = require('./contacts')(sequelize, DataTypes);
+const RefreshToken = require('./refreshTokens')(sequelize, DataTypes);
+const Task = require('./tasks')(sequelize, DataTypes);
+const ProductManage = require('./productManage')(sequelize, DataTypes);
+const ActivityLog = require('./activityLogs')(sequelize, DataTypes);
+const APIUsedTable = require('./apiUsedTable')(sequelize, DataTypes);
+const Priorities = require('./priorities')(sequelize, DataTypes);
 
 /**
  * ============================
@@ -269,6 +273,48 @@ Task.belongsTo(User, {
 })
 
 /**
+ * USER → PRODUCTMANAGE
+ */
+
+ProductManage.belongsTo(Organization, {
+  foreignKey: 'org_id',
+  as: 'productOrganization'
+});
+
+Organization.hasMany(ProductManage, {
+  foreignKey: 'org_id',
+  as: 'organizationProducts'
+});
+
+/**
+ * USER → ACTIVITYLOGS
+ */
+
+ActivityLog.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'activityUser'
+});
+
+User.hasMany(ActivityLog, {
+  foreignKey: 'user_id',
+  as: 'userActivities'
+});
+
+/**
+ * USER → APIUSEDTABLE
+ */
+
+APIUsedTable.belongsTo(Organization, {
+  foreignKey: 'organization_id',
+  as: 'apiUsedOrganization'
+});
+
+Organization.hasMany(APIUsedTable, {
+  foreignKey: 'organization_id',
+  as: 'organizationActivities'
+});
+
+/**
  * ============================
  * EXPORT
  * ============================
@@ -286,5 +332,9 @@ module.exports = {
   SavedMessage,
   Contact,
   RefreshToken,
-  Task
+  Task,
+  ProductManage,
+  ActivityLog,
+  APIUsedTable,
+  Priorities
 }

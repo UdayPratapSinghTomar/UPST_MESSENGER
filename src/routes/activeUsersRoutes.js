@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middlewares/authMiddleware');
-const activeUsersController = require('../controllers/chat/activeUsersController');
+const controller = require('../controllers/chat/activeUsersController');
 
-router.get('/', auth, activeUsersController.getActiveUsers)
+router.get('/', auth, controller.getActiveUsers)
 
 module.exports = router

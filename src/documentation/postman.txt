@@ -1,0 +1,17 @@
+const res = pm.response.json();
+
+if (res.status === true && res.data?.accessToken) {
+    pm.environment.set("access_token", res.data.accessToken);
+    pm.environment.set("refresh_token", res.data.refreshToken);
+}
+
+// Debug
+console.log("Updated access_token:", pm.environment.get("access_token"));
+
+const res = pm.response.json();
+
+if (res.status === true && res.data?.accessToken) {
+    pm.environment.set("bearer_token", res.data.accessToken);
+}
+
+console.log("Updated bearer_token:", pm.environment.get("bearer_token"));
