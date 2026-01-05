@@ -24,7 +24,7 @@ exports.createProject = async (req, res) => {
         }
 
         if(Object.keys(errors).length > 0){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Missing fields!", null, errors);
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Validation failed!", null, errors);
         }
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/auth/authController');
+const controller = require('../controllers/user/userController');
 const { authenticationJWT } = require('../middlewares/authMiddleware');
 
 router.post('/login', controller.login);

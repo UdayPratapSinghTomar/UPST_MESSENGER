@@ -48,7 +48,7 @@ const io = new Server(server, {
 app.set('io', io);
 chatSocket(io);
 
-const authRoutes = require('./src/routes/authRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const chatListRoutes = require('./src/routes/chatListRoutes');
 const activeUsersRoutes = require('./src/routes/activeUsersRoutes');
@@ -59,7 +59,7 @@ const searchRoutes = require('./src/routes/searchRoutes');
 const projectRoutes = require('./src/routes/projectRoutes');
 const priorities = require('./src/routes/prioritiesRoutes');
 
-app.use('/auth', authRoutes);
+app.use('/user', userRoutes);
 app.use('/chat', chatRoutes);
 app.use('/chatlist', chatListRoutes);
 app.use('/active-users', activeUsersRoutes);
@@ -67,7 +67,6 @@ app.use('/message', messageRoutes);
 app.use('/media', mediaRoutes);
 app.use('/notification', notificationRoutes);
 app.use('/search', searchRoutes);
-
 app.use('/project', projectRoutes);
 app.use('/priorities', priorities);
 

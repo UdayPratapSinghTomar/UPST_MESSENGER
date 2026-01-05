@@ -4,8 +4,9 @@ const jwt = require('jsonwebtoken');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { generateAccessToken, generateRefreshToken, expiryDateFromNow} = require('../../utils/tokens');
 
-const { User, RefreshToken, Organization } = require('../../models');
+const { User, RefreshToken, Organization, sequelize } = require('../../models');
 const { verifyRefreshToken } = require('../../utils/tokens');
+const { SequelizeScopeError } = require('sequelize');
 
 // exports.refreshToken = async (req, res) =>{
 //     try{
@@ -82,7 +83,7 @@ exports.register = async (req,res) => {
         }
 
         if(Object.keys(errors).length > 0){
-           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
+           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
         }
 
         const existingEmail = await User.findUserByEmail(email);  
@@ -90,20 +91,28 @@ exports.register = async (req,res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email exists!', null, {email: 'Email already exists'});
         }
         
-        const organization = await Organization.create({'name': organization_name, employee_size, website })
+        
+        const t = await sequelize.transaction();
+        try {
+            const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await User.create({
-                                    full_name,
-                                    email,
-                                    phone,
-                                    'password': hashedPassword,
-                                    'organization_id': organization.id,
-                                    'designation': job_role
-                                });
-
-        return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user);
-
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const user = await User.create({
+                                        full_name,
+                                        email,
+                                        phone,
+                                        'password': hashedPassword,
+                                        'organization_id': organization.id,
+                                        'designation': job_role
+                                    }, 
+                                    { transaction: t});
+            
+            await t.commit();
+            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user);
+        }catch(err){
+            await t.rollback();
+            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+        }                       
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
@@ -141,15 +150,24 @@ exports.login = async (req, res) => {
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
 
-        await RefreshToken.destroy({where: { user_id: user.id }});
-        
-        await RefreshToken.create({
-            user_id: user.id,
-            token: refreshToken,
-            expires_at: expiryDateFromNow()
-        });
+        const t = await sequelize.transaction();
+        try{
+            await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
+            
+            await RefreshToken.create({
+                user_id: user.id,
+                token: refreshToken,
+                expires_at: expiryDateFromNow()
+            },{ transaction: t });
+    
+            await t.commit();
+            
+            return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
 
-        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
+        }catch(err) {
+            await t.rollback(); 
+            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+        }
 
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
@@ -158,12 +176,22 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
     try{
-        const userId = req.user?.id;
-        if(!userId){
+        const user_id = req.user?.id;
+        const { refreshToken } = req.body
+        
+        if(!user_id){
             return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Unauthorized', null, {auth: 'Missing'});
         }
 
-        await RefreshToken.destroy({ where: { user_id: userId}});
+        if(!refreshToken){
+            return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Refresh token is required');
+        }
+
+        const deleted = await RefreshToken.destroy({ where: { user_id: user_id, token: refreshToken }, transaction: t });
+
+        if(!deleted){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid refresh token');
+        }
 
         return sendResponse(res, HttpsStatus.OK, true, 'Logged out successfully');
     }catch(err){
@@ -196,7 +224,7 @@ exports.forgetPassword = async (req, res) => {
         }
         
         if(Object.keys(errors).length > 0){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
         }
 
         if(password !== confirmPassword){
@@ -205,10 +233,9 @@ exports.forgetPassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await User.update({ password: hashedPassword }, { where: { id: user.id }});
+        await User.update({ password: hashedPassword }, { where: { id: user.id }, transaction: t });
 
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
-
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
     }

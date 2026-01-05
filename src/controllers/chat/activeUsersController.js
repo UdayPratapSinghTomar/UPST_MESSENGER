@@ -1,5 +1,4 @@
 const { User } = require('../../models');
-const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 
 exports.getActiveUsers = async (req, res) => {
