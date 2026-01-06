@@ -50,7 +50,6 @@ chatSocket(io);
 
 const userRoutes = require('./src/routes/userRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
-const chatListRoutes = require('./src/routes/chatListRoutes');
 const activeUsersRoutes = require('./src/routes/activeUsersRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
 const mediaRoutes = require('./src/routes/mediaRoutes');
@@ -61,7 +60,6 @@ const priorities = require('./src/routes/prioritiesRoutes');
 
 app.use('/user', userRoutes);
 app.use('/chat', chatRoutes);
-app.use('/chatlist', chatListRoutes);
 app.use('/active-users', activeUsersRoutes);
 app.use('/message', messageRoutes);
 app.use('/media', mediaRoutes);

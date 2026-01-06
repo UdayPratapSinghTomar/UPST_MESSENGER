@@ -1,3 +1,22 @@
 https://console.cloud.google.com/home/dashboard?project=bossplan-messenger-1e4dd
 
 https://console.firebase.google.com/u/0/project/bossplan-messenger-1e4dd/overview
+
+sudo adduser bosplandev
+
+Bos##1291
+
+
+sudo chown -R bosplandev:bosplandev /var/www/html
+sudo chmod 750 /var/www/html
+
+
+
+nobody
+ubuntu
+bosplanai
+ftpuser
+rsa-key-20251113
+
+sftp sftpuser@localhost
+Sai%$#78Gf21

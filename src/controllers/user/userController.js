@@ -62,7 +62,8 @@ exports.register = async (req,res) => {
             password
         } = req.body;
 
-        let errors = {};
+        const errors = {};
+
         if(!organization_name){
             errors.organization_name = 'Organization name is required';
         }
@@ -83,20 +84,19 @@ exports.register = async (req,res) => {
         }
 
         if(Object.keys(errors).length > 0){
-           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
+           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
         }
 
-        const existingEmail = await User.findUserByEmail(email);  
+        const existingEmail = await User.findOne({ where: { email } });  
         if(existingEmail){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email exists!', null, {email: 'Email already exists'});
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
         }
-        
-        
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const t = await sequelize.transaction();
-        try {
+        try{
             const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
-            const hashedPassword = await bcrypt.hash(password, 10);
             const user = await User.create({
                                         full_name,
                                         email,
@@ -108,21 +108,20 @@ exports.register = async (req,res) => {
                                     { transaction: t});
             
             await t.commit();
-            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user);
+            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
         }catch(err){
             await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-        }                       
+        }                     
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-    }
-    
+    } 
 }
 
 exports.login = async (req, res) => {
     try{
         const { email, password } = req.body
-        let errors = {};
+        const errors = {};
         
         if(!email){
            errors.email = 'Email is required';
@@ -149,7 +148,7 @@ exports.login = async (req, res) => {
 
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
-
+    
         const t = await sequelize.transaction();
         try{
             await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
@@ -163,9 +162,8 @@ exports.login = async (req, res) => {
             await t.commit();
             
             return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
-
-        }catch(err) {
-            await t.rollback(); 
+        }catch(err){
+            await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
         }
 
@@ -176,22 +174,23 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
     try{
-        const user_id = req.user?.id;
-        const { refreshToken } = req.body
+        // const user_id = req.user?.id;
+        // const { refreshToken } = req.body
+        const { refreshToken } = req.headers['x-refresh-token'];
         
-        if(!user_id){
-            return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Unauthorized', null, {auth: 'Missing'});
-        }
+        // if(!user_id){
+        //     return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Unauthorized', null, {auth: 'Missing'});
+        // }
 
         if(!refreshToken){
-            return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Refresh token is required');
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Refresh token is required');
         }
 
-        const deleted = await RefreshToken.destroy({ where: { user_id: user_id, token: refreshToken }, transaction: t });
+        const deleted = await RefreshToken.destroy({ where: { token: refreshToken } });
 
-        if(!deleted){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid refresh token');
-        }
+        // if(!deleted){
+        //     return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid refresh token');
+        // }
 
         return sendResponse(res, HttpsStatus.OK, true, 'Logged out successfully');
     }catch(err){
@@ -206,15 +205,9 @@ exports.forgetPassword = async (req, res) => {
         const errors = {};
         
         if(!email){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email is required!', null, { email: 'Email is required' });
+            errors.email = 'Email is required';
         }
         
-        const user = await User.findUserByEmail(email);
-        
-        if(!user){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'User not found'});
-        }
-
         if(!password){
             errors.password = 'Password is required';
         }
@@ -222,18 +215,24 @@ exports.forgetPassword = async (req, res) => {
         if(!confirmPassword){
             errors.confirmPassword = 'Confirm Password is required';
         }
-        
+    
         if(Object.keys(errors).length > 0){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
+        }
+
+        const user = await User.findUserByEmail(email);
+        
+        if(!user){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid email!');
         }
 
         if(password !== confirmPassword){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Password mismatch!', null, { confirmPassword: "Confirm password doen't match" });
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Password mismatch!');
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await User.update({ password: hashedPassword }, { where: { id: user.id }, transaction: t });
+        await User.update({ password: hashedPassword }, { where: { id: user.id } });
 
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
     }catch(err){
