@@ -1,12 +1,12 @@
 module.exports = (sequelize, DataTypes) => {
     const APIUsedTable = sequelize.define('APIUsedTable', {
         id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+            autoIncrement: true
         },
         organization_id: {
-            type: DataTypes.UUID,
+            type: DataTypes.INTEGER,
             allowNull: false,
             references: {
                 model: 'organizations',

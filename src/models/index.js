@@ -22,6 +22,7 @@ const ProductManage = require('./productManage')(sequelize, DataTypes);
 const ActivityLog = require('./activityLogs')(sequelize, DataTypes);
 const APIUsedTable = require('./apiUsedTable')(sequelize, DataTypes);
 const Priorities = require('./priorities')(sequelize, DataTypes);
+const Assignee = require('./assignees')(sequelize, DataTypes);
 
 /**
  * ============================
@@ -301,7 +302,7 @@ User.hasMany(ActivityLog, {
 });
 
 /**
- * USER → APIUSEDTABLE
+ * APIUSEDTABLE → APIUSEDTABLE
  */
 
 APIUsedTable.belongsTo(Organization, {
@@ -313,6 +314,21 @@ Organization.hasMany(APIUsedTable, {
   foreignKey: 'organization_id',
   as: 'organizationActivities'
 });
+
+/**
+ * ASSIGNEE → ORGANIZATION
+ */
+
+Assignee.belongsTo(Organization, {
+  foreignKey: 'org_id',
+  as: 'assignee'
+});
+
+Organization.hasMany(Assignee, {
+  foreignKey: 'org_id',
+  as: 'organizationAssignees'
+});
+
 
 /**
  * ============================

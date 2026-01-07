@@ -1,19 +1,27 @@
 module.exports = (sequelize, DataTypes) => {
-    const ProductManage = sequelize.define('ProductManage', {
+    const Assignees = sequelize.define('Assignees', {
         id: {
             type: DataTypes.INTEGER,
             primaryKey: true,
             autoIncrement: true
         },
-        title: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        description: {
-            type: DataTypes.TEXT
-        },
-        status: {
+        full_name: {
             type: DataTypes.STRING
+        },
+        email: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true,
+            validate: { isEmail: true }
+        },
+        role: {
+            type: DataTypes.STRING
+        },
+        department: {
+            type: DataTypes.STRING
+        },
+        profile_image: {
+            type: DataTypes.TEXT
         },
         org_id: {
             type: DataTypes.INTEGER,
@@ -25,24 +33,23 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         },
-        display_order: {
-            type: DataTypes.INTEGER
+        permission: {
+            type: DataTypes.STRING
         },
-        deadline: {
+        otp: {
+            type: DataTypes.STRING
+        },
+        otp_generated_at: {
             type: DataTypes.DATE
         },
-        assignee: {
-            type: DataTypes.JSON
-        },
-        label: {
+        invite_status: {
             type: DataTypes.STRING
         }
-    },
-    {
-        tableName: 'product_manage',
+    },{
+        tableName: 'assignees',
         timestamps: true,
         underscored: true
     });
 
-    return ProductManage;
+    return Assignees;
 }

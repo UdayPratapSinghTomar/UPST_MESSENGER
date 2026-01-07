@@ -1,9 +1,9 @@
 module.exports = (sequelize, DataTypes) => {
     const Priorities = sequelize.define('Priorities', {
         id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+            autoIncrement: true
         },
         name: {
             type: DataTypes.STRING,

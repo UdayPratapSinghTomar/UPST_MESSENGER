@@ -1,9 +1,9 @@
 module.exports = (sequelize, DataTypes) => {
   const Chat = sequelize.define('Chat', {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
       primaryKey: true,
+      autoIncrement: true
     },
     type: {
       type: DataTypes.ENUM('private', 'group', 'channel'),
@@ -16,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT
     },
     created_by: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'users',

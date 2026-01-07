@@ -354,7 +354,7 @@ exports.openChat = async (req, res) => {
 //   }
 // }
 
-exports.getChatList = async (req, res) => {
+exports.fetchChatList = async (req, res) => {
   try {
     const user_id = req.user.id;
     if (!user_id) {
