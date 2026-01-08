@@ -12,8 +12,8 @@ module.exports = (io) => {
   io.use(async (socket, next) => {
     try {
       const token =
-        socket.handshake.auth?.token ||
-        socket.handshake.query?.token;
+        socket.handshake.auth?.token 
+        || socket.handshake.query?.token;
 
       if (!token) return next(new Error('Token missing'));
 
@@ -28,19 +28,20 @@ module.exports = (io) => {
 
   // 🔌 SOCKET CONNECTION
   io.on(EVENTS.CONNECTION, async (socket) => {
-    console.log('User connected:', socket.user.id);
+    const userId = socket.user.id;
+    console.log('User connected:', userId);
     await User.update(
-      { is_online: true },
-      { where: { id: socket.user.id } }
+      { is_online: true, last_seen: null },
+      { where: { id: userId } }
     );
 
-    socket.on(EVENTS.USER_CONNECTED, async (user_id) => {
-      await addUser(user_id, socket.id)
-      console.log(`User ${user_id} online\n`);
-    })
+    // socket.on(EVENTS.USER_CONNECTED, async (user_id) => {
+    //   await addUser(user_id, socket.id)
+    //   console.log(`User ${user_id} online\n`);
+    // })
 
     // Personal room (for notifications later)
-    socket.join(`user_${socket.user.id}`);
+    socket.join(`user_${userId}`);
 
     socket.emit(EVENTS.CONNECTED, { message: 'Socket connected' });
 
@@ -56,7 +57,7 @@ module.exports = (io) => {
         const isMember = await ChatMember.findOne({
           where: {
             chat_id,
-            user_id: socket.user.id,
+            user_id: userId,
           },
         });
 
@@ -69,7 +70,7 @@ module.exports = (io) => {
         socket.join(`chat_${chat_id}`);
 
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
-        console.log(`User ${socket.user.id} joined chat_${chat_id}`);
+        console.log(`User ${userId} joined chat_${chat_id}`);
 
         // message delivered logic
         await messageStatus.update(
@@ -80,7 +81,7 @@ module.exports = (io) => {
           {
             where: {
               chat_id,
-              user_id: socket.user.id,
+              user_id: userId,
               status: 'sent',
             },
           }
@@ -89,10 +90,10 @@ module.exports = (io) => {
         // notify other users that messages were delivered
         socket.to(`chat_${chat_id}`).emit(EVENTS.MESSAGE_DELIVERED, {
           chat_id,
-          user_id: socket.user.id,
+          user_id: userId,
         });
 
-        console.log(`User ${socket.user.id} joined chat_${chat_id}`);
+        console.log(`User ${userId} joined chat_${chat_id}`);
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, {
           message: 'Failed to join chat',
@@ -103,7 +104,7 @@ module.exports = (io) => {
     // ✍️ TYPING
     socket.on(EVENTS.TYPING, (chat_id) => {
       socket.to(`chat_${chat_id}`).emit('user_typing', {
-        user_id: socket.user.id,
+        user_id: userId,
         chat_id,
       });
     });
@@ -111,7 +112,7 @@ module.exports = (io) => {
     // Stop typing
     socket.on(EVENTS.STOP_TYPING, (chat_id) => {
       socket.to(`chat_${chat_id}`).emit('user_stop_typing', {
-        user_id: socket.user.id,
+        user_id: userId,
         chat_id,
       });
     });
@@ -145,7 +146,7 @@ module.exports = (io) => {
 
         const message = await Message.create({
           chat_id,
-          sender_id: socket.user.id,
+          sender_id: userId,
           message_type,
           content: message_type === 'text' ? content: null,
           replied_to_message_id,
@@ -156,7 +157,7 @@ module.exports = (io) => {
           sharedFile = await SharedFile.create({
             message_id: message.id,
             chat_id,
-            user_id: socket.user.id,
+            user_id: userId,
             file_name: file.file_name,
             file_url: file.file_url,
             file_type: file.file_type,
@@ -188,7 +189,7 @@ module.exports = (io) => {
                 mentioned_user_id: user.id,
               });
 
-              if (user.fcmToken && user.id !== socket.user.id) {
+              if (user.fcmToken && user.id !== userId) {
                 await admin.messaging().send({
                   token: user.fcmToken,
                   notification: {
@@ -206,7 +207,7 @@ module.exports = (io) => {
         }
         // 🔔 PUSH NOTIFICATION (PHASE 9)
         for (const m of members) {
-          if (m.user_id !== socket.user.id) {
+          if (m.user_id !== userId) {
             const user = await User.findByPk(m.user_id);
             if (user?.fcmToken) {
               await admin.messaging().send({
@@ -241,7 +242,7 @@ module.exports = (io) => {
     //     {
     //       where: {
     //         message_id,
-    //         user_id: socket.user.id,
+    //         user_id: userId,
     //         status: 'sent',
     //       },
     //     }
@@ -258,7 +259,7 @@ module.exports = (io) => {
         {
           where: {
             chat_id,
-            user_id: socket.user.id,
+            user_id: userId,
             status: { [Op.ne]: 'read' },
           },
         }
@@ -268,7 +269,7 @@ module.exports = (io) => {
         EVENTS.MESSAGE_READ_UPDATE,
         {
           chat_id,
-          user_id: socket.user.id,
+          user_id: userId,
         }
       );
     });
@@ -287,11 +288,11 @@ module.exports = (io) => {
           is_online: false,
           last_seen: new Date(),
         },
-        { where: { id: socket.user.id } }
+        { where: { id: userId } }
       );
 
-      await removeUserBySocket(socket.id)
-      console.log('User disconnected:', socket.user.id);
+      // await removeUserBySocket(socket.id)
+      console.log('User disconnected:', userId);
     });
   });
 };

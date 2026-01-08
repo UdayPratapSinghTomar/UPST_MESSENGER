@@ -11,7 +11,9 @@ exports.createProject = async (req, res) => {
             admin_id,
             deadline,
             label,
-            assignees
+            assignees,
+            user_type,
+            location
         } = req.body ;
 
         let errors = {};
@@ -29,7 +31,7 @@ exports.createProject = async (req, res) => {
 
         const t = await sequelize.transaction();
         try{
-            const product = await ProductManage.create({
+            const project = await ProductManage.create({
                 title,
                 description,
                 status,
@@ -37,8 +39,38 @@ exports.createProject = async (req, res) => {
                 deadline,
                 label,
                 assignees
+            }, 
+            {
+                transaction: t
             });
             
+            const apiUsedTable = await APIUsedTable.create({
+                organization_id,
+                table_name: 'product_manage',
+                feature: 'Project Creation'
+            },
+            { 
+                transaction: t 
+            });
+
+            const logQuery = await ActivityLog.create({
+                user_id: admin_id,
+                user_type: user_type || 'admin',
+                action_type: 'create',
+                module: 'project',
+                description: `Created new project titled "${title}"`,
+                new_data: JSON.stringify(project),
+                ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+                agent: req.headers['user-agent'] || '',
+                location: location || null
+            },
+            {
+                transaction: t
+            });
+
+            await t.commit();
+
+            return sendResponse(res, HttpsStatus.CREATED, true, "Project created!", project);
         }catch(err){
             await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);

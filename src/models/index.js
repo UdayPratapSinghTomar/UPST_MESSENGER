@@ -352,5 +352,6 @@ module.exports = {
   ProductManage,
   ActivityLog,
   APIUsedTable,
-  Priorities
+  Priorities,
+  Assignee
 }
