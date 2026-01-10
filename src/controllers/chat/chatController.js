@@ -357,6 +357,7 @@ exports.openChat = async (req, res) => {
 exports.fetchChatList = async (req, res) => {
   try {
     const user_id = req.user.id;
+
     if (!user_id) {
       return sendResponse(
         res,
@@ -386,7 +387,7 @@ exports.fetchChatList = async (req, res) => {
                 {
                   model: User,
                   as: 'user',
-                  attributes: ['id', 'full_name', 'email']
+                  attributes: ['id', 'full_name', 'profile_url']
                 }
               ]
             }
@@ -461,19 +462,44 @@ exports.fetchChatList = async (req, res) => {
     }
 
     /**
-     * 4️⃣ Build final response (FIXED LOGIC)
+     * 4️⃣ Build final response
      */
     const chatList = chatMembers.map(cm => {
       const chat = cm.chat;
-      const lastMessage = lastMessageMap[chat.id] || null;
+
+      const rawLastMessage = lastMessageMap[chat.id] || null;
+
+      const lastMessage = rawLastMessage
+        ? {
+            content: rawLastMessage.content,
+            message_type: rawLastMessage.message_type,
+            created_at: rawLastMessage.created_at,
+            sender_name: rawLastMessage.sender?.full_name || null
+          }
+        : null;
+
+      let name = null;
+      let profile_url = null;
+
+      if (chat.type === 'private') {
+        // ✅ Other user in private chat
+        const otherUser = chat.memberships
+          .map(m => m.user)
+          .find(u => u.id !== user_id);
+
+        name = otherUser?.full_name || null;
+        profile_url = otherUser?.profile_url || null;
+      } else {
+        // ✅ Group chat
+        name = chat.group_name;
+        profile_url = null;
+      }
 
       return {
         chat_id: chat.id,
         type: chat.type,
-
-        // ✅ ONLY group chat has group_name
-        group_name: chat.type === 'group' ? chat.group_name : null,
-
+        name,
+        profile_url,
         last_message: lastMessage,
         unread_count: unreadMap[chat.id] || 0
       };
@@ -497,7 +523,7 @@ exports.fetchChatList = async (req, res) => {
     );
 
   } catch (err) {
-    console.error('getChatList error:', err);
+    console.error('fetchChatList error:', err);
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
