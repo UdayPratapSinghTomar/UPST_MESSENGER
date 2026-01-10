@@ -141,7 +141,7 @@ exports.login = async (req, res) => {
 
         let matchPassword = await bcrypt.compare(password, user.password);
         if(!matchPassword){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Wrong password'});
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {password: 'Wrong password'});
         }
 
         const payload = {id: user.id, email: user.email};

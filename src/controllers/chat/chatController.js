@@ -357,6 +357,7 @@ exports.openChat = async (req, res) => {
 exports.fetchChatList = async (req, res) => {
   try {
     const user_id = req.user.id;
+
     if (!user_id) {
       return sendResponse(
         res,
@@ -386,7 +387,7 @@ exports.fetchChatList = async (req, res) => {
                 {
                   model: User,
                   as: 'user',
-                  attributes: ['id', 'full_name', 'email']
+                  attributes: ['id', 'full_name', 'profile_url', 'is_online']
                 }
               ]
             }
@@ -409,7 +410,6 @@ exports.fetchChatList = async (req, res) => {
         chat_id: { [Op.in]: chatIds }
       },
       attributes: [
-        'id',
         'chat_id',
         'content',
         'message_type',
@@ -461,20 +461,52 @@ exports.fetchChatList = async (req, res) => {
     }
 
     /**
-     * 4️⃣ Build final response (FIXED LOGIC)
+     * 4️⃣ Build final response
      */
     const chatList = chatMembers.map(cm => {
       const chat = cm.chat;
       const lastMessage = lastMessageMap[chat.id] || null;
+      
+      let name = null;
+      let profile_url = null;
+      let is_online = false;
+
+      if (chat.type === 'private') {
+        // ✅ get other user
+        const otherUser = chat.memberships
+          .map(m => m.user)
+          .find(u => u.id !== user_id);
+
+        name = otherUser?.full_name || null;
+        profile_url = otherUser?.profile_url || null;
+        is_online =otherUser?.is_online || false;
+      } else {
+        // ✅ group chat
+        name = chat.group_name;
+        profile_url = null; // frontend default image
+      }
+
+      // console.log("lastMessage- ", lastMessage)
+      const last_message = lastMessage
+        ? {
+            content: lastMessage.content,
+            message_type: lastMessage.message_type,
+            created_at: lastMessage?.dataValues?.created_at,
+            sender_name:
+              lastMessage.sender_id === user_id
+                ? 'You'
+                : lastMessage.sender?.full_name || null
+          }
+        : null;
+
 
       return {
         chat_id: chat.id,
         type: chat.type,
-
-        // ✅ ONLY group chat has group_name
-        group_name: chat.type === 'group' ? chat.group_name : null,
-
-        last_message: lastMessage,
+        name,
+        profile_url,
+        is_online,
+        last_message,
         unread_count: unreadMap[chat.id] || 0
       };
     });
@@ -497,7 +529,7 @@ exports.fetchChatList = async (req, res) => {
     );
 
   } catch (err) {
-    console.error('getChatList error:', err);
+    console.error('fetchChatList error:', err);
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
@@ -508,3 +540,4 @@ exports.fetchChatList = async (req, res) => {
     );
   }
 };
+

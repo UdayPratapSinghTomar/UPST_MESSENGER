@@ -40,8 +40,9 @@ const io = new Server(server, {
         origin: '*',
         methods: ['GET', 'POST']
     },
-    pingInterval: 60000,
-    pingTimeout: 60000
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    upgradeTimeout: 30000,
 });
 
 // make io accessible in controllers
@@ -71,6 +72,7 @@ app.use('/priorities', prioritiesRoutes);
 app.use('/assignee', assigneeRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname,  'uploads')));
+app.use(express.static(path.join(__dirname, 'src', 'public')));
 
 server.listen(PORT, () => {
     console.log('Server running on port', PORT);
