@@ -479,6 +479,7 @@ exports.fetchChatList = async (req, res) => {
 
         name = otherUser?.full_name || null;
         profile_url = otherUser?.profile_url || null;
+
         is_online =otherUser?.is_online || false;
       } else {
         // ✅ group chat
@@ -498,7 +499,6 @@ exports.fetchChatList = async (req, res) => {
                 : lastMessage.sender?.full_name || null
           }
         : null;
-
 
       return {
         chat_id: chat.id,
@@ -540,4 +540,3 @@ exports.fetchChatList = async (req, res) => {
     );
   }
 };
-
