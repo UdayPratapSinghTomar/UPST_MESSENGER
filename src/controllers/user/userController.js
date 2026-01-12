@@ -6,7 +6,7 @@ const { generateAccessToken, generateRefreshToken, expiryDateFromNow} = require(
 
 const { User, RefreshToken, Organization, sequelize } = require('../../models');
 const { verifyRefreshToken } = require('../../utils/tokens');
-const { SequelizeScopeError } = require('sequelize');
+const { Op } = require('sequelize');
 
 // exports.refreshToken = async (req, res) =>{
 //     try{
@@ -49,19 +49,19 @@ const { SequelizeScopeError } = require('sequelize');
 //         }
 // }
 
-exports.register = async (req,res) => {
+exports.adminRegister = async (req,res) => {
     try{
         const {
             organization_name,
             employee_size,
             website,
             full_name,
-            job_role,
+            role,
+            designation,
             phone,
             email,
-            password
         } = req.body;
-
+ 
         const errors = {};
 
         if(!organization_name){
@@ -73,8 +73,8 @@ exports.register = async (req,res) => {
         if(!full_name){
             errors.full_name = 'Full name is required';
         }
-        if(!job_role){
-            errors.job_role = 'Job role is required';
+        if(!designation){
+            errors.designation = 'Job role is required';
         }
         if(!email){
             errors.email = 'Email is required';
@@ -101,9 +101,72 @@ exports.register = async (req,res) => {
                                         full_name,
                                         email,
                                         phone,
+                                        role : role ? role : 'admin',
                                         'password': hashedPassword,
                                         'organization_id': organization.id,
-                                        'designation': job_role
+                                        designation
+                                    }, 
+                                    { transaction: t});
+            
+            await t.commit();
+            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
+        }catch(err){
+            await t.rollback();
+            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+        }                     
+    }catch(err){
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+    } 
+}
+
+exports.userRegister = async (req,res) => {
+    try{
+        const {
+            full_name,
+            email,
+            password,
+            phone,
+            role,
+            designation,
+        } = req.body;
+
+        const errors = {};
+
+        if(!full_name){
+            errors.full_name = 'Full name is required';
+        }
+        if(!designation){
+            errors.designation = 'Job profile is required';
+        }
+        if(!email){
+            errors.email = 'Email is required';
+        }
+        if(!password){
+            errors.password = 'Password is required';
+        }
+
+        if(Object.keys(errors).length > 0){
+           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
+        }
+
+        const existingEmail = await User.findOne({ where: { email } });  
+        if(existingEmail){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const t = await sequelize.transaction();
+        try{
+            const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
+
+            const user = await User.create({
+                                        full_name,
+                                        email,
+                                        phone,
+                                        role : role ? role : 'member',
+                                        'password': hashedPassword,
+                                        'organization_id': organization.id,
+                                        designation
                                     }, 
                                     { transaction: t});
             
@@ -237,5 +300,35 @@ exports.forgetPassword = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
+    }
+}
+
+exports.fetchUsersByOrgId = async (req, res) => {
+    try{
+        const orgId = req.body.org_id;
+
+        if(!orgId){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Organization is is required!');
+        }
+
+        const organizationUsers = await User.findAll({
+            where:  { is_deleted: false, 
+                [Op.or]: [
+                    { organization_id: orgId },
+                    { org_2: orgId },
+                    { org_3: orgId },
+                    { org_4: orgId },
+                    { org_5: orgId },
+                    { org_6: orgId },
+                    { org_7: orgId },
+                    { org_8: orgId },
+                    { org_9: orgId },
+                    { org_10: orgId },
+                ]}
+        });
+
+        return sendResponse(res, HttpsStatus.OK, true, 'Organization users retreive successfully!', organizationUsers);
+    }catch(err){
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
     }
 }

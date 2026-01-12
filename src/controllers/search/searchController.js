@@ -148,3 +148,7 @@ exports.searchChatMessages = async (req, res) => {
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
     }
 }
+
+exports.searchOrgUsers = async (req, res) => {
+    
+}
