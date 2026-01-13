@@ -150,5 +150,41 @@ exports.searchChatMessages = async (req, res) => {
 }
 
 exports.searchOrgUsers = async (req, res) => {
-    
+    try {
+        const { orgId, user_id } = req.body;
+        const errors = {};
+
+        if(!orgId){
+            errors.orgId = 'Organization id is required';
+        }
+        else if(!user_id){
+            errors.user_id = 'User id is required';
+        }
+
+        if(Object.keys(errors) > 0){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
+        }
+
+        const users = await User.findAll({
+            where: { 
+                is_deleted: false,
+                user_id,
+                [Op.or]: [
+                    { organization_id: orgId },
+                    { org_2: orgId },
+                    { org_3: orgId },
+                    { org_4: orgId },
+                    { org_5: orgId },
+                    { org_6: orgId },
+                    { org_7: orgId },
+                    { org_8: orgId },
+                    { org_9: orgId },
+                    { org_10: orgId },
+                ],
+            }
+        });
+        return sendResponse(res, HttpsStatus.OK, true, 'Users retrieved!', users);
+    }catch(err){
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+    }
 }
