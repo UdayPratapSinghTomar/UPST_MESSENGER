@@ -1,0 +1,6 @@
+frontend can send -
+multipart/form-data
+chat_id
+message_type
+content
+file / video / audio

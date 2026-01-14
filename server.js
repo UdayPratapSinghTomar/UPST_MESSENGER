@@ -49,6 +49,7 @@ const io = new Server(server, {
 app.set('io', io);
 chatSocket(io);
 
+const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const activeUsersRoutes = require('./src/routes/activeUsersRoutes');
@@ -60,6 +61,7 @@ const projectRoutes = require('./src/routes/projectRoutes');
 const prioritiesRoutes = require('./src/routes/prioritiesRoutes');
 const assigneeRoutes = require('./src/routes/assigneeRoutes');
 
+app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/chat', chatRoutes);
 app.use('/active-users', activeUsersRoutes);
