@@ -56,10 +56,11 @@ exports.adminRegister = async (req,res) => {
             employee_size,
             website,
             full_name,
-            role,
+            role = 'admin',
             designation,
             phone,
             email,
+            password
         } = req.body;
  
         const errors = {};
@@ -101,7 +102,7 @@ exports.adminRegister = async (req,res) => {
                                         full_name,
                                         email,
                                         phone,
-                                        role : role ? role : 'admin',
+                                        role,
                                         'password': hashedPassword,
                                         'organization_id': organization.id,
                                         designation
@@ -126,7 +127,7 @@ exports.userRegister = async (req,res) => {
             email,
             password,
             phone,
-            role,
+            role = 'member',
             designation,
         } = req.body;
 
@@ -157,15 +158,14 @@ exports.userRegister = async (req,res) => {
 
         const t = await sequelize.transaction();
         try{
-            const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
+            // const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
             const user = await User.create({
                                         full_name,
                                         email,
                                         phone,
-                                        role : role ? role : 'member',
+                                        role,
                                         'password': hashedPassword,
-                                        'organization_id': organization.id,
                                         designation
                                     }, 
                                     { transaction: t});
@@ -173,6 +173,7 @@ exports.userRegister = async (req,res) => {
             await t.commit();
             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
         }catch(err){
+            console.log(err)
             await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
         }                     
