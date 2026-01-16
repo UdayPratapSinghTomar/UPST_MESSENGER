@@ -4,9 +4,11 @@ const jwt = require('jsonwebtoken');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { generateAccessToken, generateRefreshToken, expiryDateFromNow} = require('../../utils/tokens');
 
-const { User, RefreshToken, Organization, sequelize } = require('../../models');
+const { User, RefreshToken, Organization, sequelize, SharedFile } = require('../../models');
 const { verifyRefreshToken } = require('../../utils/tokens');
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
 
 // exports.refreshToken = async (req, res) =>{
 //     try{
@@ -63,6 +65,7 @@ exports.adminRegister = async (req,res) => {
             password
         } = req.body;
  
+        const file = req.file;
         const errors = {};
 
         if(!organization_name){
@@ -109,6 +112,27 @@ exports.adminRegister = async (req,res) => {
                                     }, 
                                     { transaction: t});
             
+            
+            const defaultFileUrl = '/uploads/default/profile_pic.jpg';
+            const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
+
+            if (fs.existsSync(defaultFilePath)) {
+                const stats = fs.statSync(defaultFilePath);
+        
+                await SharedFile.create(
+                {
+                    user_id: user.id,
+                    file_name: 'profile_pic.jpg',
+                    file_url: defaultFileUrl,
+                    file_type: 'image',
+                    file_size: stats.size,
+                    mime_type: 'image/jpeg',
+                },
+                {
+                    transaction: t,
+                }
+                );
+            }
             await t.commit();
             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
         }catch(err){
@@ -149,7 +173,8 @@ exports.userRegister = async (req,res) => {
         if(Object.keys(errors).length > 0){
            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
         }
-
+        // console.log('file path' ,path.join(__dirname,'../../uploads/default/profile_pic.jpg'))
+        // console.log('if condition',fs.existsSync(defaultFilePath))
         const existingEmail = await User.findOne({ where: { email } });  
         if(existingEmail){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
@@ -170,6 +195,26 @@ exports.userRegister = async (req,res) => {
                                     }, 
                                     { transaction: t});
             
+            const defaultFileUrl = '/uploads/default/profile_pic.jpg';
+            const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
+
+            if (fs.existsSync(defaultFilePath)) {
+                const stats = fs.statSync(defaultFilePath);
+        
+                await SharedFile.create(
+                {
+                    user_id: user.id,
+                    file_name: 'profile_pic.jpg',
+                    file_url: defaultFileUrl,
+                    file_type: 'image',
+                    file_size: stats.size,
+                    mime_type: 'image/jpeg',
+                },
+                {
+                    transaction: t,
+                }
+                );
+            }
             await t.commit();
             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
         }catch(err){

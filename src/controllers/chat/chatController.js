@@ -54,11 +54,9 @@ exports.createPrivateChat = async (req, res) => {
         return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
       }catch(err){
         await t.rollback();
-        // console.log('-------------------------------------error',err);
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
       }
   }catch(err){
-    // console.log('-------------------------------------error',err);
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }
@@ -97,10 +95,11 @@ exports.createGroup = async (req, res) => {
       const chat = await Chat.create({
         type: 'group',
         group_name,
+        group_image: '/uploads/profile_pic.jpg',
         created_by: req.user.id
       },
       { 
-        transaction: t 
+        transaction: t  
       });
   
       const groupMembers = group_members.map(user_id => ({

@@ -7,7 +7,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     message_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
       references: {
           model: 'messages',
           key: 'id'
@@ -17,7 +16,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     chat_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
       references: {
           model: 'chats',
           key: 'id'
