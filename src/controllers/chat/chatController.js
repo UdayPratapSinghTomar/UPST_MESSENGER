@@ -1,5 +1,5 @@
 const express = require('express');
-const { sequelize, Chat, ChatMember, Message, MessageStatus, User } = require('../../models');
+const { sequelize, Chat, ChatMember, Message, MessageStatus, User, SharedFile } = require('../../models');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
@@ -95,13 +95,33 @@ exports.createGroup = async (req, res) => {
       const chat = await Chat.create({
         type: 'group',
         group_name,
-        group_image: '/uploads/profile_pic.jpg',
         created_by: req.user.id
       },
       { 
         transaction: t  
       });
   
+      const defaultFileUrl = '/uploads/default/group_image.png';
+      const defaultFilePath = path.join(__dirname,'../../uploads/default/group_image.png');
+
+      if (fs.existsSync(defaultFilePath)) {
+        const stats = fs.statSync(defaultFilePath);
+  
+        await SharedFile.create(
+        {
+            chat_id: chat.id,
+            file_name: 'group_image.png',
+            file_url: defaultFileUrl,
+            file_type: 'image',
+            file_size: stats.size,
+            mime_type: 'image/jpeg',
+        },
+        {
+            transaction: t,
+        }
+        );
+      }
+
       const groupMembers = group_members.map(user_id => ({
         chat_id: chat.id,
         user_id,

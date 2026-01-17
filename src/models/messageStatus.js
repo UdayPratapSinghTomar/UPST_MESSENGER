@@ -40,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             defaultValue: 'sent'
         },
+        is_deleted: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         delivered_at: {
             type: DataTypes.DATE,
         },

@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         message_type: {
-            type: DataTypes.STRING,
+            type: DataTypes.ENUM('text', 'file', 'image', 'video', 'audio', 'mixed'),
             defaultValue: 'text'
         },
         content: {
@@ -55,10 +55,10 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'SET NULL',
             onUpdate: 'CASCADE'
         },
-        is_deleted: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false
-        },
+        // is_deleted: {
+        //     type: DataTypes.BOOLEAN,
+        //     defaultValue: false
+        // },
         edited_at: {
             type: DataTypes.DATE
         },
