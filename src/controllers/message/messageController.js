@@ -9,7 +9,7 @@ const {
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require('../../utils/fileType');
 const EVENTS = require("../../utils/socketEvents");
-const { Op, sequelize } = require("sequelize");
+const { Op, sequelize, where } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
   const t = await sequelize.transaction();
@@ -622,3 +622,226 @@ exports.stopTyping = async (req, res) => {
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
   }
 }
+
+exports.forwardMessage = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { message_id, forwarded_chat_ids } = req.body;
+    const senderId = req.user.id;
+    const io = req.app.get('io');
+
+    if (!message_id || !Array.isArray(forwarded_chat_ids) || !forwarded_chat_ids.length) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid payload!');
+    }
+
+    const originalMessage = await Message.findByPk(message_id, {
+      include: [{ model: SharedFile }],
+      transaction: t
+    });
+
+    if (!originalMessage) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'Message not found!');
+    }
+
+    const forwardedMessages = [];
+
+    for (const chat_id of forwarded_chat_ids) {
+
+      const isMember = await ChatMember.findOne({
+        where: { chat_id, user_id: senderId },
+        transaction: t
+      });
+
+      if (!isMember) continue;
+
+      const members = await ChatMember.findAll({
+        where: { chat_id },
+        transaction: t
+      });
+
+      const message = await Message.create({
+        chat_id,
+        sender_id: senderId,
+        message_type: originalMessage.message_type,
+        content: originalMessage.content,
+        forwarded_from_message_id: originalMessage.id
+      }, { transaction: t });
+
+      let attachedFiles = [];
+
+      if (originalMessage.SharedFiles?.length) {
+        for (const file of originalMessage.SharedFiles) {
+          const sharedFile = await SharedFile.create({
+            message_id: message.id,
+            chat_id,
+            user_id: senderId,
+            file_name: file.file_name,
+            file_url: file.file_url,
+            file_type: file.file_type,
+            file_size: file.file_size,
+            mime_type: file.mime_type,
+            duration: file.duration,
+            thumbnail_url: file.thumbnail_url
+          }, { transaction: t });
+
+          attachedFiles.push(sharedFile);
+        }
+      }
+
+      await MessageStatus.bulkCreate(
+        members.map(m => ({
+          message_id: message.id,
+          user_id: m.user_id,
+          chat_id,
+          status: 'sent'
+        })),
+        { transaction: t }
+      );
+
+      const payload = {
+        id: message.id,
+        chat_id,
+        sender_id: senderId,
+        message_type: message.message_type,
+        content: message.content,
+        files: attachedFiles,
+        forwarded_from_message_id: originalMessage.id,
+        created_at: message.created_at
+      };
+
+      io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
+
+      forwardedMessages.push(payload);
+    }
+
+    if (!forwardedMessages.length) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'You are not a member of target chats');
+    }
+
+    await t.commit();
+
+    return sendResponse(
+      res,
+      HttpsStatus.CREATED,
+      true,
+      'Message forwarded successfully!',
+      forwardedMessages
+    );
+
+  } catch (err) {
+    await t.rollback();
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      'Server error!',
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+exports.mentionUser = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { chat_id, content, mentioned_user_ids = [] } = req.body;
+    const senderId = req.user.id;
+    const io = req.app.get('io');
+
+    if (!chat_id || !content?.trim()) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid payload!');
+    }
+
+    const isMember = await ChatMember.findOne({
+      where: { chat_id, user_id: senderId }
+    });
+
+    if (!isMember) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not a chat member');
+    }
+
+    let validMentionedUsers = [];
+
+    if (Array.isArray(mentioned_user_ids) && mentioned_user_ids.length) {
+      const members = await ChatMember.findAll({
+        where: {
+          chat_id,
+          user_id: mentioned_user_ids
+        },
+        attributes: ['user_id'],
+        transaction: t
+      });
+
+      validMentionedUsers = members
+        .map(m => m.user_id)
+        .filter(id => id !== senderId);
+    }
+
+    const message = await Message.create({
+      chat_id,
+      sender_id: senderId,
+      message_type: 'text',
+      content
+    }, { transaction: t });
+
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+      transaction: t
+    });
+
+    await MessageStatus.bulkCreate(
+      members.map(m => ({
+        message_id: message.id,
+        user_id: m.user_id,
+        chat_id,
+        status: 'sent'
+      })),
+      { transaction: t }
+    );
+
+    if (validMentionedUsers.length) {
+      await MessageMention.bulkCreate(
+        validMentionedUsers.map(userId => ({
+          message_id: message.id,
+          mentioned_user_id: userId
+        })),
+        { transaction: t }
+      );
+    }
+
+    await t.commit();
+
+    const payload = {
+      id: message.id,
+      chat_id,
+      sender_id: senderId,
+      content,
+      mentioned_user_ids: validMentionedUsers,
+      created_at: message.created_at
+    };
+
+    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
+
+    validMentionedUsers.forEach(userId => {
+      io.to(`user_${userId}`).emit(EVENTS.USER_MENTIONED, {
+        chat_id,
+        message_id: message.id,
+        mentioned_by: senderId,
+        content
+      });
+    });
+
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Message sent with mentions!', payload);
+
+  } catch (err) {
+    await t.rollback();
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+  }
+};
