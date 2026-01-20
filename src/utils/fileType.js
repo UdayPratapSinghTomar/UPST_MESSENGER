@@ -5,17 +5,17 @@ function getFileType(mimeType) {
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
 
-  // PDF
   if (mimeType === "application/pdf") return "pdf";
 
-  // Word documents
   if (
-    mimeType === "application/msword" || // .doc
+    mimeType === "application/msword" ||
     mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // .docx
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return "document";
   }
 
   return "file";
 }
+
+module.exports = { getFileType };

@@ -5,11 +5,12 @@ const {
   Chat,
   ChatMember,
   SharedFile,
+  sequelize
 } = require("../../models");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
-const { getFileType } = require('../../utils/fileType');
+const { getFileType } = require("../../utils/fileType");
 const EVENTS = require("../../utils/socketEvents");
-const { Op, sequelize, where } = require("sequelize");
+const { Op, where } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
   const t = await sequelize.transaction();
@@ -24,7 +25,7 @@ exports.sendMessage = async (req, res) => {
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Chat id is required"
+        "Chat id is required",
       );
     }
 
@@ -37,52 +38,62 @@ exports.sendMessage = async (req, res) => {
         res,
         HttpsStatus.FORBIDDEN,
         false,
-        "Not a chat member"
+        "Not a chat member",
       );
     }
 
     const members = await ChatMember.findAll({ where: { chat_id } });
 
     const hasFiles = Array.isArray(req.files) && req.files.length > 0;
-    const hasContent =typeof content === "string" && content.trim().length > 0;
+    const hasContent = typeof content === "string" && content.trim().length > 0;
 
-    if(!hasFiles && !hasContent){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Message cannot be empty!');
+    if (!hasFiles && !hasContent) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Message cannot be empty!",
+      );
     }
 
-    let messageType = 'text';
-    if(hasFiles && hasContent){
-      messageType = 'mixed';
-    }
-    else if(hasFiles){
-      messageType = 'file';
+    let messageType = "text";
+    if (hasFiles && hasContent) {
+      messageType = "mixed";
+    } else if (hasFiles) {
+      messageType = "file";
     }
 
-    const message = await Message.create({
-      chat_id,
-      sender_id: senderId,
-      message_type: messageType,
-      content: hasContent ? content : null,
-    },{
-      transaction: t
-    });
+    const message = await Message.create(
+      {
+        chat_id,
+        sender_id: senderId,
+        message_type: messageType,
+        content: hasContent ? content : null,
+      },
+      {
+        transaction: t,
+      },
+    );
 
     let attachedFiles = [];
 
-    if(hasFiles){
-      for (const file of req.files){
-        const sharedFile = await SharedFile.create({
-          message_id: message.id,
-          chat_id,
-          user_id: senderId,
-          file_name: file.originalname,
-          file_url: `/uploads/${file.filename}`,
-          file_type: getFileType(file.mimetype),
-          file_size: file.size,
-          mime_type: file.mimetype
-        },{
-          transaction: t
-        });
+    if (hasFiles) {
+      for (const file of req.files) {
+        const sharedFile = await SharedFile.create(
+          {
+            message_id: message.id,
+            chat_id,
+            user_id: senderId,
+            file_name: file.originalname,
+            file_url: `/uploads/${file.filename}`,
+            file_type: getFileType(file.mimetype),
+            file_size: file.size,
+            mime_type: file.mimetype,
+          },
+          {
+            transaction: t,
+          },
+        );
         attachedFiles.push(sharedFile);
       }
     }
@@ -94,7 +105,7 @@ exports.sendMessage = async (req, res) => {
         chat_id,
         status: "sent",
       })),
-      { transaction: t }
+      { transaction: t },
     );
 
     await t.commit();
@@ -111,7 +122,13 @@ exports.sendMessage = async (req, res) => {
 
     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'Message created!', payload)
+    return sendResponse(
+      res,
+      HttpsStatus.CREATED,
+      true,
+      "Message created!",
+      payload,
+    );
     // const messagesPayload = [];
 
     // // ❗ TEXT ONLY (no files)
@@ -303,7 +320,7 @@ exports.fetchMessages = async (req, res) => {
       HttpsStatus.OK,
       true,
       "Messages retrieved successfully!",
-      formattedMessages
+      formattedMessages,
     );
   } catch (err) {
     console.error("Fetch messages error:", err);
@@ -313,7 +330,7 @@ exports.fetchMessages = async (req, res) => {
       false,
       "Server error!",
       null,
-      { server: err.message }
+      { server: err.message },
     );
   }
 };
@@ -323,43 +340,60 @@ exports.editMessage = async (req, res) => {
 
   try {
     const { message_id } = req.params;
-    const {  content, removed_file_ids } = req.body;
+    const { content, removed_file_ids } = req.body;
     const userId = req.user.id;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
     const message = await Message.findOne({
       where: { id: message_id, is_deleted: false },
-      transaction: t
+      transaction: t,
     });
 
-    if(!message){
-      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'Message not found!');
+    if (!message) {
+      return sendResponse(
+        res,
+        HttpsStatus.NOT_FOUND,
+        false,
+        "Message not found!",
+      );
     }
 
-    if(message.sender_id !== userId){
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'You can only edit your own message!');
+    if (message.sender_id !== userId) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "You can only edit your own message!",
+      );
     }
 
-    const hasNewContent = typeof content === 'string' && content.trim().length > 0;
-    const hasRemovedFiles = Array.isArray(removed_file_ids) && removed_file_ids.length > 0;
+    const hasNewContent =
+      typeof content === "string" && content.trim().length > 0;
+    const hasRemovedFiles =
+      Array.isArray(removed_file_ids) && removed_file_ids.length > 0;
     const hasNewFiles = Array.isArray(req.files) && req.files.length > 0;
 
-    if(!hasNewContent && !hasRemovedFiles && !hasNewFiles){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Nothing to update!');
+    if (!hasNewContent && !hasRemovedFiles && !hasNewFiles) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Nothing to update!",
+      );
     }
 
-    if(hasRemovedFiles){
+    if (hasRemovedFiles) {
       await SharedFile.destroy({
         where: {
           id: removed_file_ids,
-          message_id: message.id
+          message_id: message.id,
         },
-        transaction: t
+        transaction: t,
       });
     }
 
     const newlyAddedFiles = [];
-    
+
     if (hasNewFiles) {
       for (const file of req.files) {
         const sharedFile = await SharedFile.create(
@@ -373,37 +407,41 @@ exports.editMessage = async (req, res) => {
             file_size: file.size,
             mime_type: file.mimetype,
           },
-          { transaction: t }
+          { transaction: t },
         );
 
         newlyAddedFiles.push(sharedFile);
       }
     }
 
-    if(hasNewContent){
+    if (hasNewContent) {
       message.content = content;
     }
 
     const remainingFilesCount = await SharedFile.count({
       where: { message_id: message.id },
-      transaction: t
+      transaction: t,
     });
 
     const hasAnyFiles = remainingFilesCount > 0;
-    const hasAnyContent = typeof message.content === 'string' && message.content.trim().length > 0;
+    const hasAnyContent =
+      typeof message.content === "string" && message.content.trim().length > 0;
 
-    if(!hasAnyFiles && !hasAnyContent){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Message cannot be empty after edit');
+    if (!hasAnyFiles && !hasAnyContent) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Message cannot be empty after edit",
+      );
     }
 
-    if(hasAnyFiles && hasAnyContent){
-      message.message_type = 'mixed';
-    }
-    else if(hasAnyFiles){
-      message.message_type = 'file';
-    }
-    else{
-      message.message_type = 'text';
+    if (hasAnyFiles && hasAnyContent) {
+      message.message_type = "mixed";
+    } else if (hasAnyFiles) {
+      message.message_type = "file";
+    } else {
+      message.message_type = "text";
     }
 
     message.edited_at = new Date();
@@ -428,31 +466,48 @@ exports.editMessage = async (req, res) => {
 
     io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_UPDATED, payload);
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Message updated!', payload);
+    return sendResponse(res, HttpsStatus.OK, true, "Message updated!", payload);
   } catch (err) {
     await t.rollback();
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      err.message,
+    );
   }
-}
+};
 
 exports.deleteMessage = async (req, res, io) => {
-  try{
+  try {
     const userId = req.user.id;
     const { message_id } = req.params;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
     const message = await Message.findByPk(message_id);
-    if(!message){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Message not found!');
+    if (!message) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Message not found!",
+      );
     }
 
-    if(message.sender_id !== userId){
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'You cannot delete this message!')
+    if (message.sender_id !== userId) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "You cannot delete this message!",
+      );
     }
 
     await MessageStatus.update(
       { is_deleted: true },
-      { where: { id: message_id } }
+      { where: { id: message_id } },
     );
 
     // await Message.update(
@@ -462,14 +517,26 @@ exports.deleteMessage = async (req, res, io) => {
 
     io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_DELETED, {
       message_id,
-      user_id: userId
+      user_id: userId,
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Message deleted successfull!');
-  }catch(err){
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Message deleted successfull!",
+    );
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      err.message,
+    );
   }
-}
+};
 
 exports.deliveredMessage = async (req, res) => {
   try {
@@ -489,7 +556,7 @@ exports.deliveredMessage = async (req, res) => {
           chat_id,
           status: "sent",
         },
-      }
+      },
     );
 
     if (!updatedCount) {
@@ -497,7 +564,7 @@ exports.deliveredMessage = async (req, res) => {
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Message was already delivered or invalid message."
+        "Message was already delivered or invalid message.",
       );
     }
 
@@ -512,7 +579,7 @@ exports.deliveredMessage = async (req, res) => {
       HttpsStatus.OK,
       true,
       "Message marked as delivered!",
-      updatedCount
+      updatedCount,
     );
   } catch (err) {
     return sendResponse(
@@ -521,7 +588,7 @@ exports.deliveredMessage = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message
+      err.message,
     );
   }
 };
@@ -544,7 +611,7 @@ exports.readMessage = async (req, res) => {
           chat_id,
           status: { [Op.in]: ["sent", "delivered"] },
         },
-      }
+      },
     );
 
     if (!updatedCount) {
@@ -552,10 +619,10 @@ exports.readMessage = async (req, res) => {
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Message was already read or invalid message."
+        "Message was already read or invalid message.",
       );
     }
-    
+
     io.to(`chat_${chat_id}`).emit("message_status_update", {
       message_id,
       user_id: userId,
@@ -567,7 +634,7 @@ exports.readMessage = async (req, res) => {
       HttpsStatus.OK,
       true,
       "Message marked read!",
-      updatedCount
+      updatedCount,
     );
   } catch (err) {
     return sendResponse(
@@ -576,40 +643,57 @@ exports.readMessage = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message
+      err.message,
     );
   }
 };
 
 exports.startTyping = async (req, res) => {
-  try{
+  try {
     const { chat_id } = req.body;
     const userId = req.user.id;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
-    if(!chat_id){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Chat id is required!');
+    if (!chat_id) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Chat id is required!",
+      );
     }
 
     io.to(`chat_${chat_id}`).emit(EVENTS.USER_TYPING, {
       chat_id,
-      user_id: userId
+      user_id: userId,
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Typing event sent');
-  }catch(err){
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    return sendResponse(res, HttpsStatus.OK, true, "Typing event sent");
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      err.message,
+    );
   }
-}
+};
 
 exports.stopTyping = async (req, res) => {
-  try{
+  try {
     const { chat_id } = req.body;
     const userId = req.user.id;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
-    if(!chat_id){
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Chat id is required!');
+    if (!chat_id) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Chat id is required!",
+      );
     }
 
     io.to(`chat_${chat_id}`).emit(EVENTS.USER_STOP_TYPING, {
@@ -617,11 +701,18 @@ exports.stopTyping = async (req, res) => {
       user_id: userId,
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Stop typing event sent!');
-  }catch(err){
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    return sendResponse(res, HttpsStatus.OK, true, "Stop typing event sent!");
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      err.message,
+    );
   }
-}
+};
 
 exports.forwardMessage = async (req, res) => {
   const t = await sequelize.transaction();
@@ -629,76 +720,95 @@ exports.forwardMessage = async (req, res) => {
   try {
     const { message_id, forwarded_chat_ids } = req.body;
     const senderId = req.user.id;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
-    if (!message_id || !Array.isArray(forwarded_chat_ids) || !forwarded_chat_ids.length) {
+    if (
+      !message_id ||
+      !Array.isArray(forwarded_chat_ids) ||
+      !forwarded_chat_ids.length
+    ) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid payload!');
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Invalid payload!",
+      );
     }
 
     const originalMessage = await Message.findByPk(message_id, {
       include: [{ model: SharedFile }],
-      transaction: t
+      transaction: t,
     });
 
     if (!originalMessage) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'Message not found!');
+      return sendResponse(
+        res,
+        HttpsStatus.NOT_FOUND,
+        false,
+        "Message not found!",
+      );
     }
 
     const forwardedMessages = [];
 
     for (const chat_id of forwarded_chat_ids) {
-
       const isMember = await ChatMember.findOne({
         where: { chat_id, user_id: senderId },
-        transaction: t
+        transaction: t,
       });
 
       if (!isMember) continue;
 
       const members = await ChatMember.findAll({
         where: { chat_id },
-        transaction: t
+        transaction: t,
       });
 
-      const message = await Message.create({
-        chat_id,
-        sender_id: senderId,
-        message_type: originalMessage.message_type,
-        content: originalMessage.content,
-        forwarded_from_message_id: originalMessage.id
-      }, { transaction: t });
+      const message = await Message.create(
+        {
+          chat_id,
+          sender_id: senderId,
+          message_type: originalMessage.message_type,
+          content: originalMessage.content,
+          forwarded_from_message_id: originalMessage.id,
+        },
+        { transaction: t },
+      );
 
       let attachedFiles = [];
 
       if (originalMessage.SharedFiles?.length) {
         for (const file of originalMessage.SharedFiles) {
-          const sharedFile = await SharedFile.create({
-            message_id: message.id,
-            chat_id,
-            user_id: senderId,
-            file_name: file.file_name,
-            file_url: file.file_url,
-            file_type: file.file_type,
-            file_size: file.file_size,
-            mime_type: file.mime_type,
-            duration: file.duration,
-            thumbnail_url: file.thumbnail_url
-          }, { transaction: t });
+          const sharedFile = await SharedFile.create(
+            {
+              message_id: message.id,
+              chat_id,
+              user_id: senderId,
+              file_name: file.file_name,
+              file_url: file.file_url,
+              file_type: file.file_type,
+              file_size: file.file_size,
+              mime_type: file.mime_type,
+              duration: file.duration,
+              thumbnail_url: file.thumbnail_url,
+            },
+            { transaction: t },
+          );
 
           attachedFiles.push(sharedFile);
         }
       }
 
       await MessageStatus.bulkCreate(
-        members.map(m => ({
+        members.map((m) => ({
           message_id: message.id,
           user_id: m.user_id,
           chat_id,
-          status: 'sent'
+          status: "sent",
         })),
-        { transaction: t }
+        { transaction: t },
       );
 
       const payload = {
@@ -709,7 +819,7 @@ exports.forwardMessage = async (req, res) => {
         content: message.content,
         files: attachedFiles,
         forwarded_from_message_id: originalMessage.id,
-        created_at: message.created_at
+        created_at: message.created_at,
       };
 
       io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
@@ -719,7 +829,12 @@ exports.forwardMessage = async (req, res) => {
 
     if (!forwardedMessages.length) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'You are not a member of target chats');
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "You are not a member of target chats",
+      );
     }
 
     await t.commit();
@@ -728,19 +843,18 @@ exports.forwardMessage = async (req, res) => {
       res,
       HttpsStatus.CREATED,
       true,
-      'Message forwarded successfully!',
-      forwardedMessages
+      "Message forwarded successfully!",
+      forwardedMessages,
     );
-
   } catch (err) {
     await t.rollback();
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
       false,
-      'Server error!',
+      "Server error!",
       null,
-      { server: err.message }
+      { server: err.message },
     );
   }
 };
@@ -751,20 +865,30 @@ exports.mentionUser = async (req, res) => {
   try {
     const { chat_id, content, mentioned_user_ids = [] } = req.body;
     const senderId = req.user.id;
-    const io = req.app.get('io');
+    const io = req.app.get("io");
 
     if (!chat_id || !content?.trim()) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid payload!');
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Invalid payload!",
+      );
     }
 
     const isMember = await ChatMember.findOne({
-      where: { chat_id, user_id: senderId }
+      where: { chat_id, user_id: senderId },
     });
 
     if (!isMember) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not a chat member');
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "Not a chat member",
+      );
     }
 
     let validMentionedUsers = [];
@@ -773,46 +897,49 @@ exports.mentionUser = async (req, res) => {
       const members = await ChatMember.findAll({
         where: {
           chat_id,
-          user_id: mentioned_user_ids
+          user_id: mentioned_user_ids,
         },
-        attributes: ['user_id'],
-        transaction: t
+        attributes: ["user_id"],
+        transaction: t,
       });
 
       validMentionedUsers = members
-        .map(m => m.user_id)
-        .filter(id => id !== senderId);
+        .map((m) => m.user_id)
+        .filter((id) => id !== senderId);
     }
 
-    const message = await Message.create({
-      chat_id,
-      sender_id: senderId,
-      message_type: 'text',
-      content
-    }, { transaction: t });
+    const message = await Message.create(
+      {
+        chat_id,
+        sender_id: senderId,
+        message_type: "text",
+        content,
+      },
+      { transaction: t },
+    );
 
     const members = await ChatMember.findAll({
       where: { chat_id },
-      transaction: t
+      transaction: t,
     });
 
     await MessageStatus.bulkCreate(
-      members.map(m => ({
+      members.map((m) => ({
         message_id: message.id,
         user_id: m.user_id,
         chat_id,
-        status: 'sent'
+        status: "sent",
       })),
-      { transaction: t }
+      { transaction: t },
     );
 
     if (validMentionedUsers.length) {
       await MessageMention.bulkCreate(
-        validMentionedUsers.map(userId => ({
+        validMentionedUsers.map((userId) => ({
           message_id: message.id,
-          mentioned_user_id: userId
+          mentioned_user_id: userId,
         })),
-        { transaction: t }
+        { transaction: t },
       );
     }
 
@@ -824,24 +951,36 @@ exports.mentionUser = async (req, res) => {
       sender_id: senderId,
       content,
       mentioned_user_ids: validMentionedUsers,
-      created_at: message.created_at
+      created_at: message.created_at,
     };
 
     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
 
-    validMentionedUsers.forEach(userId => {
+    validMentionedUsers.forEach((userId) => {
       io.to(`user_${userId}`).emit(EVENTS.USER_MENTIONED, {
         chat_id,
         message_id: message.id,
         mentioned_by: senderId,
-        content
+        content,
       });
     });
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'Message sent with mentions!', payload);
-
+    return sendResponse(
+      res,
+      HttpsStatus.CREATED,
+      true,
+      "Message sent with mentions!",
+      payload,
+    );
   } catch (err) {
     await t.rollback();
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      err.message,
+    );
   }
 };

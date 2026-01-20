@@ -111,7 +111,7 @@ exports.adminRegister = async (req,res) => {
                                         designation
                                     }, 
                                     { transaction: t});
-            
+
             
             const defaultFileUrl = '/uploads/default/profile_pic.jpg';
             const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
@@ -161,7 +161,7 @@ exports.userRegister = async (req,res) => {
             errors.full_name = 'Full name is required';
         }
         if(!designation){
-            errors.designation = 'Job profile is required';
+            errors.designation = 'Designation is required';
         }
         if(!email){
             errors.email = 'Email is required';
@@ -218,7 +218,7 @@ exports.userRegister = async (req,res) => {
             await t.commit();
             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
         }catch(err){
-            console.log(err)
+            console.log(err);
             await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
         }                     
@@ -282,30 +282,39 @@ exports.login = async (req, res) => {
 }
 
 exports.logout = async (req, res) => {
-    try{
-        // const user_id = req.user?.id;
-        // const { refreshToken } = req.body
-        const { refreshToken } = req.headers['x-refresh-token'];
-        
-        // if(!user_id){
-        //     return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Unauthorized', null, {auth: 'Missing'});
-        // }
+    try {
+        const refreshToken = req.headers['refresh_token'];
 
-        if(!refreshToken){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Refresh token is required');
+        if (!refreshToken) {
+            return sendResponse(
+                res,
+                HttpsStatus.BAD_REQUEST,
+                false,
+                'Refresh token is required'
+            );
         }
 
-        const deleted = await RefreshToken.destroy({ where: { token: refreshToken } });
+        await RefreshToken.destroy({
+            where: { token: refreshToken }
+        });
 
-        // if(!deleted){
-        //     return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid refresh token');
-        // }
-
-        return sendResponse(res, HttpsStatus.OK, true, 'Logged out successfully');
-    }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, {server: err.message});
+        return sendResponse(
+            res,
+            HttpsStatus.OK,
+            true,
+            'Logged out successfully'
+        );
+    } catch (err) {
+        return sendResponse(
+            res,
+            HttpsStatus.INTERNAL_SERVER_ERROR,
+            false,
+            'Server error!',
+            null,
+            { server: err.message }
+        );
     }
-}
+};
 
 exports.forgetPassword = async (req, res) => {
     try {
@@ -346,5 +355,21 @@ exports.forgetPassword = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
+    }
+} 
+
+exports.forgetEmail = async (req, res) => {
+    try{
+        const { email } = req.body;
+        
+        if(!email){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email input is empty!');
+        }
+
+        const user = await User.findOne({where: { email }});
+        
+        return sendResponse(res, HttpsStatus.OK, true, 'Data retrieve', user);
+    }catch(err){
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
     }
 }
