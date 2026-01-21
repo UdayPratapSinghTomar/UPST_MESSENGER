@@ -258,23 +258,24 @@ exports.login = async (req, res) => {
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
     
-        const t = await sequelize.transaction();
-        try{
-            await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
+        // const t = await sequelize.transaction();
+        // try{
+            // await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
             
-            await RefreshToken.create({
-                user_id: user.id,
-                token: refreshToken,
-                expires_at: expiryDateFromNow()
-            },{ transaction: t });
+        await RefreshToken.create({
+            user_id: user.id,
+            token: refreshToken,
+            device_id: req.headers['device_id'],
+            expires_at: expiryDateFromNow()
+        });
     
-            await t.commit();
+            // await t.commit();
             
-            return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
-        }catch(err){
-            await t.rollback();
-            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-        }
+        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
+        // }catch(err){
+        //     await t.rollback();
+        //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+        // }
 
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
@@ -283,19 +284,19 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
     try {
-        const refreshToken = req.headers['refresh_token'];
+        const device_id = req.headers['device_id'];
 
-        if (!refreshToken) {
+        if (!device_id) {
             return sendResponse(
                 res,
                 HttpsStatus.BAD_REQUEST,
                 false,
-                'Refresh token is required'
+                'Device id is required'
             );
         }
 
         await RefreshToken.destroy({
-            where: { token: refreshToken }
+            where: { device_id }
         });
 
         return sendResponse(
@@ -355,21 +356,5 @@ exports.forgetPassword = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
-    }
-} 
-
-exports.forgetEmail = async (req, res) => {
-    try{
-        const { email } = req.body;
-        
-        if(!email){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email input is empty!');
-        }
-
-        const user = await User.findOne({where: { email }});
-        
-        return sendResponse(res, HttpsStatus.OK, true, 'Data retrieve', user);
-    }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
     }
 }

@@ -2,8 +2,8 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
-const { Op, sequelize } = require("sequelize");
-const { User, sharedFile } = require("../../models");
+const { Op } = require("sequelize");
+const { sequelize, User, sharedFile } = require("../../models");
 
 exports.fetchUsersByOrgId = async (req, res) => {
   try {

@@ -22,9 +22,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE, 
       allowNull: false 
     },
-    // 🔴 ADD LATER:
-    // device_id
-    // revoked_at
+    device_id: {
+      type: DataTypes.STRING
+    },
+    revoked_at: {
+      type: DataTypes.DATE
+    }
   },
   {
     tableName: 'refresh_tokens',
