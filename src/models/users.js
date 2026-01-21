@@ -68,10 +68,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    reset_token: { 
+    reset_password_otp: { 
       type: DataTypes.STRING
     },
-    reset_token_expiry: { 
+    reset_password_expiry: { 
       type: DataTypes.DATE
     },
     status: {

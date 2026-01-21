@@ -9,6 +9,8 @@ const { verifyRefreshToken } = require('../../utils/tokens');
 const { Op } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const sendEmail = require('../../utils/sendEmail');
 
 // exports.refreshToken = async (req, res) =>{
 //     try{
@@ -317,7 +319,96 @@ exports.logout = async (req, res) => {
     }
 };
 
-exports.forgetPassword = async (req, res) => {
+exports.requestPasswordOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if(!email){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Mail is required!');
+        }
+
+        const user = await User.findOne({ where: { email } });
+        if(!user){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Mail not found!');
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
+        const expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+        await user.update({
+            reset_password_otp: hashedOtp,
+            reset_password_expiry: expiry
+        });
+
+        await sendEmail({
+            to: user.email,
+            subject: "Your Password Reset OTP",
+            text: `Your OTP for password reset is ${otp}. It expires in 10 minutes.`,
+            html: `<p>Your OTP for password reset is <b>${otp}</b>. It expires in 10 minutes.</p>`
+        });
+
+        return sendResponse(res, HttpsStatus.OK, true, 'Please check your mail for the OTP!');
+    } catch (err) {
+        console.log('errr --- ',err);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+    }
+}
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const errors = {};
+
+    if (!email) errors.email = "Email is required!";
+    if (!otp) errors.otp = "OTP is required!";
+
+    if (Object.keys(errors).length > 0) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Missing fields!", null, errors);
+    }
+
+    // Find the user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user || !user.reset_password_otp || !user.reset_password_expiry) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid OTP!");
+    }
+
+    // Check if OTP expired
+    const currentTime = new Date();
+    if (currentTime > new Date(user.reset_password_expiry)) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "OTP expired!");
+    }
+
+    // Hash received OTP
+    const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+    if (hashedOtp !== user.reset_password_otp) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid OTP!");
+    }
+
+    // Clear OTP so it can’t be reused
+    await user.update({
+      reset_password_otp: null,
+      reset_password_expiry: null
+    });
+
+    return sendResponse(res, HttpsStatus.OK, true, "OTP verified successfully!");
+  } catch (err) {
+    console.error("verifyOtp error:", err);
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+exports.resetPassword = async (req, res) => {
     try {
         const { email, password, confirmPassword } = req.body;
         
