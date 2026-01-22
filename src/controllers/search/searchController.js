@@ -111,7 +111,7 @@ exports.searchAll = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Data retrieve successfully!', { users, privateChats, groups, messages } );
     }catch(err){
         // console.log("search error ------- ", err);
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.messages);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
 }
 
@@ -145,7 +145,7 @@ exports.searchChatMessages = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, "Chat retrieved successfully!", messages);
     }catch(err){
         console.log("error", err);
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
     }
 }
 
@@ -191,6 +191,6 @@ exports.searchUsers = async (req, res) => {
         });
         return sendResponse(res, HttpsStatus.OK, true, 'Users retrieved!', users);
     }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
     }
 }

@@ -6,6 +6,6 @@ exports.fetchAssignee = async (req, res) => {
         const assignees = await Assignee.findAll();
         return sendResponse(res, HttpsStatus.OK, true, "Assignee fetch successfully!", assignees);
     }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
     }
 }

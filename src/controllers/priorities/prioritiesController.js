@@ -22,7 +22,7 @@ exports.createPriorities = async (req, res) => {
         return sendResponse(res, HttpsStatus.CREATED, true, 'Priorities created', data);
 
     }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
 }
 
@@ -34,6 +34,6 @@ exports.fetchPriorities = async (req, res) => {
 
         return sendResponse(res, HttpsStatus.OK, true, 'Priorities retreived successfully!', priorities);
     }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
 }

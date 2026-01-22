@@ -26,6 +26,6 @@ exports.uploadFile = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'File uploaded successfully!', responseData);
     }catch(err){
         console.log("err---", err);
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.msg);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
 }

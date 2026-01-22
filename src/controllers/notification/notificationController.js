@@ -12,6 +12,6 @@ exports.saveFcmToken = async (req, res) => {
 
         return sendResponse(res, HttpsStatus.OK, true, 'Token saved!');
     }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
 }

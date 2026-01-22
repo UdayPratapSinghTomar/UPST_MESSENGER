@@ -50,7 +50,7 @@ exports.fetchUsersByOrgId = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message
+      { server: err.message }
     );
   }
 };
@@ -114,7 +114,7 @@ exports.updateProfile = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message
+      { server: err.message }
     );
   }
 };

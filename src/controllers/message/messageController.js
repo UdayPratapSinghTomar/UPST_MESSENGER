@@ -243,9 +243,7 @@ exports.sendMessage = async (req, res) => {
     // }
   } catch (err) {
     await t.rollback();
-    return sendResponse(res, 500, false, "Server error", null, {
-      server: err.message,
-    });
+    return sendResponse(res, 500, false, "Server error", null, { server: err.message });
   }
 };
 
@@ -475,7 +473,7 @@ exports.editMessage = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -533,7 +531,7 @@ exports.deleteMessage = async (req, res, io) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -588,7 +586,7 @@ exports.deliveredMessage = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -643,7 +641,7 @@ exports.readMessage = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -676,7 +674,7 @@ exports.startTyping = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -709,7 +707,7 @@ exports.stopTyping = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };
@@ -980,7 +978,7 @@ exports.mentionUser = async (req, res) => {
       false,
       "Server error!",
       null,
-      err.message,
+      { server: err.message },
     );
   }
 };

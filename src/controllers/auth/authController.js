@@ -49,9 +49,9 @@ const sendEmail = require('../../utils/sendEmail');
 //         return sendResponse(res, HttpsStatus.OK, true, 'Token refreshed', { accessToken: newAccessToken, refreshToken: newRefreshToken });
 //     }catch(err){
 //         console.error('refreshToken error:', err);
-//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error', null, { server: { server: err.message } });
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error', null, { server: err.message });
 //         }
-// }
+// };
 
 exports.adminRegister = async (req,res) => {
     try{
@@ -144,7 +144,7 @@ exports.adminRegister = async (req,res) => {
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     } 
-}
+};
 
 exports.userRegister = async (req,res) => {
     try{
@@ -227,11 +227,11 @@ exports.userRegister = async (req,res) => {
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     } 
-}
+};
 
 exports.login = async (req, res) => {
     try{
-        const { email, password } = req.body
+        const { email, password, device_id } = req.body
         const errors = {};
         
         if(!email){
@@ -239,6 +239,9 @@ exports.login = async (req, res) => {
         }
         if(!password){
             errors.password = 'Password is required';
+        }
+        if(!device_id){
+            errors.device_id = 'Device id is required';
         }
 
         if(Object.keys(errors).length > 0){
@@ -267,7 +270,7 @@ exports.login = async (req, res) => {
         await RefreshToken.create({
             user_id: user.id,
             token: refreshToken,
-            device_id: req.headers['device_id'],
+            device_id: device_id,
             expires_at: expiryDateFromNow()
         });
     
@@ -288,7 +291,7 @@ exports.login = async (req, res) => {
             where: { id: orgIds },
             attributes: ["id", "name"],
         });
-            // await t.commit();
+        // await t.commit();
             
         return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(),organizations } });
         // }catch(err){
@@ -299,7 +302,7 @@ exports.login = async (req, res) => {
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
-}
+};
 
 exports.logout = async (req, res) => {
     try {
@@ -369,16 +372,16 @@ exports.requestPasswordOtp = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Please check your mail for the OTP!');
     } catch (err) {
         console.log('errr --- ',err);
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, err.message);
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
     }
-}
+};
 
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
     const errors = {};
-
+ 
     if (!email) errors.email = "Email is required!";
     if (!otp) errors.otp = "OTP is required!";
 
@@ -465,4 +468,4 @@ exports.resetPassword = async (req, res) => {
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
     }
-}
+};
