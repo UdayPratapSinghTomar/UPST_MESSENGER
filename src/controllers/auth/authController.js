@@ -245,7 +245,7 @@ exports.login = async (req, res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
         }
 
-        const user = await User.findUserByEmail(email);
+        const user = await User.findOne({ where: { email }});
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'User not found'});
         }
@@ -271,9 +271,26 @@ exports.login = async (req, res) => {
             expires_at: expiryDateFromNow()
         });
     
+        const orgIds = [
+            user.organization_id,
+            user.org_2,
+            user.org_3,
+            user.org_4,
+            user.org_5,
+            user.org_6,
+            user.org_7,
+            user.org_8,
+            user.org_9,
+            user.org_10,
+        ].filter(Boolean);
+
+        const organizations = await Organization.findAll({
+            where: { id: orgIds },
+            attributes: ["id", "name"],
+        });
             // await t.commit();
             
-        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: { id: user.id, full_name: user.full_name, email: user.email }});
+        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(),organizations } });
         // }catch(err){
         //     await t.rollback();
         //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });

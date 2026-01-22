@@ -6,13 +6,17 @@ const { Op } = require('sequelize');
 const chatMembers = require('../../models/chatMembers');
 
 exports.createPrivateChat = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try{
       const { user_id } = req.body;
       if (!user_id) {
-          return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
+        await t.rollback();
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
       }
             
       if (user_id == req.user.id) {
+        await t.rollback();
         return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'You cannot create a private chat with yourself!');
       }
       
@@ -36,27 +40,23 @@ exports.createPrivateChat = async (req, res) => {
         subQuery: false // prevents sequelize from breaking group by in findone
       });
       if(existingChat){
+        await t.rollback();
         return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Private chat already exists!');
       }
 
-      const t = await sequelize.transaction();
-      try{
-        const chat = await Chat.create({type: 'private', created_by: req.user.id}, { transaction: t });
+      const chat = await Chat.create({type: 'private', created_by: req.user.id}, { transaction: t });
 
-        const chatMember = await ChatMember.bulkCreate([
-            { chat_id: chat.id, user_id: req.user.id},
-            { chat_id: chat.id, user_id}
-        ],
-        { transaction: t });
-        
-        await t.commit(); 
+      const chatMember = await ChatMember.bulkCreate([
+          { chat_id: chat.id, user_id: req.user.id},
+          { chat_id: chat.id, user_id}
+      ],
+      { transaction: t });
+      
+      await t.commit(); 
 
-        return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
-      }catch(err){
-        await t.rollback();
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-      }
+      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
   }catch(err){
+    await t.rollback();
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }

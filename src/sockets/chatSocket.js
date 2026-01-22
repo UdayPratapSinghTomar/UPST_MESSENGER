@@ -54,10 +54,10 @@ module.exports = (io) => {
         console.log(`User ${userId} joined chat_${chat_id}`);
 
         // Mark messages as delivered
-        await MessageStatus.update(
-          { status: "delivered", delivered_at: new Date() },
-          { where: { chat_id, user_id: userId, status: "sent" } },
-        );
+        // await MessageStatus.update(
+        //   { status: "delivered", delivered_at: new Date() },
+        //   { where: { chat_id, user_id: userId, status: "sent" } },
+        // );
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, {
           message: "Failed to join chat",
