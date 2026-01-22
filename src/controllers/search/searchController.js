@@ -149,38 +149,44 @@ exports.searchChatMessages = async (req, res) => {
     }
 }
 
-exports.searchOrgUsers = async (req, res) => {
+exports.searchUsers = async (req, res) => {
     try {
-        const { orgId, user_id } = req.body;
-        const errors = {};
+        const { q } = req.query;
+        // const errors = {};
 
-        if(!orgId){
-            errors.orgId = 'Organization id is required';
-        }
-        else if(!user_id){
-            errors.user_id = 'User id is required';
+        // if(!orgId){
+        //     errors.orgId = 'Organization id is required';
+        // }
+        if(!q){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Search bar is empty!', { users: [] } );
         }
 
-        if(Object.keys(errors) > 0){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
-        }
+        // if(Object.keys(errors) > 0){
+        //     return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
+        // }
+
+        // const users = await User.findAll({
+        //     where: { 
+        //         is_deleted: false,
+        //         user_id,
+        //         [Op.or]: [
+        //             { organization_id: orgId },
+        //             { org_2: orgId },
+        //             { org_3: orgId },
+        //             { org_4: orgId },
+        //             { org_5: orgId },
+        //             { org_6: orgId },
+        //             { org_7: orgId },
+        //             { org_8: orgId },
+        //             { org_9: orgId },
+        //             { org_10: orgId },
+        //         ],
+        //     }
+        // });
 
         const users = await User.findAll({
-            where: { 
-                is_deleted: false,
-                user_id,
-                [Op.or]: [
-                    { organization_id: orgId },
-                    { org_2: orgId },
-                    { org_3: orgId },
-                    { org_4: orgId },
-                    { org_5: orgId },
-                    { org_6: orgId },
-                    { org_7: orgId },
-                    { org_8: orgId },
-                    { org_9: orgId },
-                    { org_10: orgId },
-                ],
+            where: {
+                email: q
             }
         });
         return sendResponse(res, HttpsStatus.OK, true, 'Users retrieved!', users);
