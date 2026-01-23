@@ -8,7 +8,7 @@ router.post('/create-private', auth, controller.createPrivateChat);
 
 // group chat
 router.post('/create-group', auth, controller.createGroup)
-router.post('/add-group-user', auth, controller.addGroupMember)
+router.post('/add-group-member', auth, controller.addGroupMember)
 router.post('/remove-group-member', auth, controller.removeGroupMember)
 
 // open chat
