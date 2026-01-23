@@ -16,6 +16,8 @@ router.get('/open/:chat_id', auth, controller.openChat);
 
 // user chat list
 router.get('/chat-list', auth, controller.fetchChatList);
+router.get('/private-chat', auth, controller.fetchPrivateChats);
+router.get('/group-chat', auth, controller.fetchGroupChats);
 
 // router.get('/', auth, controller.gerUserChats);
 

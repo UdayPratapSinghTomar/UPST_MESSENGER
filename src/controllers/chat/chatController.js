@@ -561,3 +561,234 @@ exports.fetchChatList = async (req, res) => {
     );
   }
 };
+
+exports.fetchPrivateChats = async (req, res) => {
+  try {
+    const user_id = req.user.id;
+
+    if (!user_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
+    }
+
+    const chatMembers = await ChatMember.findAll({
+      where: { user_id },
+      attributes: ['chat_id'],
+      include: [
+        {
+          model: Chat,
+          as: 'chat',
+          where: { type: 'private' },
+          attributes: ['id', 'type', 'group_name', 'created_at'],
+          include: [
+            {
+              model: ChatMember,
+              as: 'memberships',
+              attributes: ['user_id'],
+              include: [
+                {
+                  model: User,
+                  as: 'user',
+                  attributes: ['id', 'full_name', 'profile_url', 'is_online']
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!chatMembers.length) {
+      return sendResponse(res, HttpsStatus.OK, true, 'Private chat list retrieved!', []);
+    }
+
+    const chatIds = chatMembers.map(cm => cm.chat_id);
+
+    const lastMessages = await Message.findAll({
+      where: { chat_id: { [Op.in]: chatIds } },
+      attributes: ['chat_id', 'content', 'message_type', 'sender_id', 'created_at'],
+      include: [{ model: User, as: 'sender', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    const lastMessageMap = {};
+    for (const msg of lastMessages) {
+      if (!lastMessageMap[msg.chat_id]) lastMessageMap[msg.chat_id] = msg;
+    }
+
+    const unreadCounts = await MessageStatus.findAll({
+      where: { user_id, status: { [Op.ne]: 'read' } },
+      include: [
+        {
+          model: Message,
+          as: 'message',
+          attributes: ['chat_id'],
+          where: { chat_id: { [Op.in]: chatIds }, sender_id: { [Op.ne]: user_id } }
+        }
+      ]
+    });
+
+    const unreadMap = {};
+    for (const row of unreadCounts) {
+      const chatId = row.message.chat_id;
+      unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+    }
+
+    const privateChats = chatMembers.map(cm => {
+      const chat = cm.chat;
+      const lastMessage = lastMessageMap[chat.id] || null;
+
+      const otherUser = chat.memberships
+        .map(m => m.user)
+        .find(u => u.id !== user_id);
+
+      const last_message = lastMessage
+        ? {
+            content: lastMessage.content,
+            message_type: lastMessage.message_type,
+            created_at: lastMessage?.dataValues?.created_at,
+            sender_name: lastMessage.sender_id === user_id ? 'You' : lastMessage.sender?.full_name || null
+          }
+        : null;
+
+      return {
+        chat_id: chat.id,
+        type: chat.type,
+        name: otherUser?.full_name || null,
+        profile_url: otherUser?.profile_url || null,
+        is_online: otherUser?.is_online || false,
+        last_message,
+        unread_count: unreadMap[chat.id] || 0
+      };
+    });
+
+    // Sort by last message
+    privateChats.sort((a, b) => {
+      const t1 = a.last_message?.created_at || 0;
+      const t2 = b.last_message?.created_at || 0;
+      return new Date(t2) - new Date(t1);
+    });
+
+    return sendResponse(res, HttpsStatus.OK, true, 'Private chat list retrieved!', privateChats);
+
+  } catch (err) {
+    console.error('fetchPrivateChats error:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+  }
+};
+
+exports.fetchGroupChats = async (req, res) => {
+  try {
+    const user_id = req.user.id;
+
+    if (!user_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
+    }
+
+    const chatMembers = await ChatMember.findAll({
+      where: { user_id },
+      attributes: ['chat_id'],
+      include: [
+        {
+          model: Chat,
+          as: 'chat',
+          where: { type: 'group' },
+          attributes: ['id', 'type', 'group_name', 'created_at'],
+          include: [
+            {
+              model: ChatMember,
+              as: 'memberships',
+              attributes: ['user_id'],
+              include: [
+                {
+                  model: User,
+                  as: 'user',
+                  attributes: ['id', 'full_name', 'profile_url', 'is_online']
+                }
+              ]
+            },
+            {
+              model: SharedFile,
+              as: 'files',
+              attributes: ['file_url'],
+              where: { file_type: 'group_profile' }, // assume type for group profile
+              required: false
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!chatMembers.length) {
+      return sendResponse(res, HttpsStatus.OK, true, 'Group chat list retrieved!', []);
+    }
+
+    const chatIds = chatMembers.map(cm => cm.chat_id);
+
+    const lastMessages = await Message.findAll({
+      where: { chat_id: { [Op.in]: chatIds } },
+      attributes: ['chat_id', 'content', 'message_type', 'sender_id', 'created_at'],
+      include: [{ model: User, as: 'sender', attributes: ['id', 'full_name'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    const lastMessageMap = {};
+    for (const msg of lastMessages) {
+      if (!lastMessageMap[msg.chat_id]) lastMessageMap[msg.chat_id] = msg;
+    }
+
+    const unreadCounts = await MessageStatus.findAll({
+      where: { user_id, status: { [Op.ne]: 'read' } },
+      include: [
+        {
+          model: Message,
+          as: 'message',
+          attributes: ['chat_id'],
+          where: { chat_id: { [Op.in]: chatIds }, sender_id: { [Op.ne]: user_id } }
+        }
+      ]
+    });
+
+    const unreadMap = {};
+    for (const row of unreadCounts) {
+      const chatId = row.message.chat_id;
+      unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+    }
+
+    const groupChats = chatMembers.map(cm => {
+      const chat = cm.chat;
+      const lastMessage = lastMessageMap[chat.id] || null;
+
+      const last_message = lastMessage
+        ? {
+            content: lastMessage.content,
+            message_type: lastMessage.message_type,
+            created_at: lastMessage?.dataValues?.created_at,
+            sender_name: lastMessage.sender_id === user_id ? 'You' : lastMessage.sender?.full_name || null
+          }
+        : null;
+
+      return {
+        chat_id: chat.id,
+        type: chat.type,
+        name: chat.group_name,
+        profile_url: chat.files?.[0]?.file_url || null,
+        is_online: false,
+        last_message,
+        unread_count: unreadMap[chat.id] || 0
+      };
+    });
+
+    // Sort by last message
+    groupChats.sort((a, b) => {
+      const t1 = a.last_message?.created_at || 0;
+      const t2 = b.last_message?.created_at || 0;
+      return new Date(t2) - new Date(t1);
+    });
+
+    return sendResponse(res, HttpsStatus.OK, true, 'Group chat list retrieved!', groupChats);
+
+  } catch (err) {
+    console.error('fetchGroupChats error:', err);
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+  }
+};
