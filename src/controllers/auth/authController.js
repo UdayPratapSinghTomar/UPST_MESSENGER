@@ -240,9 +240,9 @@ exports.login = async (req, res) => {
         if(!password){
             errors.password = 'Password is required';
         }
-        if(!device_id){
-            errors.device_id = 'Device id is required';
-        }
+        // if(!device_id){
+        //     errors.device_id = 'Device id is required';
+        // }
 
         if(Object.keys(errors).length > 0){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);

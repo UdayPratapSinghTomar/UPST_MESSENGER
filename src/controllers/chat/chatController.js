@@ -4,6 +4,8 @@ const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
 const chatMembers = require('../../models/chatMembers');
+const path = require('path');
+const fs = require('fs');
 
 exports.createPrivateChat = async (req, res) => {
   const t = await sequelize.transaction();
@@ -276,7 +278,7 @@ exports.openChat = async (req, res) => {
     return sendResponse(res, HttpsStatus.OK, true, 'Messages retrieved!', messages);
   }catch(err){
     console.log('error',err)
-    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Serverd error!', null, { server: err.message});
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message});
   }
 }
 
