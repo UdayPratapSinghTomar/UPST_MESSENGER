@@ -306,7 +306,7 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
     try {
-        const device_id = req.headers['device_id'];
+        const { device_id } = req.body;
 
         if (!device_id) {
             return sendResponse(
