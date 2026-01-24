@@ -21,6 +21,6 @@ router.get('/group-chats', auth, controller.allGroupChats);
 
 // router.get('/', auth, controller.gerUserChats);
 // chats history
-router.get('/private-chat-history/:chat_id', auth, controller.chatHistory);
+router.get('/chat-history/:chat_id', auth, controller.chatHistory);
 router.get('/group-details/:chat_id', auth, controller.groupDetails);
 module.exports = router;
