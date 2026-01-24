@@ -837,10 +837,10 @@ exports.chatHistory = async (req, res) => {
         chat_id: msg.chat_id,
         content: msg.content,
         message_type: msg.message_type,
-        created_at: msg.created_at,
+        created_at: msg.createdAt,
 
         sender_id: msg.sender_id,
-        from: isYou ? "you" : msg.sender?.full_name,
+        // from: isYou ? "you" : msg.sender?.full_name,
         is_you: isYou,
 
         status: msg.statuses?.[0]?.status || "sent",
@@ -1026,5 +1026,3 @@ exports.groupDetails = async (req, res) => {
     );
   }
 };
-
-
