@@ -2,7 +2,7 @@ const { User } = require('../../models');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 
-exports.getActiveUsers = async (req, res) => {
+exports.activeUsers = async (req, res) => {
     try{
         // const currentUserId = req.user.id;
         // const onlineUserIds = await getOnlineUsers();

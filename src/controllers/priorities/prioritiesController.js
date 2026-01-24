@@ -26,7 +26,7 @@ exports.createPriorities = async (req, res) => {
     }
 }
 
-exports.fetchPriorities = async (req, res) => {
+exports.priorities = async (req, res) => {
     try{
         const priorities = await Priorities.findAll({
             attributes: ['id', 'name'],

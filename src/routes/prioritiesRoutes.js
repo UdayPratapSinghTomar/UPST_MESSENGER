@@ -5,6 +5,6 @@ const controller = require('../controllers/priorities/prioritiesController');
 
 
 router.post('/create', auth, controller.createPriorities);
-router.get('/fetch', auth, controller.fetchPriorities)
+router.get('/fetch', auth, controller.priorities)
 
 module.exports = router;

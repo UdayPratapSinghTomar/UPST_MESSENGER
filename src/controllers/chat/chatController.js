@@ -375,7 +375,7 @@ exports.openChat = async (req, res) => {
 //   }
 // }
 
-exports.fetchChatList = async (req, res) => {
+exports.chatList = async (req, res) => {
   try {
     const user_id = req.user.id;
 
@@ -562,7 +562,7 @@ exports.fetchChatList = async (req, res) => {
   }
 };
 
-exports.fetchPrivateChats = async (req, res) => {
+exports.allPrivateChats = async (req, res) => {
   try {
     const user_id = req.user.id;
 
@@ -676,7 +676,7 @@ exports.fetchPrivateChats = async (req, res) => {
   }
 };
 
-exports.fetchGroupChats = async (req, res) => {
+exports.allGroupChats = async (req, res) => {
   try {
     const user_id = req.user.id;
 
@@ -792,3 +792,239 @@ exports.fetchGroupChats = async (req, res) => {
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 };
+
+exports.chatHistory = async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+    const currentUserId = req.user.id;
+
+    const isMember = await ChatMember.findOne({
+      where: { chat_id, user_id: currentUserId },
+    });
+
+    if (!isMember) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized!");
+    }
+
+    const messages = await Message.findAll({
+      where: { chat_id },
+      include: [
+        {
+          model: User,
+          as: "sender",
+          attributes: ["id", "full_name"],
+        },
+        {
+          model: SharedFile,
+          as: "files", // include shared file attachments
+          required: false,
+        },
+        {
+          model: MessageStatus,
+          as: "statuses",
+          where: { user_id: currentUserId },
+          required: false,
+        },
+      ],
+      order: [["created_at", "ASC"]],
+    });
+
+    const formattedMessages = messages.map((msg) => {
+      const isYou = msg.sender_id === currentUserId;
+
+      return {
+        id: msg.id,
+        chat_id: msg.chat_id,
+        content: msg.content,
+        message_type: msg.message_type,
+        created_at: msg.created_at,
+
+        sender_id: msg.sender_id,
+        from: isYou ? "you" : msg.sender?.full_name,
+        is_you: isYou,
+
+        status: msg.statuses?.[0]?.status || "sent",
+
+        files:
+          msg.files?.map((file) => ({
+            id: file.id,
+            file_name: file.file_name,
+            file_url: file.file_url,
+            file_type: file.file_type,
+            mime_type: file.mime_type,
+            file_size: file.file_size,
+            thumbnail_url: file.thumbnail_url,
+            duration: file.duration,
+          })) || [],
+      };
+    });
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Messages retrieved successfully!",
+      formattedMessages,
+    );
+  } catch (err) {
+    console.error("Fetch messages error:", err);
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message },
+    );
+  }
+};
+
+exports.groupDetails = async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+
+    if (!chat_id) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        'Chat id is required'
+      );
+    }
+
+    // 1️⃣ Check requester is a group member
+    const isMember = await ChatMember.findOne({
+      where: {
+        chat_id,
+        user_id: req.user.id
+      }
+    });
+
+    if (!isMember) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        'You are not a member of this group'
+      );
+    }
+
+    // 2️⃣ Fetch group with memberships + shared files
+    const group = await Chat.findOne({
+      where: {
+        id: chat_id,
+        type: 'group',
+        is_deleted: false
+      },
+      attributes: [
+        'id',
+        'group_name',
+        'group_image',
+        'created_by',
+        ['created_at', 'createdAt'] // alias for reliable access
+      ],
+      include: [
+        {
+          model: ChatMember,
+          as: 'memberships',
+          attributes: ['role', 'joined_at', 'muted'],
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: [
+                'id',
+                'full_name',
+                'designation',
+                'position',
+                'profile_url',
+                'is_online',
+                'last_seen'
+              ]
+            }
+          ]
+        },
+        {
+          model: SharedFile,
+          as: 'files',
+          attributes: ['id', 'file_name', 'file_url', 'file_type', 'created_at'],
+          include: [
+            {
+              model: User,
+              as: 'uploader',
+              attributes: ['id', 'full_name', 'profile_url']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!group) {
+      return sendResponse(
+        res,
+        HttpsStatus.NOT_FOUND,
+        false,
+        'Group not found'
+      );
+    }
+
+    // 3️⃣ Normalize response
+    const memberships = group.memberships || [];
+    const sharedFiles = group.files || [];
+
+    console.log(group)
+    const response = {
+      group_id: group.id,
+      group_name: group.group_name,
+      group_image: group.group_image,
+      created_at: group.createdAt,
+      created_by: group.created_by,
+      total_members: memberships.length,
+      members: memberships.map(m => ({
+        id: m.user.id,
+        name: m.user.full_name,
+        designation: m.user.designation,
+        position: m.user.position,
+        profile_url: m.user.profile_url,
+        role: m.role,
+        joined_at: m.joined_at,
+        muted: m.muted,
+        is_online: m.user.is_online,
+        last_seen: m.user.last_seen
+      })),
+      profile_image: sharedFiles.map(f => ({
+        id: f.id,
+        file_name: f.file_name,
+        file_url: f.file_url,
+        file_type: f.file_type,
+        created_at: f.created_at,
+        uploaded_by: {
+          id: f.uploader?.id,
+          name: f.uploader?.full_name,
+          profile_url: f.uploader?.profile_url
+        }
+      }))
+    };
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      'Group details fetched successfully',
+      response
+    );
+
+  } catch (err) {
+    console.error('groupDetails error:', err);
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      'Server error!',
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+

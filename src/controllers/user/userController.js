@@ -5,7 +5,7 @@ const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { Op } = require("sequelize");
 const { sequelize, User, sharedFile } = require("../../models");
 
-exports.fetchUsersByOrgId = async (req, res) => {
+exports.usersByOrgId = async (req, res) => {
   try {
     const orgId = req.body.org_id;
 

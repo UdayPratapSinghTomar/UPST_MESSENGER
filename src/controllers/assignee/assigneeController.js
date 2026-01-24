@@ -1,7 +1,7 @@
 const { Assignee } = require('../../models');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 
-exports.fetchAssignee = async (req, res) => {
+exports.assignee = async (req, res) => {
     try{
         const assignees = await Assignee.findAll();
         return sendResponse(res, HttpsStatus.OK, true, "Assignee fetch successfully!", assignees);

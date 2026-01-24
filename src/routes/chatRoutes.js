@@ -15,10 +15,12 @@ router.post('/remove-group-member', auth, controller.removeGroupMember)
 router.get('/open/:chat_id', auth, controller.openChat);
 
 // user chat list
-router.get('/chat-list', auth, controller.fetchChatList);
-router.get('/private-chat', auth, controller.fetchPrivateChats);
-router.get('/group-chat', auth, controller.fetchGroupChats);
+router.get('/chat-list', auth, controller.chatList);
+router.get('/private-chats', auth, controller.allPrivateChats);
+router.get('/group-chats', auth, controller.allGroupChats);
 
 // router.get('/', auth, controller.gerUserChats);
-
+// chats history
+router.get('/private-chat-history/:chat_id', auth, controller.chatHistory);
+router.get('/group-details/:chat_id', auth, controller.groupDetails);
 module.exports = router;

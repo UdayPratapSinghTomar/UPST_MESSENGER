@@ -15,6 +15,9 @@ module.exports = (sequelize, DataTypes) => {
     group_image: {
       type: DataTypes.TEXT
     },
+    group_description: {
+      type: DataTypes.STRING
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,
