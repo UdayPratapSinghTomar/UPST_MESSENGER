@@ -55,10 +55,10 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'SET NULL',
             onUpdate: 'CASCADE'
         },
-        // is_deleted: {
-        //     type: DataTypes.BOOLEAN,
-        //     defaultValue: false
-        // },
+        is_deleted: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         edited_at: {
             type: DataTypes.DATE
         },
@@ -66,10 +66,9 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             defaultValue: 0
         }
-        
         // 🔴 ADD LATER:
-        // system_event_type
         // deleted_for_all_at
+        // system_event_type
     },{
         tableName: 'messages',
         timestamps: true,

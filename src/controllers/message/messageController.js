@@ -5,7 +5,8 @@ const {
   Chat,
   ChatMember,
   SharedFile,
-  sequelize
+  sequelize,
+  MessageMention
 } = require("../../models");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require("../../utils/fileType");
@@ -14,7 +15,6 @@ const { Op, where } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
   const t = await sequelize.transaction();
-
   try {
     const { chat_id, content } = req.body;
     const senderId = req.user.id;
@@ -126,7 +126,7 @@ exports.sendMessage = async (req, res) => {
       res,
       HttpsStatus.CREATED,
       true,
-      "Message created!",
+      "Message Sent!",
       payload,
     );
     // const messagesPayload = [];

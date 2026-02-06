@@ -36,11 +36,20 @@ module.exports = (sequelize, DataTypes) => {
         muted: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        last_read_message_id: {
+            type: DataTypes.INTEGER,
+        },
+        last_read_at: {
+            type: DataTypes.DATE
+        },
+        is_left : {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        left_at: {
+            type: DataTypes.DATE
         }
-        // 🔴 ADD LATER:
-        // is_left
-        // left_at
-        // last_read_message_id
     },{
         tableName: 'chat_members',
         timestamps: true,

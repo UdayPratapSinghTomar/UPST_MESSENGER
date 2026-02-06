@@ -317,6 +317,19 @@ exports.logout = async (req, res) => {
             );
         }
 
+        const userData = await RefreshToken.findOne({
+            where: { device_id }
+        });
+
+        if(!userData){
+            return sendResponse(
+            res,
+            HttpsStatus.BAD_REQUEST,
+            false,
+            'User logged in details not found!'
+        );
+        }
+
         await RefreshToken.destroy({
             where: { device_id }
         });
@@ -338,6 +351,22 @@ exports.logout = async (req, res) => {
         );
     }
 };
+
+exports.logoutFromAllDevice = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        await RefreshToken.destroy({
+            where: {
+                user_id: userId
+            }
+        });
+
+        return sendResponse(res, HttpsStatus.OK, true, 'Logged out from all devices successfull!');
+    } catch (err) {
+        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message } );
+    }
+}
 
 exports.requestPasswordOtp = async (req, res) => {
     try {

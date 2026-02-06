@@ -23,6 +23,8 @@ const ActivityLog = require('./activityLogs')(sequelize, DataTypes);
 const APIUsedTable = require('./apiUsedTable')(sequelize, DataTypes);
 const Priorities = require('./priorities')(sequelize, DataTypes);
 const Assignee = require('./assignees')(sequelize, DataTypes);
+const Notification = require('./notifications')(sequelize, DataTypes);
+const UserDevice = require('./userDevices')(sequelize, DataTypes);
 
 /**
  * ============================
@@ -329,6 +331,31 @@ Organization.hasMany(Assignee, {
   as: 'organizationAssignees'
 });
 
+/**
+ * Notificatons
+ */
+
+Notification.belongsTo(User, { 
+  foreignKey: 'recipient_id',
+  as: 'recipient'
+});
+
+Notification.belongsTo(User, {
+  foreignKey: 'sender_id',
+  as: 'sender'
+});
+
+Notification.belongsTo(Chat, {
+  foreignKey: 'chat_id',
+  as: 'chatNotification'
+});
+
+Notification.belongsTo(Message, {
+  foreignKey: 'message_id',
+  as: 'messageNotification'
+});
+
+
 
 /**
  * ============================
@@ -353,5 +380,7 @@ module.exports = {
   ActivityLog,
   APIUsedTable,
   Priorities,
-  Assignee
+  Assignee,
+  Notification,
+  UserDevice
 }

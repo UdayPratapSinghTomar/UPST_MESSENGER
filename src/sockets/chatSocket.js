@@ -11,8 +11,7 @@ module.exports = (io) => {
         socket.handshake.auth?.token || socket.handshake.query?.token;
       if (!token) return next(new Error("Token missing"));
 
-      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      socket.user = decoded;
+      socket.user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       next();
     } catch (err) {
       next(new Error("Authentication failed"));
@@ -36,18 +35,20 @@ module.exports = (io) => {
     // JOIN CHAT ROOM
     socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
       try {
-        if (!chat_id)
+        if (!chat_id){
           return socket.emit(EVENTS.SOCKET_ERROR, {
             message: "chat_id is required",
           });
+        }
 
         const isMember = await ChatMember.findOne({
           where: { chat_id, user_id: userId },
         });
-        if (!isMember)
+        if (!isMember){
           return socket.emit(EVENTS.SOCKET_ERROR, {
             message: "Not a member of this chat",
           });
+        }
 
         socket.join(`chat_${chat_id}`);
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
@@ -63,6 +64,18 @@ module.exports = (io) => {
           message: "Failed to join chat",
           error: err.message,
         });
+      }
+    });
+
+    // MESSAGE DELIVERED (triggered by API)
+    socket.on(EVENTS.MESSAGE_DELIVERED, async ({ chat_id, message_id }) => {
+      try {
+        await MessageStatus.update(
+          { status: "delivered", delivered_at: new Date() },
+          { where: { chat_id, user_id: userId, message_id, status: "sent" } },
+        );
+      } catch (err) {
+        socket.emit(EVENTS.SOCKET_ERROR, { message: err.message });
       }
     });
 
@@ -84,18 +97,6 @@ module.exports = (io) => {
         socket
           .to(`chat_${chat_id}`)
           .emit(EVENTS.MESSAGE_READ_UPDATE, { chat_id, user_id: userId });
-      } catch (err) {
-        socket.emit(EVENTS.SOCKET_ERROR, { message: err.message });
-      }
-    });
-
-    // MESSAGE DELIVERED (triggered by API)
-    socket.on(EVENTS.MESSAGE_DELIVERED, async ({ chat_id, message_id }) => {
-      try {
-        await MessageStatus.update(
-          { status: "delivered", delivered_at: new Date() },
-          { where: { chat_id, user_id: userId, message_id, status: "sent" } },
-        );
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, { message: err.message });
       }
