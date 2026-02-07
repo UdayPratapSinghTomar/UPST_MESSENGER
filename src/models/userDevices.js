@@ -40,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
         indexes: [
             {
                 unique: true,
-                fields: ['user_id', 'device_id']
+                fields: ['user_id', 'device_id'],
             }
         ]
     });
