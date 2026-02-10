@@ -1,251 +1,401 @@
 const {
-  User,
-  Message,
-  MessageStatus,
   Chat,
   ChatMember,
+  Message,
+  MessageStatus,
+  MessageMention,
   SharedFile,
+  User,
   sequelize,
-  MessageMention
 } = require("../../models");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require("../../utils/fileType");
 const EVENTS = require("../../utils/socketEvents");
-const { Op, where } = require("sequelize");
+const { Op } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
   const t = await sequelize.transaction();
+
   try {
-    const { chat_id, content } = req.body;
-    const senderId = req.user.id;
-    const io = req.app.get("io");
+    const sender_id = req.user.id;
+    const {
+      chat_id,
+      content,
+      message_type = 'text',
+      mentioned_user_ids = [] // optional array
+    } = req.body;
 
     if (!chat_id) {
+      await t.rollback();
       return sendResponse(
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Chat id is required",
+        'chat_id is required'
       );
     }
-
-    const isMember = await ChatMember.findOne({
-      where: { chat_id, user_id: senderId },
+ 
+    // 1️⃣ Check chat exists & user is member
+    const chat = await Chat.findOne({
+      where: { id: chat_id, is_deleted: false },
+      include: [
+        {
+          model: ChatMember,
+          as: 'memberships',
+          attributes: ['user_id']
+        }
+      ],
+      transaction: t
     });
 
-    if (!isMember) {
-      return sendResponse(
-        res,
-        HttpsStatus.FORBIDDEN,
-        false,
-        "Not a chat member",
-      );
+    if (!chat) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'Chat not found');
     }
 
-    const members = await ChatMember.findAll({ where: { chat_id } });
+    const memberIds = chat.memberships.map(m => m.user_id);
 
-    const hasFiles = Array.isArray(req.files) && req.files.length > 0;
-    const hasContent = typeof content === "string" && content.trim().length > 0;
-
-    if (!hasFiles && !hasContent) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Message cannot be empty!",
-      );
+    if (!memberIds.includes(sender_id)) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not a chat member');
     }
 
-    let messageType = "text";
-    if (hasFiles && hasContent) {
-      messageType = "mixed";
-    } else if (hasFiles) {
-      messageType = "file";
-    }
-
+    // 2️⃣ Create message
     const message = await Message.create(
       {
         chat_id,
-        sender_id: senderId,
-        message_type: messageType,
-        content: hasContent ? content : null,
+        sender_id,
+        content,
+        message_type
       },
-      {
-        transaction: t,
-      },
+      { transaction: t }
     );
 
-    let attachedFiles = [];
+    // 3️⃣ Create message status for each member
+    const statuses = memberIds.map(user_id => ({
+      message_id: message.id,
+      chat_id,
+      user_id,
+      status: user_id === sender_id ? 'read' : 'sent'
+    }));
 
-    if (hasFiles) {
-      for (const file of req.files) {
-        const sharedFile = await SharedFile.create(
-          {
-            message_id: message.id,
-            chat_id,
-            user_id: senderId,
-            file_name: file.originalname,
-            file_url: `/uploads/${file.filename}`,
-            file_type: getFileType(file.mimetype),
-            file_size: file.size,
-            mime_type: file.mimetype,
-          },
-          {
-            transaction: t,
-          },
-        );
-        attachedFiles.push(sharedFile);
+    await MessageStatus.bulkCreate(statuses, { transaction: t });
+
+    // 4️⃣ Handle mentions
+    if (Array.isArray(mentioned_user_ids) && mentioned_user_ids.length) {
+      const mentions = mentioned_user_ids
+        .filter(uid => memberIds.includes(uid))
+        .map(uid => ({
+          message_id: message.id,
+          mentioned_user_id: uid
+        }));
+
+      if (mentions.length) {
+        await MessageMention.bulkCreate(mentions, { transaction: t });
       }
     }
 
-    await MessageStatus.bulkCreate(
-      members.map((m) => ({
+    // 5️⃣ Handle file uploads (if any)
+    if (req.files?.length) {
+      const filesPayload = req.files.map(file => ({
         message_id: message.id,
-        user_id: m.user_id,
         chat_id,
-        status: "sent",
-      })),
-      { transaction: t },
-    );
+        user_id: sender_id,
+        file_name: file.originalname,
+        file_url: file.path,
+        file_type: file.mimetype.split('/')[0],
+        mime_type: file.mimetype,
+        file_size: file.size
+      }));
 
+      await SharedFile.bulkCreate(filesPayload, { transaction: t });
+    }
+
+    // 6️⃣ Commit DB transaction FIRST
     await t.commit();
 
-    const payload = {
-      id: message.id,
-      chat_id,
-      sender_id: senderId,
-      message_type: messageType,
-      content: message.content,
-      files: attachedFiles,
-      created_at: message.created_at,
-    };
+    // ===========================
+    // 🔔 NOTIFICATIONS (AFTER COMMIT)
+    // ===========================
 
-    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
+    const sender = await User.findByPk(sender_id);
 
+    for (const member_id of memberIds) {
+      if (member_id === sender_id) continue;
+
+      await notifyUser({
+        recipient_id: member_id,
+        sender_id,
+        chat_id,
+        message_id: message.id,
+        type: 'message',
+        event: 'message_received',
+        title: chat.type === 'private'
+          ? sender.full_name
+          : chat.group_name || 'New message',
+        body: content || '📎 Attachment'
+      });
+    }
+
+    // 7️⃣ Mention notifications (extra)
+    for (const mentionedUserId of mentioned_user_ids || []) {
+      if (mentionedUserId === sender_id) continue;
+
+      await notifyUser({
+        recipient_id: mentionedUserId,
+        sender_id,
+        chat_id,
+        message_id: message.id,
+        type: 'mention',
+        event: 'mentioned',
+        title: 'You were mentioned',
+        body: `${sender.full_name} mentioned you`
+      });
+    }
+
+    // 8️⃣ Success response
     return sendResponse(
       res,
       HttpsStatus.CREATED,
       true,
-      "Message Sent!",
-      payload,
+      'Message sent successfully',
+      {
+        message_id: message.id,
+        chat_id,
+        content,
+        message_type,
+        sender_id,
+        created_at: message.created_at
+      }
     );
-    // const messagesPayload = [];
 
-    // // ❗ TEXT ONLY (no files)
-    // if (!req.files || req.files.length === 0) {
-    //   const message = await Message.create(
-    //     {
-    //       chat_id,
-    //       sender_id: senderId,
-    //       message_type: "text",
-    //       content,
-    //     },
-    //     { transaction: t }
-    //   );
-
-    //   await MessageStatus.bulkCreate(
-    //     members.map((m) => ({
-    //       message_id: message.id,
-    //       user_id: m.user_id,
-    //       chat_id,
-    //       status: "sent",
-    //     })),
-    //     { transaction: t }
-    //   );
-
-    //   const textPayload = {
-    //     id: message.id,
-    //     chat_id,
-    //     sender_id: senderId,
-    //     message_type: "text",
-    //     content,
-    //     file: null,
-    //     created_at: message.created_at,
-    //   };
-
-    //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, textPayload);
-
-    //   await t.commit();
-    //   return sendResponse(
-    //     res,
-    //     HttpsStatus.CREATED,
-    //     true,
-    //     "Message created!",
-    //     textPayload
-    //   );
-    // }
-
-    // // ❗ FILES PRESENT
-    // if (req.files && req.files.length > 0) {
-    //   for (const file of req.files) {
-    //     let messageType = "file";
-    //     if (file.mimetype.startsWith("image")) messageType = "image";
-    //     if (file.mimetype.startsWith("video")) messageType = "video";
-    //     if (file.mimetype.startsWith("audio")) messageType = "audio";
-
-    //     const message = await Message.create(
-    //       {
-    //         chat_id,
-    //         sender_id: senderId,
-    //         message_type: messageType,
-    //         content: content || null,
-    //       },
-    //       { transaction: t }
-    //     );
-
-    //     const fileUrl = `/uploads/${file.filename}`;
-
-    //     const sharedFile = await SharedFile.create(
-    //       {
-    //         message_id: message.id,
-    //         chat_id,
-    //         user_id: senderId,
-    //         file_name: file.originalname,
-    //         file_url: fileUrl,
-    //         file_type: messageType,
-    //         file_size: file.size,
-    //         mime_type: file.mimetype,
-    //       },
-    //       { transaction: t }
-    //     );
-
-    //     await MessageStatus.bulkCreate(
-    //       members.map((m) => ({
-    //         message_id: message.id,
-    //         user_id: m.user_id,
-    //         chat_id,
-    //         status: "sent",
-    //       })),
-    //       { transaction: t }
-    //     );
-
-    //     messagesPayload.push({
-    //       id: message.id,
-    //       chat_id,
-    //       sender_id: senderId,
-    //       message_type: messageType,
-    //       content: content || null,
-    //       file: sharedFile,
-    //       created_at: message.created_at,
-    //     });
-    //   }
-
-    //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagesPayload);
-
-    //   await t.commit();
-    //   return sendResponse(
-    //     res,
-    //     HttpsStatus.CREATED,
-    //     true,
-    //     "Messages created!",
-    //     messagesPayload
-    //   );
-    // }
   } catch (err) {
     await t.rollback();
-    return sendResponse(res, 500, false, "Server error", null, { server: err.message });
+    console.error('sendMessage error:', err);
+
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      'Failed to send message',
+      null,
+      { server: err.message }
+    );
   }
 };
+
+// exports.sendMessage = async (req, res) => {
+//   const t = await sequelize.transaction();
+//   try {
+//     const { chat_id, content } = req.body;
+//     const senderId = req.user.id;
+//     const io = req.app.get("io");
+
+//     if (!chat_id) {
+//       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Chat id is required");
+//     }
+
+//     const isMember = await ChatMember.findOne({
+//       where: { chat_id, user_id: senderId },
+//     });
+
+//     if (!isMember) {
+//       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not a chat member");
+//     }
+
+//     const members = await ChatMember.findAll({ where: { chat_id } });
+
+//     const hasFiles = Array.isArray(req.files) && req.files.length > 0;
+//     const hasContent = typeof content === "string" && content.trim().length > 0;
+
+//     if (!hasFiles && !hasContent) {
+//       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Message cannot be empty!");
+//     }
+
+//     let messageType = "text";
+//     if (hasFiles && hasContent) {
+//       messageType = "mixed";
+//     } else if (hasFiles) {
+//       messageType = "file";
+//     }
+
+//     const message = await Message.create(
+//       {
+//         chat_id,
+//         sender_id: senderId,
+//         message_type: messageType,
+//         content: hasContent ? content : null,
+//       },
+//       {
+//         transaction: t,
+//       },
+//     );
+
+//     let attachedFiles = [];
+
+//     if (hasFiles) {
+//       for (const file of req.files) {
+//         const sharedFile = await SharedFile.create(
+//           {
+//             message_id: message.id,
+//             chat_id,
+//             user_id: senderId,
+//             file_name: file.originalname,
+//             file_url: `/uploads/${file.filename}`,
+//             file_type: getFileType(file.mimetype),
+//             file_size: file.size,
+//             mime_type: file.mimetype,
+//           },
+//           {
+//             transaction: t,
+//           },
+//         );
+//         attachedFiles.push(sharedFile);
+//       }
+//     }
+
+//     await MessageStatus.bulkCreate(
+//       members.map((m) => ({
+//         message_id: message.id,
+//         user_id: m.user_id,
+//         chat_id,
+//         status: "sent",
+//       })),
+//       { transaction: t },
+//     );
+
+//     await t.commit();
+
+//     const payload = {
+//       id: message.id,
+//       chat_id,
+//       sender_id: senderId,
+//       message_type: messageType,
+//       content: message.content,
+//       files: attachedFiles,
+//       created_at: message.created_at,
+//     };
+
+//     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
+
+//     return sendResponse(res, HttpsStatus.CREATED, true, "Message Sent!", payload,);
+//     // const messagesPayload = [];
+
+//     // // ❗ TEXT ONLY (no files)
+//     // if (!req.files || req.files.length === 0) {
+//     //   const message = await Message.create(
+//     //     {
+//     //       chat_id,
+//     //       sender_id: senderId,
+//     //       message_type: "text",
+//     //       content,
+//     //     },
+//     //     { transaction: t }
+//     //   );
+
+//     //   await MessageStatus.bulkCreate(
+//     //     members.map((m) => ({
+//     //       message_id: message.id,
+//     //       user_id: m.user_id,
+//     //       chat_id,
+//     //       status: "sent",
+//     //     })),
+//     //     { transaction: t }
+//     //   );
+
+//     //   const textPayload = {
+//     //     id: message.id,
+//     //     chat_id,
+//     //     sender_id: senderId,
+//     //     message_type: "text",
+//     //     content,
+//     //     file: null,
+//     //     created_at: message.created_at,
+//     //   };
+
+//     //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, textPayload);
+
+//     //   await t.commit();
+//     //   return sendResponse(
+//     //     res,
+//     //     HttpsStatus.CREATED,
+//     //     true,
+//     //     "Message created!",
+//     //     textPayload
+//     //   );
+//     // }
+
+//     // // ❗ FILES PRESENT
+//     // if (req.files && req.files.length > 0) {
+//     //   for (const file of req.files) {
+//     //     let messageType = "file";
+//     //     if (file.mimetype.startsWith("image")) messageType = "image";
+//     //     if (file.mimetype.startsWith("video")) messageType = "video";
+//     //     if (file.mimetype.startsWith("audio")) messageType = "audio";
+
+//     //     const message = await Message.create(
+//     //       {
+//     //         chat_id,
+//     //         sender_id: senderId,
+//     //         message_type: messageType,
+//     //         content: content || null,
+//     //       },
+//     //       { transaction: t }
+//     //     );
+
+//     //     const fileUrl = `/uploads/${file.filename}`;
+
+//     //     const sharedFile = await SharedFile.create(
+//     //       {
+//     //         message_id: message.id,
+//     //         chat_id,
+//     //         user_id: senderId,
+//     //         file_name: file.originalname,
+//     //         file_url: fileUrl,
+//     //         file_type: messageType,
+//     //         file_size: file.size,
+//     //         mime_type: file.mimetype,
+//     //       },
+//     //       { transaction: t }
+//     //     );
+
+//     //     await MessageStatus.bulkCreate(
+//     //       members.map((m) => ({
+//     //         message_id: message.id,
+//     //         user_id: m.user_id,
+//     //         chat_id,
+//     //         status: "sent",
+//     //       })),
+//     //       { transaction: t }
+//     //     );
+
+//     //     messagesPayload.push({
+//     //       id: message.id,
+//     //       chat_id,
+//     //       sender_id: senderId,
+//     //       message_type: messageType,
+//     //       content: content || null,
+//     //       file: sharedFile,
+//     //       created_at: message.created_at,
+//     //     });
+//     //   }
+
+//     //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagesPayload);
+
+//     //   await t.commit();
+//     //   return sendResponse(
+//     //     res,
+//     //     HttpsStatus.CREATED,
+//     //     true,
+//     //     "Messages created!",
+//     //     messagesPayload
+//     //   );
+//     // }
+//   } catch (err) {
+//     await t.rollback();
+//     return sendResponse(res, 500, false, "Server error", null, { server: err.message });
+//   }
+// };
 
 exports.editMessage = async (req, res) => {
   const t = await sequelize.transaction();

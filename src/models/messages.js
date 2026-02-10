@@ -55,6 +55,26 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'SET NULL',
             onUpdate: 'CASCADE'
         },
+        forwarded_from_user_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: 'users',
+                key: 'id'
+            },
+            onDelete: 'SET NULL',
+            onUpdate: 'CASCADE'
+        },
+        forwarded_from_chat_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: 'chats',
+                key: 'id'
+            },
+            onDelete: 'SET NULL',
+            onUpdate: 'CASCADE'
+        },
         is_deleted: {
             type: DataTypes.BOOLEAN,
             defaultValue: false

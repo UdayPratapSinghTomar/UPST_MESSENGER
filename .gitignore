@@ -5,3 +5,4 @@ bossplan-messenger-1e4dd-firebase-adminsdk-fbsvc-1d17338796.json
 firebase-adminsdk*.json
 test.js
 .env
+uploads/

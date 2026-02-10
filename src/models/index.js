@@ -99,6 +99,15 @@ ChatMember.belongsTo(User, {
   as: 'user'
 })
 
+ChatMember.belongsTo(Message, {
+  foreignKey: 'last_read_message_id',
+  as: 'lastReadMessage'
+});
+
+Chat.belongsTo(Organization, {
+  foreignKey: 'organization_id',
+  as: 'organization'
+});
 /**
  * CHAT → MESSAGES
  * A chat contains many messages
@@ -112,6 +121,10 @@ Message.belongsTo(Chat, {
   as: 'chat'
 })
 
+Chat.hasMany(Notification, {
+  foreignKey: 'chat_id',
+  as: 'notifications'
+});
 /**
  * USER → MESSAGE (SENDER)
  * Every message is sent by one user
@@ -148,8 +161,33 @@ MessageStatus.belongsTo(User, {
   as: 'user'
 })
 
+Message.hasMany(Notification, {
+  foreignKey: 'message_id',
+  as: 'notifications'
+});
+
+Message.belongsTo(Message, {
+  foreignKey: 'replied_to_message_id',
+  as: 'repliedTo'
+});
+
+// Message forward association
+Message.belongsTo(Message, {
+  foreignKey: 'forwarded_from_message_id',
+  as: 'forwardedFrom'
+});
+
+Message.belongsTo(User, {
+  foreignKey: 'forwarded_from_user_id',
+  as: 'forwardedFromUser'
+});
+
+Message.belongsTo(Chat, {
+  foreignKey: 'forwarded_from_chat_id',
+  as: 'forwardedFromChat'
+});
 /**
- * MESSAGE → MENTIONS
+ * MESSAGE → MENTIONS 
  * Used when user mentions @someone in message
  */
 Message.hasMany(MessageMention, {
@@ -355,7 +393,16 @@ Notification.belongsTo(Message, {
   as: 'messageNotification'
 });
 
+// User devices associations
+User.hasMany(UserDevice, {
+  foreignKey: 'user_id',
+  as: 'devices'
+});
 
+UserDevice.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
 
 /**
  * ============================

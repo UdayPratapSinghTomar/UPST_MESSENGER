@@ -51,9 +51,9 @@ module.exports = (sequelize, DataTypes) => {
     last_seen: { 
       type: DataTypes.DATE
     },
-    fcmToken: {
-      type: DataTypes.TEXT
-    },
+    // fcmToken: {
+    //   type: DataTypes.TEXT
+    // },
     organization_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

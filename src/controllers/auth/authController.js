@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { generateAccessToken, generateRefreshToken, expiryDateFromNow} = require('../../utils/tokens');
 
-const { User, RefreshToken, Organization, sequelize, SharedFile } = require('../../models');
+const { User, RefreshToken, Organization, sequelize, SharedFile, UserDevice } = require('../../models');
 const { verifyRefreshToken } = require('../../utils/tokens');
 const { Op } = require('sequelize');
 const path = require('path');
@@ -104,17 +104,16 @@ exports.adminRegister = async (req,res) => {
             const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
             const user = await User.create({
-                                        full_name,
-                                        email,
-                                        phone,
-                                        role,
-                                        'password': hashedPassword,
-                                        'organization_id': organization.id,
-                                        designation
-                                    }, 
-                                    { transaction: t});
+                full_name,
+                email,
+                phone,
+                role,
+                'password': hashedPassword,
+                'organization_id': organization.id,
+                designation
+            }, 
+            { transaction: t});
 
-            
             const defaultFileUrl = '/uploads/default/profile_pic.jpg';
             const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
 
@@ -188,14 +187,14 @@ exports.userRegister = async (req,res) => {
             // const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
             const user = await User.create({
-                                        full_name,
-                                        email,
-                                        phone,
-                                        role,
-                                        'password': hashedPassword,
-                                        designation
-                                    }, 
-                                    { transaction: t});
+                full_name,
+                email,
+                phone,
+                role,
+                'password': hashedPassword,
+                designation
+            }, 
+            { transaction: t});
             
             const defaultFileUrl = '/uploads/default/profile_pic.jpg';
             const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
@@ -270,10 +269,17 @@ exports.login = async (req, res) => {
         await RefreshToken.create({
             user_id: user.id,
             token: refreshToken,
-            device_id: device_id,
+            device_id,
             expires_at: expiryDateFromNow()
         });
     
+        await UserDevice.create({
+            user_id: user.id,
+            device_id,
+            device_type,
+            fcm_token
+        });
+        
         const orgIds = [
             user.organization_id,
             user.org_2,
