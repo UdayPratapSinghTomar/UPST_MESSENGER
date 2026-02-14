@@ -1,7 +1,7 @@
 require('dotenv').config();
 const admin = require('firebase-admin');
-const serviceAccount = process.env.FIREBASE;
-// const serviceAccount = require('../../bossplan-messenger-1e4dd-firebase-adminsdk-fbsvc-1d17338796.json');
+// const serviceAccount = process.env.FIREBASE;
+const serviceAccount = require('../../bossplan-messenger-1e4dd-firebase-adminsdk-fbsvc-1d17338796.json');
 
 if (!admin.apps.length) {
   admin.initializeApp({
