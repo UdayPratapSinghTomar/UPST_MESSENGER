@@ -30,6 +30,7 @@ module.exports = (io) => {
 
     // Personal room for notifications
     socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined room user_${userId}`);
     socket.emit(EVENTS.CONNECTED, { message: "Socket connected" });
 
     // JOIN CHAT ROOM

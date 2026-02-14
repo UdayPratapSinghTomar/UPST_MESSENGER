@@ -46,13 +46,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         type: {                    // message | mention | group | system
-            type: DataTypes.ENUM(
-                'message',
-                'mention',
-                'group',
-                'activity',
-                'system'
-            ),
+            type: DataTypes.STRING,
             allowNull: false
         },
         event: {                        // fine-grained event

@@ -11,6 +11,7 @@ const {
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require("../../utils/fileType");
 const EVENTS = require("../../utils/socketEvents");
+const { notifyUser } = require('../../utils/notificationService');
 const { Op } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
@@ -24,6 +25,7 @@ exports.sendMessage = async (req, res) => {
       message_type = 'text',
       mentioned_user_ids = [] // optional array
     } = req.body;
+    const io = req.app.get('io');
 
     if (!chat_id) {
       await t.rollback();
@@ -123,13 +125,13 @@ exports.sendMessage = async (req, res) => {
     for (const member_id of memberIds) {
       if (member_id === sender_id) continue;
 
-      await notifyUser({
+      await notifyUser(io, {
         recipient_id: member_id,
         sender_id,
         chat_id,
         message_id: message.id,
         type: 'message',
-        event: 'message_received',
+        event: EVENTS.NEW_MESSAGE,
         title: chat.type === 'private'
           ? sender.full_name
           : chat.group_name || 'New message',
@@ -170,7 +172,9 @@ exports.sendMessage = async (req, res) => {
     );
 
   } catch (err) {
-    await t.rollback();
+    if(!t.finished){
+      await t.rollback();
+    }
     console.error('sendMessage error:', err);
 
     return sendResponse(

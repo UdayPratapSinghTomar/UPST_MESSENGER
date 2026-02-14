@@ -29,7 +29,9 @@ async function notifyUser(io,{
   const isOnline = io.sockets.adapter.rooms.has(room);
 
   if (isOnline) {
-    io.to(room).emit(event, notification);
+    io.to(room).emit(event, notification.toJSON());
+    console.log('user online');
+    console.log('notification',notification)
     return notification;
   }
 

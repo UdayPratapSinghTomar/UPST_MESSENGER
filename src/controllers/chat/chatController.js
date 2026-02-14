@@ -61,20 +61,28 @@ exports.createPrivateChat = async (req, res) => {
       
       await t.commit(); 
 
-      const notification = await notifyUser(io,{
-        recipient_id: user_id,
-        sender_id: currentUserId,
-        chat_id: chat.id,
-        type: 'chat',
-        event: event.CHAT_CREATED,
-        title: 'New Chat Created',
-        body: 'A private chat has been created with you'
-      });
+      try {
+        await notifyUser(io, {
+          recipient_id: user_id,
+          sender_id: currentUserId,
+          chat_id: chat.id,
+          type: 'chat',
+          event: event.CHAT_CREATED,
+          title: 'New Chat Created',
+          body: 'A private chat has been created with you'
+        });
+      } catch (notifyError) {
+        console.log("Notification error:", notifyError.message);
+        // ❌ no rollback here
+      }
 
-      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat: chat, notification: notification}, null )
+      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat}, null )
       // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
-    await t.rollback();
+    if(!t.finished){
+      await t.rollback();
+    }
+    console.log('error',err)
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
 }

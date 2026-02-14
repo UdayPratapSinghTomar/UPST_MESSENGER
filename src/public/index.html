@@ -1,108 +1,213 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Chat App Test</title>
-  <style>
-    #chat {
-      border: 1px solid #ccc;
-      height: 300px;
-      overflow-y: auto;
-      padding: 10px;
-    }
-    .msg {
-      margin-bottom: 6px;
-    }
-  </style>
+    <title>Realtime Chat Test</title>
+    <style>
+        body { font-family: Arial; display: flex; gap: 40px; }
+        .box { border: 1px solid #ccc; padding: 20px; width: 400px; }
+        input, button { width: 100%; margin: 5px 0; padding: 6px; }
+        ul { background: #f4f4f4; min-height: 120px; padding: 10px; list-style: none; }
+        .online { color: green; font-weight: bold; }
+        .msg { margin: 5px 0; padding: 6px; border-radius: 6px; max-width: 70%; }
+        .me { background: #d1ffd6; margin-left: auto; text-align: right; }
+        .other { background: #fff; text-align: left; }
+    </style>
 </head>
 <body>
 
-<h2>Chat Test</h2>
+<div class="box">
+    <h3>User A</h3>
+    <input id="tokenA" placeholder="JWT Token">
+    <input id="userIdA" type="number" placeholder="Your User ID">
+    <button onclick="connectA()">Connect</button>
+    <div id="statusA"></div>
 
-<input id="token" placeholder="Access Token" style="width:100%" />
-<br><br>
+    <input id="targetA" type="number" placeholder="User ID to Chat">
+    <button onclick="createChatA()">Create Chat</button>
 
-<input id="chatId" type="number" placeholder="Chat ID" value="1" />
+    <h4>Chats</h4>
+    <ul id="chatA"></ul>
 
-<br><br>
+    <h4>Messages</h4>
+    <ul id="messagesA"></ul>
 
-<button onclick="connectSocket()">Connect Socket</button>
-<button onclick="joinChat()">Join Chat</button>
+    <input id="messageInputA" placeholder="Type message">
+    <button onclick="sendMessageA()">Send</button>
+</div>
 
-<hr>
 
-<div id="chat"></div>
+<div class="box">
+    <h3>User B</h3>
+    <input id="tokenB" placeholder="JWT Token">
+    <input id="userIdB" type="number" placeholder="Your User ID">
+    <button onclick="connectB()">Connect</button>
+    <div id="statusB"></div>
 
-<input id="message" placeholder="Message..." />
-<button onclick="sendMessage()">Send</button>
+    <input id="targetB" type="number" placeholder="User ID to Chat">
+    <button onclick="createChatB()">Create Chat</button>
 
-<script src="/socket.io/socket.io.js"></script>
+    <h4>Chats</h4>
+    <ul id="chatB"></ul>
 
+    <h4>Messages</h4>
+    <ul id="messagesB"></ul>
+
+    <input id="messageInputB" placeholder="Type message">
+    <button onclick="sendMessageB()">Send</button>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-  let socket;
 
-  const chatBox = document.getElementById("chat");
+let socketA, socketB;
+let activeChatA = null;
+let activeChatB = null;
+let currentUserIdA = null;
+let currentUserIdB = null;
 
-  function connectSocket() {
-    const token = document.getElementById("token").value;
-    if (!token) return alert("Token required");
+/* ================= CONNECT USER A ================= */
+function connectA() {
+    const token = document.getElementById("tokenA").value;
+    currentUserIdA = Number(document.getElementById("userIdA").value);
 
-    socket = io("http://43.205.214.125:3000", {
-      auth: { token }
+    socketA = io("http://localhost:3000", { auth: { token } });
+
+    socketA.on("connect", () => {
+        document.getElementById("statusA").innerHTML =
+            `<span class="online">ONLINE</span>`;
     });
 
-    socket.on("connect", () => {
-      console.log("✅ Socket connected", socket.id);
+    socketA.on("chat_created", (data) => {
+        activeChatA = data.chat_id;
+        addChat("chatA", data.chat_id);
     });
 
-    socket.on("connected", (data) => {
-      console.log("🔐 Auth OK", data);
+    socketA.on("new_message", (data) => {
+        console.log("User A received:", data);
+        if (data.chat_id === activeChatA) {
+            addMessage("messagesA", data, currentUserIdA);
+        }
+    });
+}
+
+/* ================= CONNECT USER B ================= */
+function connectB() {
+    const token = document.getElementById("tokenB").value;
+    currentUserIdB = Number(document.getElementById("userIdB").value);
+
+    socketB = io("http://localhost:3000", { auth: { token } });
+
+    socketB.on("connect", () => {
+        document.getElementById("statusB").innerHTML =
+            `<span class="online">ONLINE</span>`;
     });
 
-    socket.on("joined_chat", (data) => {
-      console.log("📌 Joined chat", data.chat_id);
+    socketB.on("chat_created", (data) => {
+        activeChatB = data.chat_id;
+        addChat("chatB", data.chat_id);
     });
 
-    socket.on("new_message", (msg) => {
-      addMessage(msg);
+    socketB.on("new_message", (data) => {
+        console.log("User B received:", data);
+        if (data.chat_id === activeChatB) {
+            addMessage("messagesB", data, currentUserIdB);
+        }
+    });
+}
+
+/* ================= CREATE CHAT ================= */
+async function createChatA() {
+    const token = document.getElementById("tokenA").value;
+    const userId = document.getElementById("targetA").value;
+
+    await fetch("http://localhost:3000/chat/create-private", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ user_id: Number(userId) })
+    });
+}
+
+async function createChatB() {
+    const token = document.getElementById("tokenB").value;
+    const userId = document.getElementById("targetB").value;
+
+    await fetch("http://localhost:3000/chat/create-private", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ user_id: Number(userId) })
+    });
+}
+
+/* ================= SEND MESSAGE ================= */
+async function sendMessageA() {
+    const token = document.getElementById("tokenA").value;
+    const content = document.getElementById("messageInputA").value;
+
+    await fetch("http://localhost:3000/message/send", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({
+            chat_id: activeChatA,
+            content
+        })
     });
 
-    socket.on("socket_error", (err) => {
-      console.error("❌ Socket error", err);
-    });
-  }
+    document.getElementById("messageInputA").value = "";
+}
 
-  function joinChat() {
-    const chatId = Number(document.getElementById("chatId").value);
-    socket.emit("join_Chat", chatId);
-  }
+async function sendMessageB() {
+    const token = document.getElementById("tokenB").value;
+    const content = document.getElementById("messageInputB").value;
 
-  function addMessage(msg) {
-    const div = document.createElement("div");
-    div.className = "msg";
-    div.innerText = `User ${msg.sender_id}: ${msg.content}`;
-    chatBox.appendChild(div);
-  }
-
-  async function sendMessage() {
-    const token = document.getElementById("token").value;
-    const chatId = Number(document.getElementById("chatId").value);
-    const content = document.getElementById("message").value;
-
-    if (!content) return;
-
-    await fetch("http://43.205.214.125:3000/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token,
-      },
-      body: JSON.stringify({ chat_id: chatId, content }),
+    await fetch("http://localhost:3000/message/send", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({
+            chat_id: activeChatB,
+            content
+        })
     });
 
-    document.getElementById("message").value = "";
-  }
+    document.getElementById("messageInputB").value = "";
+}
+
+/* ================= UI HELPERS ================= */
+function addChat(listId, chatId) {
+    const list = document.getElementById(listId);
+    const li = document.createElement("li");
+    li.innerText = "Chat ID: " + chatId;
+    list.prepend(li);
+}
+
+function addMessage(listId, data, currentUserId) {
+    const list = document.getElementById(listId);
+
+    const li = document.createElement("li");
+    li.classList.add("msg");
+
+    if (data.sender_id === currentUserId) {
+        li.classList.add("me");
+        li.innerText = data.body || data.content;
+    } else {
+        li.classList.add("other");
+        li.innerText = data.body || data.content;
+    }
+
+    list.appendChild(li);
+}
+
 </script>
-
 </body>
 </html>
