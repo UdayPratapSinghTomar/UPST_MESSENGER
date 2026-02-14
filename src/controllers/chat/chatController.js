@@ -61,7 +61,7 @@ exports.createPrivateChat = async (req, res) => {
       
       await t.commit(); 
 
-      await notifyUser(io,{
+      const notification = await notifyUser(io,{
         recipient_id: user_id,
         sender_id: currentUserId,
         chat_id: chat.id,
@@ -71,7 +71,7 @@ exports.createPrivateChat = async (req, res) => {
         body: 'A private chat has been created with you'
       });
 
-      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
+      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat: chat, notification: notification}, null )
       // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
     await t.rollback();
@@ -162,10 +162,11 @@ exports.createGroup = async (req, res) => {
 
     const allMembers = [...group_members, currentUserId];
     
+    const notifications = [];
     for(const userId of allMembers){
       if(userId === currentUserId) continue;
 
-      await notifyUser(io, {
+    const notification =   await notifyUser(io, {
         recipient_id: userId,
         sender_id: currentUserId,
         chat_id: chat.id,
@@ -174,9 +175,10 @@ exports.createGroup = async (req, res) => {
         title: 'Added to Group',
         body: `You were added to group ${group_name}`
       });
+      notifications.push(notification);
     }
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!', chat, null )
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!',{chat: chat, notifications: notifications}, null )
   }catch(err){
     await t.rollback();
     console.error('Sequelize Error:', err);
