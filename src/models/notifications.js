@@ -69,10 +69,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
-        delivered: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false
-        }
+        // delivered: {
+        //     type: DataTypes.BOOLEAN,
+        //     defaultValue: false
+        // }
     },{
         tableName: 'notifications',
         timestamps: true,

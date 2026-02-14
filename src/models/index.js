@@ -27,9 +27,9 @@ const Notification = require('./notifications')(sequelize, DataTypes);
 const UserDevice = require('./userDevices')(sequelize, DataTypes);
 
 /**
- * ============================
+ * ==============================
  * RELATIONS (HEART OF CHAT APP)
- * ============================
+ * ==============================
  */
 
 /**

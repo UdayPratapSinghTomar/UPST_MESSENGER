@@ -1,8 +1,8 @@
 const { Notification, UserDevice } = require('../models');
 const admin = require('../config/firebase'); // firebase-admin
-const io = require('../socket'); // exported socket instance
+// const io = require('../socket'); // exported socket instance
 
-async function notifyUser({
+async function notifyUser(io,{
   recipient_id,
   sender_id = null,
   chat_id,
@@ -29,8 +29,8 @@ async function notifyUser({
   const isOnline = io.sockets.adapter.rooms.has(room);
 
   if (isOnline) {
-    io.to(room).emit('notification:new', notification);
-    return;
+    io.to(room).emit(event, notification);
+    return notification;
   }
 
   // 3️⃣ Offline → Firebase
@@ -40,7 +40,7 @@ async function notifyUser({
 
   const tokens = devices.map(d => d.fcm_token).filter(Boolean);
 
-  if (!tokens.length) return;
+  if (!tokens.length) return notification;
 
   await admin.messaging().sendMulticast({
     tokens,
@@ -53,6 +53,8 @@ async function notifyUser({
       message_id: message_id ? String(message_id) : ''
     }
   });
+
+  return notification;
 }
 
 module.exports = { notifyUser };

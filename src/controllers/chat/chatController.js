@@ -3,7 +3,8 @@ const { sequelize, Chat, ChatMember, Message, MessageStatus, User, SharedFile } 
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
-const chatMembers = require('../../models/chatMembers');
+const event = require('../../utils/socketEvents');
+const { notifyUser } = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,12 +13,15 @@ exports.createPrivateChat = async (req, res) => {
 
   try{
       const { user_id } = req.body;
+      const currentUserId = req.user.id;
+      const io = req.app.get('io');
+
       if (!user_id) {
         await t.rollback();
         return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
       }
             
-      if (user_id == req.user.id) {
+      if (user_id == currentUserId) {
         await t.rollback();
         return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'You cannot create a private chat with yourself!');
       }
@@ -31,7 +35,7 @@ exports.createPrivateChat = async (req, res) => {
             required: true, // forces Inner Join
             where: {
               user_id: {
-                [Op.in]: [user_id, req.user.id]
+                [Op.in]: [user_id, currentUserId]
               }
             },
             attributes: []
@@ -41,22 +45,34 @@ exports.createPrivateChat = async (req, res) => {
         having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
         subQuery: false // prevents sequelize from breaking group by in findone
       });
+
       if(existingChat){
         await t.rollback();
         return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Private chat already exists!');
       }
 
-      const chat = await Chat.create({type: 'private', created_by: req.user.id}, { transaction: t });
+      const chat = await Chat.create({type: 'private', created_by: currentUserId}, { transaction: t });
 
       const chatMember = await ChatMember.bulkCreate([
-          { chat_id: chat.id, user_id: req.user.id},
+          { chat_id: chat.id, user_id: currentUserId},
           { chat_id: chat.id, user_id}
       ],
       { transaction: t });
       
       await t.commit(); 
 
+      await notifyUser(io,{
+        recipient_id: user_id,
+        sender_id: currentUserId,
+        chat_id: chat.id,
+        type: 'chat',
+        event: event.CHAT_CREATED,
+        title: 'New Chat Created',
+        body: 'A private chat has been created with you'
+      });
+
       return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chat, null )
+      // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
     await t.rollback();
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
@@ -64,10 +80,15 @@ exports.createPrivateChat = async (req, res) => {
 }
 
 exports.createGroup = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try{
     const { group_name, group_members, } = req.body;
-    
+    const currentUserId = req.user.id;
+    const io =req.app.get('io');
+
     const errors = {};
+
     if(!group_name){
       errors.group_name = 'Group name is required';
     }
@@ -83,70 +104,81 @@ exports.createGroup = async (req, res) => {
         errors.group_members = 'Duplicate user IDs are not allowed in group_members';
       }
 
-      if(group_members.includes(req.user.id)){
+      if(group_members.includes(currentUserId)){
         errors.group_members = 'Admin user should not be included in group_members';
       }
     }
 
     if(Object.keys(errors).length > 0){
+      await t.rollback();
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
     }
 
-    const t = await sequelize.transaction();
-    try{
-      const chat = await Chat.create({
-        type: 'group',
-        group_name,
-        created_by: req.user.id
+    const chat = await Chat.create({
+      type: 'group',
+      group_name,
+      created_by: currentUserId
+    },
+    { 
+      transaction: t  
+    });
+
+    const defaultFileUrl = '/uploads/default/group_image.png';
+    const defaultFilePath = path.join(__dirname,'../../uploads/default/group_image.png');
+
+    if (fs.existsSync(defaultFilePath)) {
+      const stats = fs.statSync(defaultFilePath);
+
+      await SharedFile.create(
+      {
+          chat_id: chat.id,
+          file_name: 'group_image.png',
+          file_url: defaultFileUrl,
+          file_type: 'image',
+          file_size: stats.size,
+          mime_type: 'image/jpeg',
       },
-      { 
-        transaction: t  
-      });
-  
-      const defaultFileUrl = '/uploads/default/group_image.png';
-      const defaultFilePath = path.join(__dirname,'../../uploads/default/group_image.png');
-
-      if (fs.existsSync(defaultFilePath)) {
-        const stats = fs.statSync(defaultFilePath);
-  
-        await SharedFile.create(
-        {
-            chat_id: chat.id,
-            file_name: 'group_image.png',
-            file_url: defaultFileUrl,
-            file_type: 'image',
-            file_size: stats.size,
-            mime_type: 'image/jpeg',
-        },
-        {
-            transaction: t,
-        }
-        );
+      {
+          transaction: t,
       }
-
-      const groupMembers = group_members.map(user_id => ({
-        chat_id: chat.id,
-        user_id,
-        role: 'member'
-      }));
-  
-      groupMembers.push({
-        chat_id: chat.id,
-        user_id: req.user.id,
-        role: 'admin'
-      });
-  
-      const chatMember = await ChatMember.bulkCreate(groupMembers, { transaction: t });
-
-      await t.commit();
-
-      return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!', chat, null )
-    }catch(err){
-      await t.rollback();
-      console.error('Sequelize Error:', err);
-      return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+      );
     }
+
+    const groupMembers = group_members.map(user_id => ({
+      chat_id: chat.id,
+      user_id,
+      role: 'member'
+    }));
+
+    groupMembers.push({
+      chat_id: chat.id,
+      user_id: currentUserId,
+      role: 'admin'
+    });
+
+    const chatMember = await ChatMember.bulkCreate(groupMembers, { transaction: t });
+
+    await t.commit();
+
+    const allMembers = [...group_members, currentUserId];
+    
+    for(const userId of allMembers){
+      if(userId === currentUserId) continue;
+
+      await notifyUser(io, {
+        recipient_id: userId,
+        sender_id: currentUserId,
+        chat_id: chat.id,
+        type: 'group',
+        event: event.CHAT_CREATED,
+        title: 'Added to Group',
+        body: `You were added to group ${group_name}`
+      });
+    }
+
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!', chat, null )
   }catch(err){
+    await t.rollback();
     console.error('Sequelize Error:', err);
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }

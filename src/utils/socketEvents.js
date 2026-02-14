@@ -4,6 +4,10 @@ module.exports = {
 
   CONNECTED: 'connected',
 
+  CHAT_CREATED: 'chat_created',
+
+
+
   JOIN_CHAT: 'join_Chat',
   JOINED_CHAT: 'joined_chat',
 
