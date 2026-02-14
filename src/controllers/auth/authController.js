@@ -273,12 +273,12 @@ exports.login = async (req, res) => {
             expires_at: expiryDateFromNow()
         });
     
-        await UserDevice.create({
-            user_id: user.id,
-            device_id,
-            device_type,
-            fcm_token
-        });
+        // await UserDevice.create({
+        //     user_id: user.id,
+        //     device_id,
+        //     // device_type,
+        //     // fcm_token
+        // });
         
         const orgIds = [
             user.organization_id,
