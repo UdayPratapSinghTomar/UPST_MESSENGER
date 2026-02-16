@@ -1,213 +1,172 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Realtime Chat Test</title>
-    <style>
-        body { font-family: Arial; display: flex; gap: 40px; }
-        .box { border: 1px solid #ccc; padding: 20px; width: 400px; }
-        input, button { width: 100%; margin: 5px 0; padding: 6px; }
-        ul { background: #f4f4f4; min-height: 120px; padding: 10px; list-style: none; }
-        .online { color: green; font-weight: bold; }
-        .msg { margin: 5px 0; padding: 6px; border-radius: 6px; max-width: 70%; }
-        .me { background: #d1ffd6; margin-left: auto; text-align: right; }
-        .other { background: #fff; text-align: left; }
-    </style>
+  <title>Room Based Chat Test</title>
+  <style>
+    body { font-family: Arial; max-width: 600px; margin: auto; }
+    input, button { width: 100%; margin: 5px 0; padding: 8px; }
+    ul { background: #f4f4f4; min-height: 150px; padding: 10px; list-style: none; }
+    .msg { margin: 5px 0; padding: 6px; border-radius: 6px; max-width: 70%; }
+    .me { background: #d1ffd6; margin-left: auto; text-align: right; }
+    .other { background: #fff; }
+    .online { color: green; font-weight: bold; }
+  </style>
 </head>
 <body>
 
-<div class="box">
-    <h3>User A</h3>
-    <input id="tokenA" placeholder="JWT Token">
-    <input id="userIdA" type="number" placeholder="Your User ID">
-    <button onclick="connectA()">Connect</button>
-    <div id="statusA"></div>
+<h2>Realtime Chat (Join by Chat ID)</h2>
 
-    <input id="targetA" type="number" placeholder="User ID to Chat">
-    <button onclick="createChatA()">Create Chat</button>
+<input id="token" placeholder="JWT Token">
+<!-- <input id="userId" type="number" placeholder="Your User ID"> -->
+<button onclick="connectSocket()">Connect</button>
+<div id="status"></div>
 
-    <h4>Chats</h4>
-    <ul id="chatA"></ul>
+<hr>
 
-    <h4>Messages</h4>
-    <ul id="messagesA"></ul>
+<input id="chatIdInput" type="number" placeholder="Enter Chat ID to Join">
+<button onclick="joinChat()">Join Chat</button>
 
-    <input id="messageInputA" placeholder="Type message">
-    <button onclick="sendMessageA()">Send</button>
-</div>
+<h3>Messages</h3>
+<ul id="messages"></ul>
 
-
-<div class="box">
-    <h3>User B</h3>
-    <input id="tokenB" placeholder="JWT Token">
-    <input id="userIdB" type="number" placeholder="Your User ID">
-    <button onclick="connectB()">Connect</button>
-    <div id="statusB"></div>
-
-    <input id="targetB" type="number" placeholder="User ID to Chat">
-    <button onclick="createChatB()">Create Chat</button>
-
-    <h4>Chats</h4>
-    <ul id="chatB"></ul>
-
-    <h4>Messages</h4>
-    <ul id="messagesB"></ul>
-
-    <input id="messageInputB" placeholder="Type message">
-    <button onclick="sendMessageB()">Send</button>
-</div>
+<input id="messageInput" placeholder="Type message">
+<button onclick="sendMessage()">Send</button>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+let socket = null;
+let currentUserId = null;
+let activeChatId = null;
+let tokenGlobal = null;
 
-let socketA, socketB;
-let activeChatA = null;
-let activeChatB = null;
-let currentUserIdA = null;
-let currentUserIdB = null;
+const EVENTS = {
+  JOIN_CHAT: "join_chat",
+  JOINED_CHAT: "joined_chat",
+  NEW_MESSAGE: "new_message",
+  SOCKET_ERROR: "socket_error"
+};
 
-/* ================= CONNECT USER A ================= */
-function connectA() {
-    const token = document.getElementById("tokenA").value;
-    currentUserIdA = Number(document.getElementById("userIdA").value);
+/* ================= CONNECT ================= */
+function connectSocket() {
+  tokenGlobal = document.getElementById("token").value.trim();
 
-    socketA = io("http://localhost:3000", { auth: { token } });
+  if (!tokenGlobal) {
+    alert("Please enter JWT token");
+    return;
+  }
 
-    socketA.on("connect", () => {
-        document.getElementById("statusA").innerHTML =
-            `<span class="online">ONLINE</span>`;
-    });
+  socket = io("http://localhost:3000", { auth: { token: tokenGlobal } });
 
-    socketA.on("chat_created", (data) => {
-        activeChatA = data.chat_id;
-        addChat("chatA", data.chat_id);
-    });
+  socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+    document.getElementById("status").innerHTML =
+      `<span class="online">ONLINE</span>`;
 
-    socketA.on("new_message", (data) => {
-        console.log("User A received:", data);
-        if (data.chat_id === activeChatA) {
-            addMessage("messagesA", data, currentUserIdA);
-        }
-    });
+    // Extract user id from JWT
+    const payload = JSON.parse(atob(tokenGlobal.split(".")[1]));
+    currentUserId = payload.id;
+    console.log("Current user:", currentUserId);
+  });
+
+  socket.on(EVENTS.JOINED_CHAT, (data) => {
+    console.log("Joined chat confirmed:", data);
+  });
+
+  // ✅ REALTIME MESSAGE LISTENER (ONLY ONCE HERE)
+  socket.on(EVENTS.NEW_MESSAGE, (data) => {
+    console.log("Received new_message:", data);
+
+    if (String(data.chat_id) === String(activeChatId)) {
+      addMessage(data);
+    }
+  });
+
+  socket.on(EVENTS.SOCKET_ERROR, (err) => {
+    console.error("Socket error:", err);
+    alert(err.message || "Socket error");
+  });
+
+  socket.on("disconnect", () => {
+    document.getElementById("status").innerHTML =
+      `<span style="color:red;">DISCONNECTED</span>`;
+  });
 }
 
-/* ================= CONNECT USER B ================= */
-function connectB() {
-    const token = document.getElementById("tokenB").value;
-    currentUserIdB = Number(document.getElementById("userIdB").value);
+/* ================= JOIN CHAT ================= */
+function joinChat() {
+  if (!socket || !socket.connected) {
+    alert("Connect socket first");
+    return;
+  }
 
-    socketB = io("http://localhost:3000", { auth: { token } });
+  const chatId = Number(document.getElementById("chatIdInput").value);
 
-    socketB.on("connect", () => {
-        document.getElementById("statusB").innerHTML =
-            `<span class="online">ONLINE</span>`;
-    });
+  if (!chatId) {
+    alert("Enter valid chat ID");
+    return;
+  }
 
-    socketB.on("chat_created", (data) => {
-        activeChatB = data.chat_id;
-        addChat("chatB", data.chat_id);
-    });
+  activeChatId = chatId;
 
-    socketB.on("new_message", (data) => {
-        console.log("User B received:", data);
-        if (data.chat_id === activeChatB) {
-            addMessage("messagesB", data, currentUserIdB);
-        }
-    });
-}
+  console.log("Emitting join_chat:", chatId);
+  socket.emit(EVENTS.JOIN_CHAT, chatId);
 
-/* ================= CREATE CHAT ================= */
-async function createChatA() {
-    const token = document.getElementById("tokenA").value;
-    const userId = document.getElementById("targetA").value;
-
-    await fetch("http://localhost:3000/chat/create-private", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({ user_id: Number(userId) })
-    });
-}
-
-async function createChatB() {
-    const token = document.getElementById("tokenB").value;
-    const userId = document.getElementById("targetB").value;
-
-    await fetch("http://localhost:3000/chat/create-private", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({ user_id: Number(userId) })
-    });
+  document.getElementById("messages").innerHTML = "";
 }
 
 /* ================= SEND MESSAGE ================= */
-async function sendMessageA() {
-    const token = document.getElementById("tokenA").value;
-    const content = document.getElementById("messageInputA").value;
+async function sendMessage() {
+  if (!activeChatId) {
+    alert("Join a chat first");
+    return;
+  }
 
+  const content = document.getElementById("messageInput").value.trim();
+
+  if (!content) {
+    alert("Please type a message");
+    return;
+  }
+
+  try {
     await fetch("http://localhost:3000/message/send", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({
-            chat_id: activeChatA,
-            content
-        })
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + tokenGlobal
+      },
+      body: JSON.stringify({
+        chat_id: activeChatId,
+        content
+      })
     });
 
-    document.getElementById("messageInputA").value = "";
+    document.getElementById("messageInput").value = "";
+
+  } catch (err) {
+    alert("Error sending message: " + err.message);
+  }
 }
 
-async function sendMessageB() {
-    const token = document.getElementById("tokenB").value;
-    const content = document.getElementById("messageInputB").value;
+/* ================= ADD MESSAGE ================= */
+function addMessage(data) {
+  const list = document.getElementById("messages");
 
-    await fetch("http://localhost:3000/message/send", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({
-            chat_id: activeChatB,
-            content
-        })
-    });
+  const li = document.createElement("li");
+  li.classList.add("msg");
 
-    document.getElementById("messageInputB").value = "";
+  if (data.sender_id === currentUserId) {
+    li.classList.add("me");
+  } else {
+    li.classList.add("other");
+  }
+
+  li.innerText = data.content || "(no content)";
+  list.appendChild(li);
+
+  list.scrollTop = list.scrollHeight;
 }
-
-/* ================= UI HELPERS ================= */
-function addChat(listId, chatId) {
-    const list = document.getElementById(listId);
-    const li = document.createElement("li");
-    li.innerText = "Chat ID: " + chatId;
-    list.prepend(li);
-}
-
-function addMessage(listId, data, currentUserId) {
-    const list = document.getElementById(listId);
-
-    const li = document.createElement("li");
-    li.classList.add("msg");
-
-    if (data.sender_id === currentUserId) {
-        li.classList.add("me");
-        li.innerText = data.body || data.content;
-    } else {
-        li.classList.add("other");
-        li.innerText = data.body || data.content;
-    }
-
-    list.appendChild(li);
-}
-
 </script>
+
 </body>
 </html>

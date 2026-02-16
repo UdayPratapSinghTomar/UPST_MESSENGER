@@ -3,7 +3,7 @@ const { sequelize, Chat, ChatMember, Message, MessageStatus, User, SharedFile } 
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
-const event = require('../../utils/socketEvents');
+const EVENT = require('../../utils/socketEvents');
 const { notifyUser } = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
@@ -43,7 +43,7 @@ exports.createPrivateChat = async (req, res) => {
         ],
         group: ['Chat.id'],
         having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
-        subQuery: false // prevents sequelize from breaking group by in findone
+        subQuery: false // prEVENTs sequelize from breaking group by in findone
       });
 
       if(existingChat){
@@ -61,21 +61,27 @@ exports.createPrivateChat = async (req, res) => {
       
       await t.commit(); 
 
-      try {
-        await notifyUser(io, {
-          recipient_id: user_id,
-          sender_id: currentUserId,
-          chat_id: chat.id,
-          type: 'chat',
-          event: event.CHAT_CREATED,
-          title: 'New Chat Created',
-          body: 'A private chat has been created with you'
-        });
-      } catch (notifyError) {
-        console.log("Notification error:", notifyError.message);
-        // ❌ no rollback here
+      const chatPayload = {
+        id: chat.id,
+        type: chat.type,
+        created_by: currentUserId,
+        members: [currentUserId, user_id],
+        created_at: chat.createdAt
       }
 
+      io.to(`user_${currentUserId}`).emit(EVENT.CHAT_CREATED, chatPayload);
+      io.to(`user_${user_id}`).emit(EVENT.CHAT_CREATED, chatPayload);
+
+      await notifyUser(io, {
+        recipient_id: user_id,
+        sender_id: currentUserId,
+        chat_id: chat.id,
+        type: 'chat',
+        event: EVENT.CHAT_CREATED,
+        title: 'New Chat Created',
+        body: 'A private chat has been created with you'
+      });
+  
       return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat}, null )
       // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
@@ -179,7 +185,7 @@ exports.createGroup = async (req, res) => {
         sender_id: currentUserId,
         chat_id: chat.id,
         type: 'group',
-        event: event.CHAT_CREATED,
+        EVENT: EVENT.CHAT_CREATED,
         title: 'Added to Group',
         body: `You were added to group ${group_name}`
       });

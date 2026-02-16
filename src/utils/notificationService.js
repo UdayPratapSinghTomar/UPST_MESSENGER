@@ -1,8 +1,7 @@
 const { Notification, UserDevice } = require('../models');
-const admin = require('../config/firebase'); // firebase-admin
-// const io = require('../socket'); // exported socket instance
+const admin = require('../config/firebase');
 
-async function notifyUser(io,{
+async function notifyUser(io, {
   recipient_id,
   sender_id = null,
   chat_id,
@@ -12,7 +11,8 @@ async function notifyUser(io,{
   title,
   body
 }) {
-  // 1️⃣ Save notification
+
+  // 1️⃣ Save notification in DB
   const notification = await Notification.create({
     recipient_id,
     sender_id,
@@ -24,18 +24,15 @@ async function notifyUser(io,{
     body
   });
 
-  // 2️⃣ Check socket online
   const room = `user_${recipient_id}`;
-  const isOnline = io.sockets.adapter.rooms.has(room);
 
-  if (isOnline) {
-    io.to(room).emit(event, notification.toJSON());
-    console.log('user online');
-    console.log('notification',notification)
+  // 2️⃣ Emit real-time if online
+  if (io.sockets.adapter.rooms.has(room)) {
+    io.to(room).emit('notification', notification.toJSON());
     return notification;
   }
 
-  // 3️⃣ Offline → Firebase
+  // 3️⃣ If offline → Send FCM
   const devices = await UserDevice.findAll({
     where: { user_id: recipient_id, is_active: true }
   });
@@ -46,13 +43,11 @@ async function notifyUser(io,{
 
   await admin.messaging().sendMulticast({
     tokens,
-    notification: {
-      title,
-      body
-    },
+    notification: { title, body },
     data: {
       chat_id: String(chat_id),
-      message_id: message_id ? String(message_id) : ''
+      message_id: message_id ? String(message_id) : '',
+      type: type
     }
   });
 

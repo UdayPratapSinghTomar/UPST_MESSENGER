@@ -36,7 +36,7 @@ exports.sendMessage = async (req, res) => {
         'chat_id is required'
       );
     }
- 
+
     // 1️⃣ Check chat exists & user is member
     const chat = await Chat.findOne({
       where: { id: chat_id, is_deleted: false },
@@ -116,6 +116,19 @@ exports.sendMessage = async (req, res) => {
     // 6️⃣ Commit DB transaction FIRST
     await t.commit();
 
+    const messagePayload = {
+      id: message.id,
+      chat_id,
+      sender_id,
+      content,
+      message_type,
+      created_at: message.createdAt
+    };
+
+    // Emit to all clients in the chat room
+    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagePayload);
+    console.log(`Emitted new_message to chat_${chat_id}:`, messagePayload);
+
     // ===========================
     // 🔔 NOTIFICATIONS (AFTER COMMIT)
     // ===========================
@@ -172,7 +185,7 @@ exports.sendMessage = async (req, res) => {
     );
 
   } catch (err) {
-    if(!t.finished){
+    if (!t.finished) {
       await t.rollback();
     }
     console.error('sendMessage error:', err);
@@ -187,6 +200,7 @@ exports.sendMessage = async (req, res) => {
     );
   }
 };
+
 
 // exports.sendMessage = async (req, res) => {
 //   const t = await sequelize.transaction();

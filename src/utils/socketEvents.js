@@ -8,7 +8,7 @@ module.exports = {
 
 
 
-  JOIN_CHAT: 'join_Chat',
+  JOIN_CHAT: 'join_chat',
   JOINED_CHAT: 'joined_chat',
 
   NEW_MESSAGE: 'new_message',

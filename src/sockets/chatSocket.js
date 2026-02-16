@@ -31,43 +31,39 @@ module.exports = (io) => {
     // Personal room for notifications
     socket.join(`user_${userId}`);
     console.log(`User ${userId} joined room user_${userId}`);
+
     socket.emit(EVENTS.CONNECTED, { message: "Socket connected" });
 
     // JOIN CHAT ROOM
     socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
+      console.log('chat id', chat_id)
       try {
         if (!chat_id){
-          return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "chat_id is required",
-          });
+          console.log('chat id is required');
+          return socket.emit(EVENTS.SOCKET_ERROR, { message: "chat_id is required" });
         }
 
         const isMember = await ChatMember.findOne({
           where: { chat_id, user_id: userId },
         });
         if (!isMember){
-          return socket.emit(EVENTS.SOCKET_ERROR, {
-            message: "Not a member of this chat",
-          });
+          console.log('user is not member of the chat')
+          return socket.emit(EVENTS.SOCKET_ERROR, { message: "Not a member of this chat" });
         }
 
         socket.join(`chat_${chat_id}`);
+        console.log(`Emitting joined_chat for user ${userId} in chat ${chat_id}`);
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
+        // socket.emit(EVENTS.JOINED_CHAT, { chat_id });
         console.log(`User ${userId} joined chat_${chat_id}`);
-
-        // Mark messages as delivered
-        // await MessageStatus.update(
-        //   { status: "delivered", delivered_at: new Date() },
-        //   { where: { chat_id, user_id: userId, status: "sent" } },
-        // );
       } catch (err) {
+        console.log('error -', err)
         socket.emit(EVENTS.SOCKET_ERROR, {
           message: "Failed to join chat",
           error: err.message,
         });
       }
     });
-
     // MESSAGE DELIVERED (triggered by API)
     socket.on(EVENTS.MESSAGE_DELIVERED, async ({ chat_id, message_id }) => {
       try {
