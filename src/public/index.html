@@ -55,7 +55,7 @@ function connectSocket() {
     return;
   }
 
-  socket = io("http://localhost:3000", { auth: { token: tokenGlobal } });
+  socket = io("http://bosplan.co.uk:3000", { auth: { token: tokenGlobal } });
 
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
@@ -129,7 +129,7 @@ async function sendMessage() {
   }
 
   try {
-    await fetch("http://localhost:3000/message/send", {
+    await fetch("http://bosplan.co.uk:3000/message/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
