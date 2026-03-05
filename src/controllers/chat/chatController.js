@@ -12,78 +12,99 @@ exports.createPrivateChat = async (req, res) => {
   const t = await sequelize.transaction();
 
   try{
-      const { user_id } = req.body;
-      const currentUserId = req.user.id;
-      const io = req.app.get('io');
+    const { user_id } = req.body;
+    const currentUserId = req.user.id;
+    const io = req.app.get('io');
 
-      if (!user_id) {
-        await t.rollback();
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
-      }
-            
-      if (user_id == currentUserId) {
-        await t.rollback();
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'You cannot create a private chat with yourself!');
-      }
-      
-      const existingChat = await Chat.findOne({
-        where: { type: 'private' },
-        include: [
-          {
-            model: ChatMember,
-            as: 'memberships',
-            required: true, // forces Inner Join
-            where: {
-              user_id: {
-                [Op.in]: [user_id, currentUserId]
-              }
-            },
-            attributes: []
-          }
-        ],
-        group: ['Chat.id'],
-        having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
-        subQuery: false // prEVENTs sequelize from breaking group by in findone
+    if (!user_id) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
+    }
+          
+    if (user_id == currentUserId) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'You cannot create a private chat with yourself!');
+    }
+    
+    const existingChat = await Chat.findOne({
+      where: { type: 'private' },
+      include: [
+        {
+          model: ChatMember,
+          as: 'memberships',
+          required: true, // forces Inner Join
+          where: {
+            user_id: {
+              [Op.in]: [user_id, currentUserId]
+            }
+          },
+          attributes: []
+        }
+      ],
+      group: ['Chat.id'],
+      having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
+      subQuery: false // prEVENTs sequelize from breaking group by in findone
+    });
+
+    if(existingChat){
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Private chat already exists!');
+    }
+
+    const chat = await Chat.create({type: 'private', created_by: currentUserId}, { transaction: t });
+
+    const chatMember = await ChatMember.bulkCreate([
+        { chat_id: chat.id, user_id: currentUserId},
+        { chat_id: chat.id, user_id}
+    ],
+    { transaction: t });
+    
+    await t.commit(); 
+
+    const chatPayload = {
+      id: chat.id,
+      type: chat.type,
+      created_by: currentUserId,
+      members: [currentUserId, user_id],
+      last_message: null,
+      unread_count: 0,
+      created_at: chat.createdAt,
+    };
+
+    // Emit chat created to both users
+    io.to(`user_${currentUserId}`).emit(EVENT.CHAT_CREATED, chatPayload);
+    io.to(`user_${currentUserId}`).emit(EVENT.CHAT_LIST_UPDATE, {
+      action: "new_chat",
+      chat: chatPayload
+    });
+
+    // Check if other user online
+    const otherRoom = io.sockets.adapter.rooms.get(`user_${user_id}`);
+    const isOnline = otherRoom && otherRoom.size > 0;
+
+    if (isOnline) {
+
+      io.to(`user_${user_id}`).emit(EVENT.CHAT_CREATED, chatPayload);
+      io.to(`user_${user_id}`).emit(EVENT.CHAT_LIST_UPDATE, {
+        action: "new_chat",
+        chat: chatPayload
       });
 
-      if(existingChat){
-        await t.rollback();
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Private chat already exists!');
-      }
-
-      const chat = await Chat.create({type: 'private', created_by: currentUserId}, { transaction: t });
-
-      const chatMember = await ChatMember.bulkCreate([
-          { chat_id: chat.id, user_id: currentUserId},
-          { chat_id: chat.id, user_id}
-      ],
-      { transaction: t });
-      
-      await t.commit(); 
-
-      const chatPayload = {
-        id: chat.id,
-        type: chat.type,
-        created_by: currentUserId,
-        members: [currentUserId, user_id],
-        created_at: chat.createdAt
-      }
-
-      io.to(`user_${currentUserId}`).emit(EVENT.CHAT_CREATED, chatPayload);
-      io.to(`user_${user_id}`).emit(EVENT.CHAT_CREATED, chatPayload);
+    } else {
 
       await notifyUser(io, {
         recipient_id: user_id,
         sender_id: currentUserId,
         chat_id: chat.id,
-        type: 'chat',
-        event: EVENT.CHAT_CREATED,
-        title: 'New Chat Created',
-        body: 'A private chat has been created with you'
+        type: "chat",
+        event: EVENT.NOTIFICATION,
+        title: "New Chat Created",
+        body: "A private chat has been created with you"
       });
-  
-      return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat}, null )
-      // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
+    }
+
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat}, null )
+    // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
     if(!t.finished){
       await t.rollback();
@@ -174,22 +195,36 @@ exports.createGroup = async (req, res) => {
 
     await t.commit();
 
+    const groupPayload = {
+      id: chat.id,
+      type: 'group',
+      group_name,
+      created_by: currentUserId,
+      members: allMembers,
+      created_at: chat.createdAt,
+      last_message: null,
+      unread_count: 0
+    };
+
     const allMembers = [...group_members, currentUserId];
     
     const notifications = [];
-    for(const userId of allMembers){
-      if(userId === currentUserId) continue;
+    for (const userId of allMembers) {
 
-    const notification =   await notifyUser(io, {
-        recipient_id: userId,
-        sender_id: currentUserId,
-        chat_id: chat.id,
-        type: 'group',
-        EVENT: EVENT.CHAT_CREATED,
-        title: 'Added to Group',
-        body: `You were added to group ${group_name}`
-      });
-      notifications.push(notification);
+      io.to(`user_${userId}`).emit(EVENT.CHAT_CREATED, groupPayload);
+      io.to(`user_${userId}`).emit(EVENT.CHAT_LIST_UPDATE);
+
+      if (userId !== currentUserId) {
+        await notifyUser(io, {
+          recipient_id: userId,
+          sender_id: currentUserId,
+          chat_id: chat.id,
+          type: 'group',
+          event: EVENT.CHAT_CREATED,
+          title: 'Added to Group',
+          body: `You were added to ${group_name}`
+        });
+      }
     }
 
     return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!',{chat: chat, notifications: notifications}, null )

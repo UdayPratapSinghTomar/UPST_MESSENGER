@@ -62,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
                 model: 'users',
                 key: 'id'
             },
-            onDelete: 'SET NULL',
+            onDelete: 'SET NULL', 
             onUpdate: 'CASCADE'
         },
         forwarded_from_chat_id: {

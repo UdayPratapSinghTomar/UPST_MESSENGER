@@ -12,7 +12,6 @@ async function notifyUser(io, {
   body
 }) {
 
-  // 1️⃣ Save notification in DB
   const notification = await Notification.create({
     recipient_id,
     sender_id,
@@ -25,20 +24,20 @@ async function notifyUser(io, {
   });
 
   const room = `user_${recipient_id}`;
+  const onlineRoom = io.sockets.adapter.rooms.get(room);
 
-  // 2️⃣ Emit real-time if online
-  if (io.sockets.adapter.rooms.has(room)) {
-    io.to(room).emit('notification', notification.toJSON());
+  // ✅ If user online → realtime
+  if (onlineRoom && onlineRoom.size > 0) {
+    io.to(room).emit(event, notification.toJSON());
     return notification;
   }
 
-  // 3️⃣ If offline → Send FCM
+  // ✅ If offline → FCM
   const devices = await UserDevice.findAll({
     where: { user_id: recipient_id, is_active: true }
   });
 
   const tokens = devices.map(d => d.fcm_token).filter(Boolean);
-
   if (!tokens.length) return notification;
 
   await admin.messaging().sendMulticast({

@@ -36,101 +36,97 @@ module.exports = (io) => {
 
     // JOIN CHAT ROOM
     socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
-      console.log('chat id', chat_id)
       try {
         if (!chat_id){
-          console.log('chat id is required');
           return socket.emit(EVENTS.SOCKET_ERROR, { message: "chat_id is required" });
         }
 
         const isMember = await ChatMember.findOne({
           where: { chat_id, user_id: userId },
         });
+
         if (!isMember){
-          console.log('user is not member of the chat')
           return socket.emit(EVENTS.SOCKET_ERROR, { message: "Not a member of this chat" });
         }
 
         socket.join(`chat_${chat_id}`);
-        console.log(`Emitting joined_chat for user ${userId} in chat ${chat_id}`);
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
-        // socket.emit(EVENTS.JOINED_CHAT, { chat_id });
+        
         console.log(`User ${userId} joined chat_${chat_id}`);
+
       } catch (err) {
-        console.log('error -', err)
         socket.emit(EVENTS.SOCKET_ERROR, {
-          message: "Failed to join chat",
-          error: err.message,
+          message: err.message,
         });
       }
     });
-    // MESSAGE DELIVERED (triggered by API)
-    socket.on(EVENTS.MESSAGE_DELIVERED, async ({ chat_id, message_id }) => {
-      try {
-        await MessageStatus.update(
-          { status: "delivered", delivered_at: new Date() },
-          { where: { chat_id, user_id: userId, message_id, status: "sent" } },
-        );
-      } catch (err) {
-        socket.emit(EVENTS.SOCKET_ERROR, { message: err.message });
-      }
-    });
 
+    // =========================
     // MESSAGE READ
+    // =========================
     socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
       try {
+
         await MessageStatus.update(
           { status: "read", read_at: new Date() },
           {
             where: {
               chat_id,
               user_id: userId,
-              status: { [Op.ne]: "read" },
-            },
-          },
+              status: { [Op.ne]: "read" }
+            }
+          }
         );
 
-        // Broadcast to other members
-        socket
-          .to(`chat_${chat_id}`)
-          .emit(EVENTS.MESSAGE_READ_UPDATE, { chat_id, user_id: userId });
+        socket.to(`chat_${chat_id}`).emit(
+          EVENTS.MESSAGE_READ_UPDATE,
+          { chat_id, user_id: userId }
+        );
+
       } catch (err) {
         socket.emit(EVENTS.SOCKET_ERROR, { message: err.message });
       }
     });
 
+    // =========================
+    // TYPING START
+    // =========================
+    socket.on(EVENTS.USER_TYPING, ({ chat_id }) => {
+      socket.to(`chat_${chat_id}`).emit(EVENTS.USER_TYPING, {
+        chat_id,
+        user_id: userId
+      });
+    });
+
+    // =========================
+    // TYPING STOP
+    // =========================
+    socket.on(EVENTS.USER_STOP_TYPING, ({ chat_id }) => {
+      socket.to(`chat_${chat_id}`).emit(EVENTS.USER_STOP_TYPING, {
+        chat_id,
+        user_id: userId
+      });
+    });
+
+    // =========================
     // LEAVE CHAT
+    // =========================
     socket.on(EVENTS.LEAVE_CHAT, ({ chat_id }) => {
-      if (!chat_id) return;
       socket.leave(`chat_${chat_id}`);
       socket.emit(EVENTS.LEFT_CHAT, { chat_id });
     });
 
-    // START TYPING
-    socket.on(EVENTS.USER_TYPING, ({ chat_id, user_id }) => {
-      if (!chat_id || !user_id) return;
-      socket.emit(EVENTS.USER_TYPING, { chat_id, user_id });
-    });
-
-    // STOP TYPING
-    socket.on(EVENTS.USER_STOP_TYPING, ({ chat_id, user_id }) => {
-      if (!chat_id || !user_id) return;
-      socket.emit(EVENTS.USER_STOP_TYPING, { chat_id, user_id });
-    });
-
-    // NEW MESSAGE
-    socket.on(EVENTS.NEW_MESSAGE, ({ chat_id, user_id }) => {
-      if (!chat_id || !user_id) return;
-      socket.emit(EVENTS.NEW_MESSAGE, { chat_id, user_id });
-    });
-
+    // =========================
     // DISCONNECT
-    socket.on(EVENTS.DISCONNECTED, async () => {
+    // =========================
+    socket.on("disconnect", async () => {
+
       await User.update(
         { is_online: false, last_seen: new Date() },
-        { where: { id: userId } },
+        { where: { id: userId } }
       );
+
       console.log("User disconnected:", userId);
     });
-  });
+  });  
 };

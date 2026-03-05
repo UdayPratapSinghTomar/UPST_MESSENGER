@@ -125,9 +125,9 @@ exports.sendMessage = async (req, res) => {
       created_at: message.createdAt
     };
 
-    // Emit to all clients in the chat room
+    // Emit to chat room
     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagePayload);
-    console.log(`Emitted new_message to chat_${chat_id}:`, messagePayload);
+    // console.log(`Emitted new_message to chat_${chat_id}:`, messagePayload);
 
     // ===========================
     // 🔔 NOTIFICATIONS (AFTER COMMIT)
@@ -136,6 +136,15 @@ exports.sendMessage = async (req, res) => {
     const sender = await User.findByPk(sender_id);
 
     for (const member_id of memberIds) {
+
+      // Update chat list realtime
+      io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+        chat_id,
+        last_message: content,
+        sender_id,
+        created_at: message.createdAt
+      });
+
       if (member_id === sender_id) continue;
 
       await notifyUser(io, {
@@ -147,7 +156,7 @@ exports.sendMessage = async (req, res) => {
         event: EVENTS.NEW_MESSAGE,
         title: chat.type === 'private'
           ? sender.full_name
-          : chat.group_name || 'New message',
+          : chat.group_name,
         body: content || '📎 Attachment'
       });
     }

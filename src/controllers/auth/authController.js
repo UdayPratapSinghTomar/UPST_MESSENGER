@@ -53,184 +53,184 @@ const sendEmail = require('../../utils/sendEmail');
 //         }
 // };
 
-exports.adminRegister = async (req,res) => {
-    try{
-        const {
-            organization_name,
-            employee_size,
-            website,
-            full_name,
-            role = 'admin',
-            designation,
-            phone,
-            email,
-            password
-        } = req.body;
+// exports.adminRegister = async (req,res) => {
+//     try{
+//         const {
+//             organization_name,
+//             employee_size,
+//             website,
+//             full_name,
+//             role = 'admin',
+//             designation,
+//             phone,
+//             email,
+//             password
+//         } = req.body;
  
-        const file = req.file;
-        const errors = {};
+//         const file = req.file;
+//         const errors = {};
 
-        if(!organization_name){
-            errors.organization_name = 'Organization name is required';
-        }
-        if(!employee_size){
-            errors.employee_size = 'Employee size is required';
-        }
-        if(!full_name){
-            errors.full_name = 'Full name is required';
-        }
-        if(!designation){
-            errors.designation = 'Job role is required';
-        }
-        if(!email){
-            errors.email = 'Email is required';
-        }
-        if(!password){
-            errors.password = 'Password is required';
-        }
+//         if(!organization_name){
+//             errors.organization_name = 'Organization name is required';
+//         }
+//         if(!employee_size){
+//             errors.employee_size = 'Employee size is required';
+//         }
+//         if(!full_name){
+//             errors.full_name = 'Full name is required';
+//         }
+//         if(!designation){
+//             errors.designation = 'Job role is required';
+//         }
+//         if(!email){
+//             errors.email = 'Email is required';
+//         }
+//         if(!password){
+//             errors.password = 'Password is required';
+//         }
 
-        if(Object.keys(errors).length > 0){
-           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
-        }
+//         if(Object.keys(errors).length > 0){
+//            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
+//         }
 
-        const existingEmail = await User.findOne({ where: { email } });  
-        if(existingEmail){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
+//         const existingEmail = await User.findOne({ where: { email } });  
+//         if(existingEmail){
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
+//         }
+//         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const t = await sequelize.transaction();
-        try{
-            const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
+//         const t = await sequelize.transaction();
+//         try{
+//             const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
-            const user = await User.create({
-                full_name,
-                email,
-                phone,
-                role,
-                'password': hashedPassword,
-                'organization_id': organization.id,
-                designation
-            }, 
-            { transaction: t});
+//             const user = await User.create({
+//                 full_name,
+//                 email,
+//                 phone,
+//                 role,
+//                 'password': hashedPassword,
+//                 'organization_id': organization.id,
+//                 designation
+//             }, 
+//             { transaction: t});
 
-            const defaultFileUrl = '/uploads/default/profile_pic.jpg';
-            const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
+//             const defaultFileUrl = '/uploads/default/profile_pic.jpg';
+//             const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
 
-            if (fs.existsSync(defaultFilePath)) {
-                const stats = fs.statSync(defaultFilePath);
+//             if (fs.existsSync(defaultFilePath)) {
+//                 const stats = fs.statSync(defaultFilePath);
         
-                await SharedFile.create(
-                {
-                    user_id: user.id,
-                    file_name: 'profile_pic.jpg',
-                    file_url: defaultFileUrl,
-                    file_type: 'image',
-                    file_size: stats.size,
-                    mime_type: 'image/jpeg',
-                },
-                {
-                    transaction: t,
-                }
-                );
-            }
-            await t.commit();
-            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
-        }catch(err){
-            await t.rollback();
-            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-        }                     
-    }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-    } 
-};
+//                 await SharedFile.create(
+//                 {
+//                     user_id: user.id,
+//                     file_name: 'profile_pic.jpg',
+//                     file_url: defaultFileUrl,
+//                     file_type: 'image',
+//                     file_size: stats.size,
+//                     mime_type: 'image/jpeg',
+//                 },
+//                 {
+//                     transaction: t,
+//                 }
+//                 );
+//             }
+//             await t.commit();
+//             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
+//         }catch(err){
+//             await t.rollback();
+//             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//         }                     
+//     }catch(err){
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//     } 
+// };
 
-exports.userRegister = async (req,res) => {
-    try{
-        const {
-            full_name,
-            email,
-            password,
-            phone,
-            role = 'member',
-            designation,
-        } = req.body;
+// exports.userRegister = async (req,res) => {
+//     try{
+//         const {
+//             full_name,
+//             email,
+//             password,
+//             phone,
+//             role = 'member',
+//             designation,
+//         } = req.body;
 
-        const errors = {};
+//         const errors = {};
 
-        if(!full_name){
-            errors.full_name = 'Full name is required';
-        }
-        if(!designation){
-            errors.designation = 'Designation is required';
-        }
-        if(!email){
-            errors.email = 'Email is required';
-        }
-        if(!password){
-            errors.password = 'Password is required';
-        }
+//         if(!full_name){
+//             errors.full_name = 'Full name is required';
+//         }
+//         if(!designation){
+//             errors.designation = 'Designation is required';
+//         }
+//         if(!email){
+//             errors.email = 'Email is required';
+//         }
+//         if(!password){
+//             errors.password = 'Password is required';
+//         }
 
-        if(Object.keys(errors).length > 0){
-           return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
-        }
-        // console.log('file path' ,path.join(__dirname,'../../uploads/default/profile_pic.jpg'))
-        // console.log('if condition',fs.existsSync(defaultFilePath))
-        const existingEmail = await User.findOne({ where: { email } });  
-        if(existingEmail){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
+//         if(Object.keys(errors).length > 0){
+//            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields', null, errors);
+//         }
+//         // console.log('file path' ,path.join(__dirname,'../../uploads/default/profile_pic.jpg'))
+//         // console.log('if condition',fs.existsSync(defaultFilePath))
+//         const existingEmail = await User.findOne({ where: { email } });  
+//         if(existingEmail){
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Email already exists!');
+//         }
+//         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const t = await sequelize.transaction();
-        try{
-            // const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
+//         const t = await sequelize.transaction();
+//         try{
+//             // const organization = await Organization.create({'name': organization_name, employee_size, website }, { transaction: t })
 
-            const user = await User.create({
-                full_name,
-                email,
-                phone,
-                role,
-                'password': hashedPassword,
-                designation
-            }, 
-            { transaction: t});
+//             const user = await User.create({
+//                 full_name,
+//                 email,
+//                 phone,
+//                 role,
+//                 'password': hashedPassword,
+//                 designation
+//             }, 
+//             { transaction: t});
             
-            const defaultFileUrl = '/uploads/default/profile_pic.jpg';
-            const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
+//             const defaultFileUrl = '/uploads/default/profile_pic.jpg';
+//             const defaultFilePath = path.join(__dirname,'../../uploads/default/profile_pic.jpg');
 
-            if (fs.existsSync(defaultFilePath)) {
-                const stats = fs.statSync(defaultFilePath);
+//             if (fs.existsSync(defaultFilePath)) {
+//                 const stats = fs.statSync(defaultFilePath);
         
-                await SharedFile.create(
-                {
-                    user_id: user.id,
-                    file_name: 'profile_pic.jpg',
-                    file_url: defaultFileUrl,
-                    file_type: 'image',
-                    file_size: stats.size,
-                    mime_type: 'image/jpeg',
-                },
-                {
-                    transaction: t,
-                }
-                );
-            }
-            await t.commit();
-            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
-        }catch(err){
-            console.log(err);
-            await t.rollback();
-            return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-        }                     
-    }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-    } 
-};
+//                 await SharedFile.create(
+//                 {
+//                     user_id: user.id,
+//                     file_name: 'profile_pic.jpg',
+//                     file_url: defaultFileUrl,
+//                     file_type: 'image',
+//                     file_size: stats.size,
+//                     mime_type: 'image/jpeg',
+//                 },
+//                 {
+//                     transaction: t,
+//                 }
+//                 );
+//             }
+//             await t.commit();
+//             return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
+//         }catch(err){
+//             console.log(err);
+//             await t.rollback();
+//             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//         }                     
+//     }catch(err){
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//     } 
+// };
 
 exports.login = async (req, res) => {
     try{
-        const { email, password, device_id } = req.body
+        const { email, password, device_id, device_type, fcm_token, force_login = false } = req.body
         const errors = {};
         
         if(!email){
@@ -239,9 +239,15 @@ exports.login = async (req, res) => {
         if(!password){
             errors.password = 'Password is required';
         }
-        // if(!device_id){
-        //     errors.device_id = 'Device id is required';
-        // }
+        if(!device_id){
+            errors.device_id = 'Device id is required';
+        }
+        if(!device_type){
+            errors.device_type = 'Device type is required';
+        }
+        if(!fcm_token){
+            errors.fcm_token = 'FCM token is required';
+        }
 
         if(Object.keys(errors).length > 0){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
@@ -249,12 +255,35 @@ exports.login = async (req, res) => {
 
         const user = await User.findOne({ where: { email }});
         if(!user){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'User not found'});
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Invalid credentials!'});
+        }
+            
+        let matchPassword = await bcrypt.compare(password, user.password);
+        if(!user || !matchPassword){
+            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!');
         }
 
-        let matchPassword = await bcrypt.compare(password, user.password);
-        if(!matchPassword){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {password: 'Wrong password'});
+        const existingSession = await UserDevice.findOne({
+            where: {
+                user_id: user.id,
+                is_active: true
+            }
+        });
+
+        if(existingSession && existingSession.device_id !== device_id && !force_login){
+            return sendResponse(res, HttpsStatus.CONFLICT, false, 'User already logged in another device', { already_logged_in: true });
+        }
+
+        if(force_login && existingSession){
+            await UserDevice.update(
+                { is_active: false }, 
+                { where: { user_id: user.id } }
+            );
+
+            await RefreshToken.update(
+                { revoked_at: new Date() },
+                { where: { user_id: user.id, revoked_at: null } }
+            );
         }
 
         const payload = {id: user.id, email: user.email};
@@ -273,13 +302,16 @@ exports.login = async (req, res) => {
             expires_at: expiryDateFromNow()
         });
     
-        // await UserDevice.create({
-        //     user_id: user.id,
-        //     device_id,
-        //     // device_type,
-        //     // fcm_token
-        // });
+        await UserDevice.upsert({
+            user_id: user.id,
+            device_id,
+            device_type,
+            fcm_token,
+            is_active: true,
+            last_seen_at: new Date()
+        });
         
+
         const orgIds = [
             user.organization_id,
             user.org_2,
@@ -323,22 +355,28 @@ exports.logout = async (req, res) => {
             );
         }
 
-        const userData = await RefreshToken.findOne({
-            where: { device_id }
+        const session = await RefreshToken.findOne({
+            where: { device_id, revoked_at: null }
         });
 
-        if(!userData){
+        if(!session){
             return sendResponse(
             res,
             HttpsStatus.BAD_REQUEST,
             false,
-            'User logged in details not found!'
+            'User session not found!'
         );
         }
 
-        await RefreshToken.destroy({
-            where: { device_id }
-        });
+        await RefreshToken.update(
+            { revoked_at: new Date() },
+            { where: { device_id } }
+        );
+
+        await UserDevice.update(
+            { is_active: false },
+            { where: { device_id } }
+        );
 
         return sendResponse(
             res,
@@ -358,21 +396,21 @@ exports.logout = async (req, res) => {
     }
 };
 
-exports.logoutFromAllDevice = async (req, res) => {
-    try {
-        const userId = req.user.id;
+// exports.logoutFromAllDevice = async (req, res) => {
+//     try {
+//         const userId = req.user.id;
 
-        await RefreshToken.destroy({
-            where: {
-                user_id: userId
-            }
-        });
+//         await RefreshToken.destroy({
+//             where: {
+//                 user_id: userId
+//             }
+//         });
 
-        return sendResponse(res, HttpsStatus.OK, true, 'Logged out from all devices successfull!');
-    } catch (err) {
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message } );
-    }
-}
+//         return sendResponse(res, HttpsStatus.OK, true, 'Logged out from all devices successfull!');
+//     } catch (err) {
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message } );
+//     }
+// }
 
 exports.requestPasswordOtp = async (req, res) => {
     try {
@@ -463,7 +501,7 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
+exports.updatePassword = async (req, res) => {
     try {
         const { email, password, confirmPassword } = req.body;
         
@@ -502,5 +540,5 @@ exports.resetPassword = async (req, res) => {
         return sendResponse(res, HttpsStatus.OK, true, 'Password change!', null, { password: 'Password changed successfully' });
     }catch(err){
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Something went wrong!', null, { server: err.message });
-    }
-};
+    } 
+};  
