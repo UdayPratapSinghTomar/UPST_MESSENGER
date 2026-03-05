@@ -271,7 +271,7 @@ exports.login = async (req, res) => {
         });
 
         if(existingSession && existingSession.device_id !== device_id && !force_login){
-            return sendResponse(res, HttpsStatus.CONFLICT, false, 'User already logged in another device', { already_logged_in: true });
+            return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'User already logged in another device', { already_logged_in: true });
         }
 
         if(force_login && existingSession){
