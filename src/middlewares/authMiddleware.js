@@ -5,7 +5,7 @@ const { sendResponse, HttpsStatus } = require('../utils/response');
 module.exports = async (req, res, next) => {
   try{
     const authHeader = req.headers.authorization;
-    const device_id = req.headers['x-device_id'];
+    const device_id = req.headers['device_id'];
 
     if (!authHeader) {
       return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Authorization header missing!');
