@@ -5,13 +5,19 @@ const { sendResponse, HttpsStatus } = require('../utils/response');
 module.exports = async (req, res, next) => {
   try{
     const authHeader = req.headers.authorization;
+    const device_id = req.headers['x-device_id'];
+
     if (!authHeader) {
-      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Login required', null, { auth: 'Authorization header missing' });
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Authorization header missing!');
+    }
+
+    if (!device_id) {
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Device id missing!');
     }
 
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') { 
-      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Login required', null, { auth: 'Invalid authorization format' });
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Invalid authorization format!');
     }
 
     const token = parts[1];
@@ -19,17 +25,13 @@ module.exports = async (req, res, next) => {
     // check session
     const session = await RefreshToken.findOne({
       where: {
-        user_id: payload.id
+        user_id: payload.id,
+        device_id: device_id
       }
     });
 
     if (!session) {
-      return sendResponse(
-        res,
-        HttpsStatus.UNAUTHORIZED,
-        false,
-        'Session expired'
-      );
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Session expired, please login again!');
     }
 
     req.user = payload;

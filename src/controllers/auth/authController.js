@@ -322,16 +322,16 @@ exports.login = async (req, res) => {
              * 4️⃣ Notify previous devices
              */
 
-            for (const device of previousDevices) {
+            // for (const device of previousDevices) {
 
-                await notifyUser(io, {
-                recipient_id: user.id,
-                type: 'security',
-                event: EVENTS.FORCE_LOGOUT,
-                title: 'Logged out from another device',
-                body: 'Your account was logged in from another device.'
-                });
-            }
+            //     await notifyUser(io, {
+            //     recipient_id: user.id,
+            //     type: 'security',
+            //     event: EVENTS.FORCE_LOGOUT,
+            //     title: 'Logged out from another device',
+            //     body: 'Your account was logged in from another device.'
+            //     });
+            // }
         }
 
         const payload = {id: user.id, email: user.email};
