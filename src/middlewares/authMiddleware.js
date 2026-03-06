@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { RefreshToken } = require('../models');
 const { sendResponse, HttpsStatus } = require('../utils/response');
  
 module.exports = async (req, res, next) => {
@@ -14,15 +15,35 @@ module.exports = async (req, res, next) => {
     }
 
     const token = parts[1];
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, payload) => {
-      if (err) {
-        return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Invalid or expired token', null, { auth: 'Invalid or expired token' });
+    const payload = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    // check session
+    const session = await RefreshToken.findOne({
+      where: {
+        user_id: payload.id
       }
-
-      // attach minimal user info from token
-      req.user = payload; // e.g. { id, email, iat, exp }
-      return next();
     });
+
+    if (!session) {
+      return sendResponse(
+        res,
+        HttpsStatus.UNAUTHORIZED,
+        false,
+        'Session expired'
+      );
+    }
+
+    req.user = payload;
+
+    next();
+    // jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, payload) => {
+    //   if (err) {
+    //     return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Invalid or expired token', null, { auth: 'Invalid or expired token' });
+    //   }
+
+    //   // attach minimal user info from token
+    //   req.user = payload; // e.g. { id, email, iat, exp }
+    //   return next();
+    // });
   }catch(err){
     console.error('Auth middleware error:', err);
       return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error', null, { server: err.message });

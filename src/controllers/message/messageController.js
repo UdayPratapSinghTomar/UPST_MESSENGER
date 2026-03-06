@@ -25,6 +25,7 @@ exports.sendMessage = async (req, res) => {
       message_type = 'text',
       mentioned_user_ids = [] // optional array
     } = req.body;
+
     const io = req.app.get('io');
 
     if (!chat_id) {
@@ -157,7 +158,7 @@ exports.sendMessage = async (req, res) => {
         title: chat.type === 'private'
           ? sender.full_name
           : chat.group_name,
-        body: content || '📎 Attachment'
+        body: content || 'Attachment'
       });
     }
 
@@ -165,7 +166,7 @@ exports.sendMessage = async (req, res) => {
     for (const mentionedUserId of mentioned_user_ids || []) {
       if (mentionedUserId === sender_id) continue;
 
-      await notifyUser({
+      await notifyUser(io,{
         recipient_id: mentionedUserId,
         sender_id,
         chat_id,

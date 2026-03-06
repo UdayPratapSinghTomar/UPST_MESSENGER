@@ -3,7 +3,7 @@ const { sequelize, Chat, ChatMember, Message, MessageStatus, User, SharedFile } 
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
-const EVENT = require('../../utils/socketEvents');
+const EVENTS = require('../../utils/socketEvents');
 const { notifyUser } = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
@@ -15,7 +15,7 @@ exports.createPrivateChat = async (req, res) => {
     const { user_id } = req.body;
     const currentUserId = req.user.id;
     const io = req.app.get('io');
-
+ 
     if (!user_id) {
       await t.rollback();
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
@@ -43,7 +43,7 @@ exports.createPrivateChat = async (req, res) => {
       ],
       group: ['Chat.id'],
       having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
-      subQuery: false // prEVENTs sequelize from breaking group by in findone
+      subQuery: false // prEVENTSs sequelize from breaking group by in findone
     });
 
     if(existingChat){
@@ -61,49 +61,77 @@ exports.createPrivateChat = async (req, res) => {
     
     await t.commit(); 
 
+    const users = [currentUserId, user_id];
+
     const chatPayload = {
       id: chat.id,
       type: chat.type,
       created_by: currentUserId,
-      members: [currentUserId, user_id],
+      members: users,
       last_message: null,
       unread_count: 0,
       created_at: chat.createdAt,
     };
 
-    // Emit chat created to both users
-    io.to(`user_${currentUserId}`).emit(EVENT.CHAT_CREATED, chatPayload);
-    io.to(`user_${currentUserId}`).emit(EVENT.CHAT_LIST_UPDATE, {
-      action: "new_chat",
-      chat: chatPayload
-    });
+    for(const uid of users){
+      // const room = io.sockets.adapter.rooms.get(`user_${uid}`);
+      // const isOnline = room && room.size > 0;
 
-    // Check if other user online
-    const otherRoom = io.sockets.adapter.rooms.get(`user_${user_id}`);
-    const isOnline = otherRoom && otherRoom.size > 0;
+      // if(isOnline){
+        io.to(`user_${uid}`).emit(EVENTS.CHAT_CREATED, chatPayload);
+        io.to(`user_${uid}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+          action: 'new_chat',
+          chat: chatPayload
+        });
+      // }else{
+        if (uid === currentUserId) continue;
 
-    if (isOnline) {
-
-      io.to(`user_${user_id}`).emit(EVENT.CHAT_CREATED, chatPayload);
-      io.to(`user_${user_id}`).emit(EVENT.CHAT_LIST_UPDATE, {
-        action: "new_chat",
-        chat: chatPayload
-      });
-
-    } else {
-
-      await notifyUser(io, {
-        recipient_id: user_id,
-        sender_id: currentUserId,
-        chat_id: chat.id,
-        type: "chat",
-        event: EVENT.NOTIFICATION,
-        title: "New Chat Created",
-        body: "A private chat has been created with you"
-      });
+        await notifyUser(io, {
+          recipient_id: uid,
+          sender_id: currentUserId,
+          chat_id: chat.id,
+          type: "chat",
+          event: EVENTS.NOTIFICATION,
+          title: "New Chat Created",
+          body: "A private chat has been created with you"
+        });
+      // }
     }
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', {chat}, null )
+
+    // Emit chat created to both users
+    // io.to(`user_${currentUserId}`).emit(EVENTS.CHAT_CREATED, chatPayload);
+    // io.to(`user_${currentUserId}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+    //   action: "new_chat",
+    //   chat: chatPayload
+    // });
+
+    // // Check if other user online
+    // const otherRoom = io.sockets.adapter.rooms.get(`user_${user_id}`);
+    // const isOnline = otherRoom && otherRoom.size > 0;
+
+    // if (isOnline) {
+
+    //   io.to(`user_${user_id}`).emit(EVENTS.CHAT_CREATED, chatPayload);
+    //   io.to(`user_${user_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+    //     action: "new_chat",
+    //     chat: chatPayload
+    //   });
+
+    // } else {
+
+    //   await notifyUser(io, {
+    //     recipient_id: user_id,
+    //     sender_id: currentUserId,
+    //     chat_id: chat.id,
+    //     type: "chat",
+    //     EVENTS: EVENTS.NOTIFICATION,
+    //     title: "New Chat Created",
+    //     body: "A private chat has been created with you"
+    //   });
+    // }
+
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', chatPayload)
     // return sendResponse(res, HttpsStatus.CREATED, true, 'Private chat created successfully!', payload, null )
   }catch(err){
     if(!t.finished){
@@ -195,6 +223,8 @@ exports.createGroup = async (req, res) => {
 
     await t.commit();
 
+    const allMembers = [...group_members, currentUserId];
+
     const groupPayload = {
       id: chat.id,
       type: 'group',
@@ -205,31 +235,60 @@ exports.createGroup = async (req, res) => {
       last_message: null,
       unread_count: 0
     };
-
-    const allMembers = [...group_members, currentUserId];
     
-    const notifications = [];
     for (const userId of allMembers) {
 
-      io.to(`user_${userId}`).emit(EVENT.CHAT_CREATED, groupPayload);
-      io.to(`user_${userId}`).emit(EVENT.CHAT_LIST_UPDATE);
+      // const room = io.sockets.adapter.rooms.get(`user_${userId}`);
+      // const isOnline = room && room.size > 0;
 
-      if (userId !== currentUserId) {
+      // if (isOnline) {
+
+        io.to(`user_${userId}`).emit(EVENTS.CHAT_CREATED, groupPayload);
+
+        io.to(`user_${userId}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+          action: "new_chat",
+          chat: groupPayload
+        });
+
+      // } else {
+        if (uid === currentUserId) continue;
+
         await notifyUser(io, {
           recipient_id: userId,
           sender_id: currentUserId,
           chat_id: chat.id,
           type: 'group',
-          event: EVENT.CHAT_CREATED,
+          event: EVENTS.NOTIFICATION,
           title: 'Added to Group',
           body: `You were added to ${group_name}`
         });
-      }
+
+      // }
     }
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!',{chat: chat, notifications: notifications}, null )
+    // const notifications = [];
+    // for (const userId of allMembers) {
+
+    //   io.to(`user_${userId}`).emit(EVENTS.CHAT_CREATED, groupPayload);
+    //   io.to(`user_${userId}`).emit(EVENTS.CHAT_LIST_UPDATE);
+
+    //   if (userId !== currentUserId) {
+    //     await notifyUser(io, {
+    //       recipient_id: userId,
+    //       sender_id: currentUserId,
+    //       chat_id: chat.id,
+    //       type: 'group',
+    //       EVENTS: EVENTS.CHAT_CREATED,
+    //       title: 'Added to Group',
+    //       body: `You were added to ${group_name}`
+    //     });
+    //   }
+    // }
+
+    // return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!',{chat: chat, notifications: notifications}, null )
+    return sendResponse(res, HttpsStatus.CREATED, true, 'Group chat created successfully!', groupPayload, null )
   }catch(err){
-    await t.rollback();
+    if (!t.finished) await t.rollback();
     console.error('Sequelize Error:', err);
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
   }
@@ -364,7 +423,7 @@ exports.openChat = async (req, res) => {
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message});
   }
 }
-
+ 
 // exports.getChatList = async (req, res) => {
 //   try {
 //     const user_id = req.user.id

@@ -2,6 +2,8 @@ module.exports = {
   CONNECTION: "connection",
   CONNECTED: "connected",
 
+  FORCE_LOGOUT: "force_logout",
+
   JOIN_CHAT: "join_chat",
   JOINED_CHAT: "joined_chat",
   LEAVE_CHAT: "leave_chat",

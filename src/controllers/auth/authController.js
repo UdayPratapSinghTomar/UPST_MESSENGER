@@ -11,6 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const sendEmail = require('../../utils/sendEmail');
+const EVENTS = require('../../utils/socketEvents');
 
 // exports.refreshToken = async (req, res) =>{
 //     try{
@@ -274,16 +275,63 @@ exports.login = async (req, res) => {
             return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'User already logged in another device', { already_logged_in: true });
         }
 
+        const io = req.app.get('io');
+        
         if(force_login && existingSession){
+
+            /**
+             * 1️⃣ Get previously active devices except current device
+             */
+
+            const previousDevices = await UserDevice.findAll({
+                where: {
+                user_id: user.id,
+                is_active: true,
+                device_id: { [Op.ne]: device_id }
+                }
+            });
+
+            /**
+             * 2️⃣ Revoke refresh tokens of previous devices
+             */
+
+            await RefreshToken.destroy({
+                where: {
+                    user_id: user.id,
+                    device_id: {
+                        [Op.ne]: device_id
+                    }
+                }
+            });
+
+            /**
+             * 3️⃣ Deactivate previous devices
+             */
+
             await UserDevice.update(
-                { is_active: false }, 
-                { where: { user_id: user.id } }
+                { is_active: false },
+                {
+                where: {
+                    user_id: user.id,
+                    device_id: { [Op.ne]: device_id }
+                }
+                }
             );
 
-            await RefreshToken.update(
-                { revoked_at: new Date() },
-                { where: { user_id: user.id, revoked_at: null } }
-            );
+            /**
+             * 4️⃣ Notify previous devices
+             */
+
+            for (const device of previousDevices) {
+
+                await notifyUser(io, {
+                recipient_id: user.id,
+                type: 'security',
+                event: EVENTS.FORCE_LOGOUT,
+                title: 'Logged out from another device',
+                body: 'Your account was logged in from another device.'
+                });
+            }
         }
 
         const payload = {id: user.id, email: user.email};
@@ -311,7 +359,6 @@ exports.login = async (req, res) => {
             last_seen_at: new Date()
         });
         
-
         const orgIds = [
             user.organization_id,
             user.org_2,
@@ -353,10 +400,10 @@ exports.logout = async (req, res) => {
                 false,
                 'Device id is required'
             );
-        }
+        } 
 
         const session = await RefreshToken.findOne({
-            where: { device_id, revoked_at: null }
+            where: { device_id }
         });
 
         if(!session){
@@ -368,10 +415,11 @@ exports.logout = async (req, res) => {
         );
         }
 
-        await RefreshToken.update(
-            { revoked_at: new Date() },
-            { where: { device_id } }
-        );
+        await RefreshToken.destroy({
+            where: {
+                device_id: device_id
+            }
+        });
 
         await UserDevice.update(
             { is_active: false },
