@@ -7,16 +7,7 @@ const { sequelize, User, sharedFile } = require("../../models");
 
 exports.usersByOrgId = async (req, res) => {
   try {
-    const orgId = req.body.org_id;
-
-    if (!orgId) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Organization is is required!"
-      );
-    }
+    const orgId = req.org_id;
 
     const organizationUsers = await User.findAll({
       where: {
@@ -31,9 +22,18 @@ exports.usersByOrgId = async (req, res) => {
           { org_7: orgId },
           { org_8: orgId },
           { org_9: orgId },
-          { org_10: orgId },
-        ],
+          { org_10: orgId }
+        ]
       },
+      attributes: [
+        "id",
+        "full_name",
+        "email",
+        "profile_url",
+        "designation",
+        "is_online",
+        "last_seen"
+      ]
     });
 
     return sendResponse(

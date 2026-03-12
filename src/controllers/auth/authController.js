@@ -292,7 +292,7 @@ exports.login = async (req, res) => {
             });
 
             /**
-             * 2️⃣ Revoke refresh tokens of previous devices
+             * 2️⃣ Destroy refresh tokens of previous devices
              */
 
             await RefreshToken.destroy({
@@ -392,7 +392,7 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
     try {
         // const { device_id } = req.body;
-        const device_id = req.headers['device_id'];;
+        const device_id = req.device_id;
 
         if (!device_id) {
             return sendResponse(

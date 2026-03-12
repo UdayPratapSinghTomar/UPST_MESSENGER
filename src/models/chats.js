@@ -18,6 +18,16 @@ module.exports = (sequelize, DataTypes) => {
     group_description: {
       type: DataTypes.STRING
     },
+    organization_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
     created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,

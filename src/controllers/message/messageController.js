@@ -12,6 +12,7 @@ const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require("../../utils/fileType");
 const EVENTS = require("../../utils/socketEvents");
 const { notifyUser } = require('../../utils/notificationService');
+const { userBelongsToOrg } = require('../../utils/organizationFilter');
 const { Op } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
@@ -25,7 +26,8 @@ exports.sendMessage = async (req, res) => {
       message_type = 'text',
       mentioned_user_ids = [] // optional array
     } = req.body;
-
+    
+    const org_id = req.org_id;
     const io = req.app.get('io');
 
     if (!chat_id) {
@@ -61,6 +63,37 @@ exports.sendMessage = async (req, res) => {
     if (!memberIds.includes(sender_id)) {
       await t.rollback();
       return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not a chat member');
+    }
+
+    const users = await User.findAll({
+      where: { id: memberIds },
+      attributes: [
+        'id',
+        'organization_id',
+        'org_2',
+        'org_3',
+        'org_4',
+        'org_5',
+        'org_6',
+        'org_7',
+        'org_8',
+        'org_9',
+        'org_10'
+      ],
+      transaction: t
+    });
+
+    const invalidUsers = users.filter(user => !userBelongsToOrg(user, org_id));
+
+    if (invalidUsers.length > 0) {
+      await t.rollback();
+
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        'Users are not from the same organization'
+      );
     }
 
     // 2️⃣ Create message
@@ -120,6 +153,7 @@ exports.sendMessage = async (req, res) => {
     const messagePayload = {
       id: message.id,
       chat_id,
+      last_message: content,
       sender_id,
       content,
       message_type,
@@ -139,11 +173,16 @@ exports.sendMessage = async (req, res) => {
     for (const member_id of memberIds) {
 
       // Update chat list realtime
+      // io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+      //   chat_id,
+      //   last_message: content,
+      //   sender_id,
+      //   created_at: message.createdAt
+      // });
+
       io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
-        chat_id,
-        last_message: content,
-        sender_id,
-        created_at: message.createdAt
+        action: 'new_message',
+        data: messagePayload
       });
 
       if (member_id === sender_id) continue;
