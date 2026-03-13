@@ -7,6 +7,7 @@ module.exports = {
 
   USER_ONLINE: "user_online",
   USER_OFFLINE: "user_offline",
+  ACTIVE_USERS_LIST : 'active_users_list',
 
   JOIN_CHAT: "join_chat",
   JOINED_CHAT: "joined_chat",

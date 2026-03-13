@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const { User, ChatMember, MessageStatus, SharedFile } = require("../models");
 const EVENTS = require("../utils/socketEvents");
+const { getActiveUsers } = require("../utils/activeUsers");
 
 module.exports = (io) => {
 
@@ -65,21 +66,18 @@ module.exports = (io) => {
     /**
      * Fetch profile image
      */
-    const profile = await SharedFile.findOne({
-      where: {
-        user_id: userId,
-        file_type: "image"
-      },
-      attributes: ["file_url"]
-    });
-
+    // const profile = await SharedFile.findOne({
+    //   where: {
+    //     user_id: userId,
+    //     file_type: "image"
+    //   },
+    //   attributes: ["file_url"]
+    // });
+    const activeUsers = await getActiveUsers(orgId);
     /**
      * Broadcast user online
      */
-    socket.to(`org_${orgId}`).emit(EVENTS.USER_ONLINE, {
-      user_id: userId,
-      profile_url: profile?.file_url || null
-    });
+    socket.to(`org_${orgId}`).emit(EVENTS.ACTIVE_USERS_LIST, activeUsers);
 
 
     /**
@@ -209,10 +207,12 @@ module.exports = (io) => {
         { where: { id: userId } }
       );
 
-      socket.to(`org_${orgId}`).emit(EVENTS.USER_OFFLINE, {
-        user_id: userId,
-        last_seen: new Date()
-      });
+      const activeUsers = await getActiveUsers(orgId);
+
+      io.to(`org_${orgId}`).emit(
+        EVENTS.ACTIVE_USERS_LIST,
+        activeUsers
+      );
 
       console.log("User disconnected:", userId);
 
