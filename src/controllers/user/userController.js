@@ -3,15 +3,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { Op } = require("sequelize");
-const { sequelize, User, sharedFile } = require("../../models");
+const { sequelize, User, SharedFile } = require("../../models");
 
 exports.usersByOrgId = async (req, res) => {
   try {
     const orgId = req.org_id;
+    const currentUserId = req.user.id;
 
-    const organizationUsers = await User.findAll({
+    const users = await User.findAll({
       where: {
         is_deleted: false,
+        id: { [Op.ne]: currentUserId },
+
         [Op.or]: [
           { organization_id: orgId },
           { org_2: orgId },
@@ -25,23 +28,43 @@ exports.usersByOrgId = async (req, res) => {
           { org_10: orgId }
         ]
       },
+
       attributes: [
         "id",
         "full_name",
         "email",
-        "profile_url",
         "designation",
         "is_online",
         "last_seen"
+      ],
+
+      include: [
+        {
+          model: SharedFile,
+          as: "uploadedFiles",
+          attributes: ["file_url"],
+          required: false,
+          where: { file_type: "image" }
+        }
       ]
     });
+
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      designation: user.designation,
+      is_online: user.is_online,
+      last_seen: user.last_seen,
+      profile_url: user?.uploadedFiles?.[0]?.file_url || null
+    }));
 
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
-      "Organization users retreive successfully!",
-      organizationUsers
+      "Organization users retrieved successfully!",
+      formattedUsers
     );
   } catch (err) {
     return sendResponse(
@@ -52,6 +75,91 @@ exports.usersByOrgId = async (req, res) => {
       null,
       { server: err.message }
     );
+  }
+};
+
+exports.activeUsers = async (req, res) => {
+  try {
+
+    const org_id = req.org_id;
+    const currentUserId = req.user.id;
+
+    if (!org_id) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Organization id is missing!"
+      );
+    }
+
+    const users = await User.findAll({
+      where: {
+        is_deleted: false,
+        is_online: true,
+        id: { [Op.ne]: currentUserId },
+
+        [Op.or]: [
+          { organization_id: org_id },
+          { org_2: org_id },
+          { org_3: org_id },
+          { org_4: org_id },
+          { org_5: org_id },
+          { org_6: org_id },
+          { org_7: org_id },
+          { org_8: org_id },
+          { org_9: org_id },
+          { org_10: org_id }
+        ]
+      },
+
+      attributes: [
+        "id",
+        "full_name",
+        "designation",
+        "is_online",
+        "last_seen"
+      ],
+
+      include: [
+        {
+          model: SharedFile,
+          as: "uploadedFiles",
+          attributes: ["file_url"],
+          required: false,
+          where: { file_type: "image" }
+        }
+      ]
+    });
+
+    const formattedUsers = users.map(u => ({
+      id: u.id,
+      full_name: u.full_name,
+      designation: u.designation,
+      is_online: u.is_online,
+      last_seen: u.last_seen,
+      profile_url: u?.uploadedFiles?.[0]?.file_url || null
+    }));
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Active users retrieved successfully!",
+      formattedUsers
+    );
+
+  } catch (err) {
+
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+
   }
 };
 

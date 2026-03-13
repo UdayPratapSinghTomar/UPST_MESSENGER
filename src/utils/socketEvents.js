@@ -1,8 +1,12 @@
 module.exports = {
   CONNECTION: "connection",
   CONNECTED: "connected",
+  DISCONNECT: "disconnect",
 
   FORCE_LOGOUT: "force_logout",
+
+  USER_ONLINE: "user_online",
+  USER_OFFLINE: "user_offline",
 
   JOIN_CHAT: "join_chat",
   JOINED_CHAT: "joined_chat",
