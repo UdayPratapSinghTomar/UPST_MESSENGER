@@ -1,181 +1,48 @@
-const { User, Chat, ChatMember, Message, SharedFile } = require('../../models');
+const { sequelize, User, Chat, ChatMember, Message, SharedFile } = require('../../models');
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 
 exports.searchAll = async (req, res) => {
-try {
+  try {
 
-const user_id = req.user.id;
-const org_id = req.org_id;
-const { q } = req.query;
+    const user_id = req.user.id;
+    const org_id = req.org_id;
+    const { q } = req.query;
 
-if (!q) {
-  return sendResponse(
-    res,
-    HttpsStatus.BAD_REQUEST,
-    false,
-    "Search bar is empty!",
-    { users: [], privateChats: [], groups: [], messages: [] }
-  );
-}
-
-/**
- * 1️⃣ USERS
- */
-const usersRaw = await User.findAll({
-  where: {
-    id: { [Op.ne]: user_id },
-    is_deleted: false,
-    full_name: { [Op.iLike]: `%${q}%` },
-
-    [Op.or]: [
-      { organization_id: org_id },
-      { org_2: org_id },
-      { org_3: org_id },
-      { org_4: org_id },
-      { org_5: org_id },
-      { org_6: org_id },
-      { org_7: org_id },
-      { org_8: org_id },
-      { org_9: org_id },
-      { org_10: org_id }
-    ]
-  },
-
-  attributes: ["id", "full_name"],
-
-  include: [
-    {
-      model: SharedFile,
-      as: "uploadedFiles",
-      attributes: ["file_url"],
-      required: false,
-      where: { file_type: "image" }
+    if (!q) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Search bar is empty!",
+        { users: [], groups: [], messages: [], files: [] }
+      );
     }
-  ]
-});
 
-const users = usersRaw.map(u => ({
-  id: u.id,
-  full_name: u.full_name,
-  profile_url: u.uploadedFiles?.[0]?.file_url ?? null
-}));
+    /**
+     * 1️⃣ USERS + PRIVATE CHAT SEARCH
+     */
 
-
-/**
- * 2️⃣ PRIVATE CHATS
- */
-const privateChatsRaw = await Chat.findAll({
-  where: {
-    type: "private",
-    organization_id: org_id,
-    is_deleted: false
-  },
-
-  include: [
-    {
-      model: ChatMember,
-      as: "memberships",
-      attributes: ["user_id"],
-
-      include: [
-        {
-          model: User,
-          as: "user",
-          attributes: ["id", "full_name"],
-
-          include: [
-            {
-              model: SharedFile,
-              as: "uploadedFiles",
-              attributes: ["file_url"],
-              required: false,
-              where: { file_type: "image" }
-            }
-          ]
-        }
-      ]
-    }
-  ],
-
-  attributes: ["id", "type"]
-});
-
-const privateChats = privateChatsRaw
-  .filter(chat => chat.memberships?.some(m => m.user_id === user_id))
-  .map(chat => {
-
-    const otherUser = chat.memberships
-      ?.map(m => m.user)
-      ?.find(u => u && u.id !== user_id);
-
-    return {
-      chat_id: chat.id,
-      type: chat.type,
-      name: otherUser?.full_name ?? null,
-      profile_url: otherUser?.uploadedFiles?.[0]?.file_url ?? null
-    };
-  });
-
-
-/**
- * 3️⃣ GROUPS
- */
-const groups = await Chat.findAll({
-  where: {
-    type: "group",
-    organization_id: org_id,
-    group_name: { [Op.iLike]: `%${q}%` },
-    is_deleted: false
-  },
-
-  include: [
-    {
-      model: ChatMember,
-      as: "memberships",
-      where: { user_id },
-      attributes: []
-    }
-  ],
-
-  attributes: ["id", "group_name", "group_image"]
-});
-
-
-/**
- * 4️⃣ MESSAGES
- */
-const messagesRaw = await Message.findAll({
-  where: {
-    [Op.or]: [
-      { content: { [Op.iLike]: `%${q}%` } },
-      { "$files.file_name$": { [Op.iLike]: `%${q}%` } }
-    ]
-  },
-
-  include: [
-    {
-      model: Chat,
-      as: "chat",
-      attributes: ["id", "type", "group_name"],
+    const usersRaw = await User.findAll({
       where: {
-        organization_id: org_id,
-        is_deleted: false
+        id: { [Op.ne]: user_id },
+        is_deleted: false,
+        full_name: { [Op.iLike]: `%${q}%` },
+
+        [Op.or]: [
+          { organization_id: org_id },
+          { org_2: org_id },
+          { org_3: org_id },
+          { org_4: org_id },
+          { org_5: org_id },
+          { org_6: org_id },
+          { org_7: org_id },
+          { org_8: org_id },
+          { org_9: org_id },
+          { org_10: org_id }
+        ]
       },
 
-      include: [
-        {
-          model: ChatMember,
-          as: "memberships",
-          where: { user_id },
-          attributes: []
-        }
-      ]
-    },
-
-    {
-      model: User,
-      as: "sender",
       attributes: ["id", "full_name"],
 
       include: [
@@ -187,62 +54,219 @@ const messagesRaw = await Message.findAll({
           where: { file_type: "image" }
         }
       ]
-    },
+    });
 
-    {
-      model: SharedFile,
-      as: "files",
-      attributes: ["id", "file_name", "file_url"],
-      required: false
+    const users = [];
+
+    for (const u of usersRaw) {
+
+      const privateChat = await ChatMember.findOne({
+        attributes: ["chat_id"],
+
+        where: {
+          user_id: { [Op.in]: [user_id, u.id] }
+        },
+
+        group: ["chat_id"],
+
+        having: sequelize.literal(`COUNT(DISTINCT "user_id") = 2`),
+
+        raw: true
+      });
+
+      users.push({
+        user_id: u.id,
+        name: u.full_name,
+        profile_image: u.uploadedFiles?.[0]?.file_url ?? null,
+        chat_id: privateChat?.chat_id ?? null,
+        chat_type: "private"
+      });
+
     }
-  ],
 
-  attributes: ["id", "content", "created_at"],
-  order: [["created_at", "DESC"]],
-  distinct: true
-});
+    /**
+     * 2️⃣ GROUP SEARCH
+     */
+    const groupsRaw = await Chat.findAll({
+      where: {
+        type: "group",
+        organization_id: org_id,
+        group_name: { [Op.iLike]: `%${q}%` },
+        is_deleted: false
+      },
 
-const messages = messagesRaw.map(msg => ({
-  id: msg.id,
-  content: msg.content,
-  created_at: msg.created_at,
+      include: [
+        {
+          model: ChatMember,
+          as: "memberships",
+          where: { user_id },
+          attributes: []
+        },
 
-  sender: {
-    id: msg.sender?.id ?? null,
-    full_name: msg.sender?.full_name ?? null,
-    profile_url: msg.sender?.uploadedFiles?.[0]?.file_url ?? null
-  },
+        {
+          model: SharedFile,
+          as: "files",
+          attributes: ["file_url"],
+          required: false,
+          where: { file_type: "image" }
+        }
+      ],
 
-  files: msg.files ?? []
-}));
+      attributes: ["id", "group_name"]
+    });
+
+    const groups = groupsRaw.map(g => ({
+      group_id: g.id,
+      group_name: g.group_name,
+      group_image: g.files?.[0]?.file_url ?? null,
+      chat_id: g.id,
+      chat_type: "group"
+    }));
 
 
-/**
- * FINAL RESPONSE
- */
-return sendResponse(
-  res,
-  HttpsStatus.OK,
-  true,
-  "Data retrieved successfully!",
-  { users, privateChats, groups, messages }
-);
+    /**
+     * 3️⃣ MESSAGE SEARCH
+     */
+    const messagesRaw = await Message.findAll({
+
+      where: {
+        content: { [Op.iLike]: `%${q}%` }
+      },
+
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          attributes: ["id", "type", "group_name"],
+
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+
+          include: [
+            {
+              model: ChatMember,
+              as: "memberships",
+              where: { user_id },
+              attributes: []
+            }
+          ]
+        },
+
+        {
+          model: User,
+          as: "sender",
+          attributes: ["id", "full_name"]
+        }
+      ],
+
+      attributes: [
+        "id",
+        "chat_id",
+        "sender_id",
+        "content",
+        "message_type",
+        "created_at"
+      ],
+
+      order: [["created_at", "DESC"]]
+    });
+
+    const messages = messagesRaw.map(m => ({
+      message_id: m.id,
+      chat_id: m.chat_id,
+      chat_type: m.chat?.type,
+      sender_id: m.sender_id,
+      sender_name: m.sender?.full_name ?? null,
+      message: m.content,
+      message_type: m.message_type,
+      created_at: m.created_at
+    }));
 
 
-} catch (err) {
+    /**
+     * 4️⃣ FILE SEARCH
+     */
+    const filesRaw = await SharedFile.findAll({
 
-console.error("searchAll error:", err);
+      where: {
+        file_name: { [Op.iLike]: `%${q}%` }
+      },
 
-return sendResponse(
-  res,
-  HttpsStatus.INTERNAL_SERVER_ERROR,
-  false,
-  "Server error!",
-  null,
-  { server: err.message }
-);
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          attributes: ["id", "type"],
 
-}
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+
+          include: [
+            {
+              model: ChatMember,
+              as: "memberships",
+              where: { user_id },
+              attributes: []
+            }
+          ]
+        }
+      ],
+
+      attributes: [
+        "message_id",
+        "chat_id",
+        "file_name",
+        "file_url",
+        "file_type",
+        "user_id",
+        "created_at"
+      ]
+    });
+
+    const files = filesRaw.map(f => ({
+      message_id: f.message_id,
+      chat_id: f.chat_id,
+      chat_type: f.chat?.type,
+      file_name: f.file_name,
+      file_url: f.file_url,
+      file_type: f.file_type,
+      uploaded_by: f.user_id,
+      created_at: f.created_at
+    }));
+
+
+    /**
+     * FINAL RESPONSE
+     */
+    return res.json({
+      status: true,
+      query: q,
+      data: {
+        users,
+        groups,
+        messages,
+        files
+      }
+    });
+
+  } catch (err) {
+
+    console.error("searchAll error:", err);
+
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+
+  }
 };
 
 
