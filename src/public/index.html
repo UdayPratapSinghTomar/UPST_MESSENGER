@@ -45,6 +45,10 @@
     <h3>My Chats</h3>
     <div id="chatList"></div>
   </div>
+  <div class="section">
+    <h3>Active Users</h3>
+    <div id="activeUsers"></div>
+  </div>
 
 </div>
 
@@ -95,13 +99,18 @@ function connectSocket() {
     const payload = JSON.parse(atob(tokenGlobal.split(".")[1]));
     currentUserId = payload.id;
 
-    loadChatList();
+    // loadChatList();
   });
 
   socket.on(EVENTS.NEW_MESSAGE, (data) => {
     if (String(data.chat_id) === String(activeChatId)) {
       addMessage(data);
     }
+  });
+  console.log('active')
+  socket.on("active_users_list", (users) => {
+    console.log("Active users received:", users);
+    renderActiveUsers(users);
   });
 
   socket.on("disconnect", () => {
@@ -170,15 +179,19 @@ function joinExistingChat() {
 /* ================= LOAD CHAT LIST ================= */
 async function loadChatList() {
   try {
-    const res = await fetch("http://localhost:3000/chat/my-chats", {
-      headers: { "Authorization": "Bearer " + tokenGlobal }
+    const res = await fetch("http://localhost:3000/chat/chat-list", {
+      headers: {
+        "Authorization": `Bearer ${tokenGlobal}`,
+        "organization_id": "2",
+        "device_id": "UKQ1.230924.001"
+      }
     });
 
     chats = await res.json();
     renderChatList();
 
   } catch (err) {
-    console.error("Chat list error");
+    console.error(err.message);
   }
 }
 
@@ -287,6 +300,31 @@ function addMessage(data) {
 
   list.appendChild(li);
   list.scrollTop = list.scrollHeight;
+}
+
+function renderActiveUsers(users) {
+
+  const container = document.getElementById("activeUsers");
+  container.innerHTML = "";
+
+  if (!users.length) {
+    container.innerHTML = "No active users";
+    return;
+  }
+
+  users.forEach(user => {
+
+    const div = document.createElement("div");
+
+    div.className = "chat-item";
+
+    div.innerHTML = `
+      <span class="online">●</span>
+      ${user.name} (ID: ${user.user_id})
+    `;
+
+    container.appendChild(div);
+  });
 }
 </script>
 

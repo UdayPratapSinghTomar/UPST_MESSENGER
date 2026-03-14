@@ -85,8 +85,8 @@ module.exports = (io) => {
     /**
      * Broadcast user online
      */
-    socket.to(`org_${orgId}`).emit(EVENTS.ACTIVE_USERS_LIST, activeUsers);
-
+    // socket.to(`org_${orgId}`).emit(EVENTS.ACTIVE_USERS_LIST, activeUsers);
+    io.to(`org_${orgId}`).emit(EVENTS.ACTIVE_USERS_LIST, activeUsers);
 
     /**
      * JOIN CHAT
