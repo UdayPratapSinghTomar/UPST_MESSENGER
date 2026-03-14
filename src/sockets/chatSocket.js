@@ -80,8 +80,8 @@ module.exports = (io) => {
     //   },
     //   attributes: ["file_url"]
     // });
-    const activeUsers = await getActiveUsers(userId,orgId);
-    // console.log("active users listing - ",activeUsers);
+    const activeUsers = await getActiveUsers(userId, orgId);
+    console.log("connected active users listing - ",activeUsers);
     /**
      * Broadcast user online
      */
@@ -205,7 +205,8 @@ module.exports = (io) => {
     /**
      * DISCONNECT
      */
-    socket.on(EVENTS.DISCONNECT, async () => {
+    socket.on(EVENTS.DISCONNECT, async (reason) => {
+      console.log("User disconnected:", userId, reason);
 
       await User.update(
         {
@@ -215,8 +216,8 @@ module.exports = (io) => {
         { where: { id: userId } }
       );
 
-      const activeUsers = await getActiveUsers(orgId);
-
+      const activeUsers = await getActiveUsers(userId, orgId);
+      console.log("disconnected active user -",activeUsers);
       io.to(`org_${orgId}`).emit(
         EVENTS.ACTIVE_USERS_LIST,
         activeUsers

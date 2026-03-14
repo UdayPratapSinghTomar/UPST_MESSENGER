@@ -5,6 +5,7 @@ const getActiveUsers = async (userId, orgId) => {
 
   const users = await User.findAll({
     where: {
+      id: { [Op.ne]: userId },
       is_online: true,
       is_deleted: false,
 
@@ -22,7 +23,7 @@ const getActiveUsers = async (userId, orgId) => {
       ]
     },
 
-    attributes: ["id", "full_name"],
+    attributes: ["id", "full_name", "designation", "last_seen"],
 
     include: [
       {
@@ -36,10 +37,12 @@ const getActiveUsers = async (userId, orgId) => {
   });
 
   return users.map(user => ({
-    user_id: user.id,
-    name: user.full_name,
+    id: user.id,
+    full_name: user.full_name,
+    designation: user.designation,
+    is_online: true,
+    last_seen: user.last_seen,
     profile_url: user.uploadedFiles?.[0]?.file_url || null,
-    is_online: true
   }));
 };
 
