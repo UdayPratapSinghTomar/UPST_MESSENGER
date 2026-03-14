@@ -22,8 +22,7 @@ exports.sendMessage = async (req, res) => {
     const sender_id = req.user.id;
     const {
       chat_id,
-      content,
-      message_type = 'text',
+      content = "",
       mentioned_user_ids = [] // optional array
     } = req.body;
     
@@ -42,7 +41,11 @@ exports.sendMessage = async (req, res) => {
 
     // 1️⃣ Check chat exists & user is member
     const chat = await Chat.findOne({
-      where: { id: chat_id, is_deleted: false },
+      where: {
+        id: chat_id,
+        organization_id: org_id,
+        is_deleted: false
+      },
       include: [
         {
           model: ChatMember,
@@ -65,55 +68,96 @@ exports.sendMessage = async (req, res) => {
       return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not a chat member');
     }
 
-    const users = await User.findAll({
-      where: { id: memberIds },
-      attributes: [
-        'id',
-        'organization_id',
-        'org_2',
-        'org_3',
-        'org_4',
-        'org_5',
-        'org_6',
-        'org_7',
-        'org_8',
-        'org_9',
-        'org_10'
-      ],
-      transaction: t
-    });
+    /**
+     * 3️⃣ Detect message type
+     */
+    let message_type = "text";
 
-    const invalidUsers = users.filter(user => !userBelongsToOrg(user, org_id));
+    const hasFiles = req.files && req.files.length > 0;
+    const hasContent = content && content.trim().length > 0;
 
-    if (invalidUsers.length > 0) {
-      await t.rollback();
+    if (hasFiles && hasContent) message_type = "mixed";
+    else if (hasFiles) message_type = "file";
 
-      return sendResponse(
-        res,
-        HttpsStatus.FORBIDDEN,
-        false,
-        'Users are not from the same organization'
-      );
-    }
+    // const users = await User.findAll({
+    //   where: { id: memberIds },
+    //   attributes: [
+    //     'id',
+    //     'organization_id',
+    //     'org_2',
+    //     'org_3',
+    //     'org_4',
+    //     'org_5',
+    //     'org_6',
+    //     'org_7',
+    //     'org_8',
+    //     'org_9',
+    //     'org_10'
+    //   ],
+    //   transaction: t
+    // });
+
+    // const invalidUsers = users.filter(user => !userBelongsToOrg(user, org_id));
+
+    // if (invalidUsers.length > 0) {
+    //   await t.rollback();
+
+    //   return sendResponse(
+    //     res,
+    //     HttpsStatus.FORBIDDEN,
+    //     false,
+    //     'Users are not from the same organization'
+    //   );
+    // }
 
     // 2️⃣ Create message
     const message = await Message.create(
       {
         chat_id,
         sender_id,
-        content,
+        content: hasContent ? content : null,
         message_type
       },
       { transaction: t }
     );
 
     // 3️⃣ Create message status for each member
-    const statuses = memberIds.map(user_id => ({
-      message_id: message.id,
-      chat_id,
-      user_id,
-      status: user_id === sender_id ? 'read' : 'sent'
-    }));
+    // const statuses = memberIds.map(user_id => ({
+    //   message_id: message.id,
+    //   chat_id,
+    //   user_id,
+    //   status: user_id === sender_id ? 'read' : 'sent'
+    // }));
+
+    const statuses = [];
+
+    for (const member_id of memberIds) {
+
+      if (member_id === sender_id) {
+
+        statuses.push({
+          message_id: message.id,
+          chat_id,
+          user_id: member_id,
+          status: "read",
+          read_at: new Date()
+        });
+
+        continue;
+      }
+
+      const room = io.sockets.adapter.rooms.get(`user_${member_id}`);
+      const isOnline = room && room.size > 0;
+
+      statuses.push({
+        message_id: message.id,
+        chat_id,
+        user_id: member_id,
+        status: isOnline ? "delivered" : "sent",
+        delivered_at: isOnline ? new Date() : null
+      });
+
+    }
 
     await MessageStatus.bulkCreate(statuses, { transaction: t });
 
@@ -132,7 +176,8 @@ exports.sendMessage = async (req, res) => {
     }
 
     // 5️⃣ Handle file uploads (if any)
-    if (req.files?.length) {
+    let files = [];
+    if (hasFiles) {
       const filesPayload = req.files.map(file => ({
         message_id: message.id,
         chat_id,
@@ -143,30 +188,46 @@ exports.sendMessage = async (req, res) => {
         mime_type: file.mimetype,
         file_size: file.size
       }));
-
-      await SharedFile.bulkCreate(filesPayload, { transaction: t });
+      console.log("files payload -",filesPayload);
+      files = await SharedFile.bulkCreate(filesPayload, { transaction: t, returning: true });
     }
 
     // 6️⃣ Commit DB transaction FIRST
     await t.commit();
 
     const messagePayload = {
-      id: message.id,
+      message_id: message.id,
       chat_id,
-      last_message: content,
       sender_id,
-      content,
+      content: message.content,
       message_type,
+      files,
+      last_message: content,
       created_at: message.createdAt
     };
 
     // Emit to chat room
-    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagePayload);
+    // io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagePayload);
+    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, {
+      ...messagePayload,
+      statuses
+    });
     // console.log(`Emitted new_message to chat_${chat_id}:`, messagePayload);
 
     // ===========================
     // 🔔 NOTIFICATIONS (AFTER COMMIT)
     // ===========================
+    for (const member_id of memberIds) {
+
+      io.to(`user_${member_id}`).emit(
+        EVENTS.CHAT_LIST_UPDATE,
+        {
+          action: "new_message",
+          data: messagePayload
+        }
+      );
+
+    }
 
     const sender = await User.findByPk(sender_id);
 
@@ -180,10 +241,10 @@ exports.sendMessage = async (req, res) => {
       //   created_at: message.createdAt
       // });
 
-      io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
-        action: 'new_message',
-        data: messagePayload
-      });
+      // io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+      //   action: 'new_message',
+      //   data: messagePayload
+      // });
 
       if (member_id === sender_id) continue;
 
@@ -223,14 +284,7 @@ exports.sendMessage = async (req, res) => {
       HttpsStatus.CREATED,
       true,
       'Message sent successfully',
-      {
-        message_id: message.id,
-        chat_id,
-        content,
-        message_type,
-        sender_id,
-        created_at: message.created_at
-      }
+      messagePayload
     );
 
   } catch (err) {
@@ -465,436 +519,610 @@ exports.sendMessage = async (req, res) => {
 // };
 
 exports.editMessage = async (req, res) => {
+
   const t = await sequelize.transaction();
 
   try {
+
     const { message_id } = req.params;
-    const { content, removed_file_ids } = req.body;
+    const { content, removed_file_ids = [] } = req.body;
+
     const userId = req.user.id;
+    const org_id = req.org_id;
+
     const io = req.app.get("io");
 
+    /**
+     * 1️⃣ Fetch message
+     */
     const message = await Message.findOne({
-      where: { id: message_id, is_deleted: false },
-      transaction: t,
+      where: {
+        id: message_id,
+        is_deleted: false
+      },
+      transaction: t
     });
 
     if (!message) {
+      await t.rollback();
       return sendResponse(
         res,
         HttpsStatus.NOT_FOUND,
         false,
-        "Message not found!",
+        "Message not found!"
       );
     }
 
-    if (message.sender_id !== userId) {
+    /**
+     * 2️⃣ Validate organization chat
+     */
+    const chat = await Chat.findOne({
+      where: {
+        id: message.chat_id,
+        organization_id: org_id,
+        is_deleted: false
+      }
+    });
+
+    if (!chat) {
+      await t.rollback();
       return sendResponse(
         res,
         HttpsStatus.FORBIDDEN,
         false,
-        "You can only edit your own message!",
+        "Invalid organization chat!"
       );
     }
 
-    const hasNewContent =
-      typeof content === "string" && content.trim().length > 0;
-    const hasRemovedFiles =
-      Array.isArray(removed_file_ids) && removed_file_ids.length > 0;
-    const hasNewFiles = Array.isArray(req.files) && req.files.length > 0;
+    /**
+     * 3️⃣ Validate membership
+     */
+    const membership = await ChatMember.findOne({
+      where: {
+        chat_id: message.chat_id,
+        user_id: userId
+      }
+    });
 
-    if (!hasNewContent && !hasRemovedFiles && !hasNewFiles) {
+    if (!membership) {
+      await t.rollback();
       return sendResponse(
         res,
-        HttpsStatus.BAD_REQUEST,
+        HttpsStatus.FORBIDDEN,
         false,
-        "Nothing to update!",
+        "Not a chat member!"
       );
     }
 
-    if (hasRemovedFiles) {
+    /**
+     * 4️⃣ Only sender can edit
+     */
+    if (message.sender_id !== userId) {
+      await t.rollback();
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "You can only edit your own message!"
+      );
+    }
+
+    /**
+     * 5️⃣ Remove selected files
+     */
+    if (Array.isArray(removed_file_ids) && removed_file_ids.length) {
+
       await SharedFile.destroy({
         where: {
           id: removed_file_ids,
-          message_id: message.id,
+          message_id: message.id
         },
-        transaction: t,
+        transaction: t
       });
+
     }
 
-    const newlyAddedFiles = [];
+    /**
+     * 6️⃣ Add new uploaded files
+     */
+    if (req.files?.length) {
 
-    if (hasNewFiles) {
-      for (const file of req.files) {
-        const sharedFile = await SharedFile.create(
-          {
-            message_id: message.id,
-            chat_id: message.chat_id,
-            user_id: userId,
-            file_name: file.originalname,
-            file_url: `/uploads/${file.filename}`,
-            file_type: getFileType(file.mimetype),
-            file_size: file.size,
-            mime_type: file.mimetype,
-          },
-          { transaction: t },
-        );
+      const newFiles = req.files.map(file => ({
+        message_id: message.id,
+        chat_id: message.chat_id,
+        user_id: userId,
+        file_name: file.originalname,
+        file_url: `/uploads/${file.filename}`,
+        file_type: file.mimetype.split("/")[0],
+        mime_type: file.mimetype,
+        file_size: file.size
+      }));
 
-        newlyAddedFiles.push(sharedFile);
-      }
+      await SharedFile.bulkCreate(newFiles, { transaction: t });
+
     }
 
-    if (hasNewContent) {
-      message.content = content;
+    /**
+     * 7️⃣ Update message content
+     */
+    if (typeof content === "string") {
+      message.content = content.trim();
     }
 
-    const remainingFilesCount = await SharedFile.count({
+    /**
+     * 8️⃣ Determine message type
+     */
+    const filesCount = await SharedFile.count({
       where: { message_id: message.id },
-      transaction: t,
+      transaction: t
     });
 
-    const hasAnyFiles = remainingFilesCount > 0;
-    const hasAnyContent =
-      typeof message.content === "string" && message.content.trim().length > 0;
+    const hasFiles = filesCount > 0;
+    const hasContent = message.content && message.content.trim().length > 0;
 
-    if (!hasAnyFiles && !hasAnyContent) {
+    if (!hasFiles && !hasContent) {
+      await t.rollback();
+
       return sendResponse(
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Message cannot be empty after edit",
+        "Message cannot be empty after edit"
       );
     }
 
-    if (hasAnyFiles && hasAnyContent) {
-      message.message_type = "mixed";
-    } else if (hasAnyFiles) {
-      message.message_type = "file";
-    } else {
-      message.message_type = "text";
-    }
+    if (hasFiles && hasContent) message.message_type = "mixed";
+    else if (hasFiles) message.message_type = "file";
+    else message.message_type = "text";
 
+    /**
+     * 9️⃣ Update edit metadata
+     */
     message.edited_at = new Date();
     message.edit_count += 1;
+
     await message.save({ transaction: t });
 
     await t.commit();
 
-    const updatedFiles = await SharedFile.findAll({
-      where: { message_id: message.id },
+    /**
+     * 🔟 Fetch updated files
+     */
+    const files = await SharedFile.findAll({
+      where: { message_id: message.id }
     });
 
+    /**
+     * Socket payload
+     */
     const payload = {
-      id: message.id,
+      message_id: message.id,
       chat_id: message.chat_id,
+      sender_id: message.sender_id,
       content: message.content,
       message_type: message.message_type,
-      files: updatedFiles,
+      files,
       edited_at: message.edited_at,
-      edit_count: message.edit_count,
+      edit_count: message.edit_count
     };
 
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_UPDATED, payload);
+    /**
+     * Emit realtime update
+     */
+    io.to(`chat_${message.chat_id}`).emit(
+      EVENTS.MESSAGE_UPDATED,
+      payload
+    );
 
-    return sendResponse(res, HttpsStatus.OK, true, "Message updated!", payload);
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Message updated successfully",
+      payload
+    );
+
   } catch (err) {
-    await t.rollback();
+
+    if (!t.finished) {
+      await t.rollback();
+    }
+
+    console.error("editMessage error:", err);
+
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
       false,
       "Server error!",
       null,
-      { server: err.message },
+      { server: err.message }
     );
+
   }
+
 };
 
-exports.deleteMessage = async (req, res, io) => {
+exports.deleteMessage = async (req, res) => {
   try {
-    const userId = req.user.id;
+
     const { message_id } = req.params;
+    const userId = req.user.id;
+    const org_id = req.org_id;
+
     const io = req.app.get("io");
 
-    const message = await Message.findByPk(message_id);
+    /**
+     * 1️⃣ Fetch message
+     */
+    const message = await Message.findOne({
+      where: {
+        id: message_id,
+        is_deleted: false
+      }
+    });
+
     if (!message) {
       return sendResponse(
         res,
-        HttpsStatus.BAD_REQUEST,
+        HttpsStatus.NOT_FOUND,
         false,
-        "Message not found!",
+        "Message not found!"
       );
     }
 
+    /**
+     * 2️⃣ Validate chat belongs to org
+     */
+    const chat = await Chat.findOne({
+      where: {
+        id: message.chat_id,
+        organization_id: org_id,
+        is_deleted: false
+      }
+    });
+
+    if (!chat) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "Invalid organization chat!"
+      );
+    }
+
+    /**
+     * 3️⃣ Validate membership
+     */
+    const membership = await ChatMember.findOne({
+      where: {
+        chat_id: message.chat_id,
+        user_id: userId
+      }
+    });
+
+    if (!membership) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        "You are not a member of this chat!"
+      );
+    }
+
+    /**
+     * 4️⃣ Only sender can delete
+     */
     if (message.sender_id !== userId) {
       return sendResponse(
         res,
         HttpsStatus.FORBIDDEN,
         false,
-        "You cannot delete this message!",
+        "You cannot delete this message!"
       );
     }
 
-    await MessageStatus.update(
+    /**
+     * 5️⃣ Soft delete message
+     */
+    await Message.update(
       { is_deleted: true },
-      { where: { id: message_id } },
+      { where: { id: message_id } }
     );
 
-    // await Message.update(
-    //   { is_deleted: true },
-    //   { where: { id: message_id } }
-    // );
-
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_DELETED, {
-      message_id,
-      user_id: userId,
-    });
+    /**
+     * 6️⃣ Emit realtime update
+     */
+    io.to(`chat_${message.chat_id}`).emit(
+      EVENTS.MESSAGE_DELETED,
+      {
+        message_id,
+        chat_id: message.chat_id,
+        deleted_by: userId
+      }
+    );
 
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
-      "Message deleted successfull!",
+      "Message deleted successfully!"
     );
+
   } catch (err) {
+
+    console.error("deleteMessage error:", err);
+
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
       false,
       "Server error!",
       null,
-      { server: err.message },
+      { server: err.message }
     );
   }
 };
 
-exports.deliveredMessage = async (req, res) => {
-  try {
-    const { message_id, chat_id } = req.body;
-    const userId = req.user.id;
-    const io = req.app.get("io");
+// exports.deliveredMessage = async (req, res) => {
+//   try {
+//     const { message_id, chat_id } = req.body;
+//     const userId = req.user.id;
+//     const io = req.app.get("io");
 
-    const [updatedCount] = await MessageStatus.update(
-      {
-        status: "delivered",
-        delivered_at: new Date(),
-      },
-      {
-        where: {
-          message_id,
-          user_id: userId,
-          chat_id,
-          status: "sent",
-        },
-      },
-    );
+//     const [updatedCount] = await MessageStatus.update(
+//       {
+//         status: "delivered",
+//         delivered_at: new Date(),
+//       },
+//       {
+//         where: {
+//           message_id,
+//           user_id: userId,
+//           chat_id,
+//           status: "sent",
+//         },
+//       },
+//     );
 
-    if (!updatedCount) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Message was already delivered or invalid message.",
-      );
-    }
+//     if (!updatedCount) {
+//       return sendResponse(
+//         res,
+//         HttpsStatus.BAD_REQUEST,
+//         false,
+//         "Message was already delivered or invalid message.",
+//       );
+//     }
 
-    io.to(`chat_${chat_id}`).emit("message_status_updated", {
-      message_id,
-      user_id: userId,
-      status: "delivered",
-    });
+//     io.to(`chat_${chat_id}`).emit("message_status_updated", {
+//       message_id,
+//       user_id: userId,
+//       status: "delivered",
+//     });
 
-    return sendResponse(
-      res,
-      HttpsStatus.OK,
-      true,
-      "Message marked as delivered!",
-      updatedCount,
-    );
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Server error!",
-      null,
-      { server: err.message },
-    );
-  }
-};
+//     return sendResponse(
+//       res,
+//       HttpsStatus.OK,
+//       true,
+//       "Message marked as delivered!",
+//       updatedCount,
+//     );
+//   } catch (err) {
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       "Server error!",
+//       null,
+//       { server: err.message },
+//     );
+//   }
+// };
 
-exports.readMessage = async (req, res) => {
-  try {
-    const { message_id, chat_id } = req.body;
-    const userId = req.user.id;
-    const io = req.app.get("io");
+// exports.readMessage = async (req, res) => {
+//   try {
+//     const { message_id, chat_id } = req.body;
+//     const userId = req.user.id;
+//     const io = req.app.get("io");
 
-    const [updatedCount] = await MessageStatus.update(
-      {
-        status: "read",
-        read_at: new Date(),
-      },
-      {
-        where: {
-          message_id,
-          user_id: userId,
-          chat_id,
-          status: { [Op.in]: ["sent", "delivered"] },
-        },
-      },
-    );
+//     const [updatedCount] = await MessageStatus.update(
+//       {
+//         status: "read",
+//         read_at: new Date(),
+//       },
+//       {
+//         where: {
+//           message_id,
+//           user_id: userId,
+//           chat_id,
+//           status: { [Op.in]: ["sent", "delivered"] },
+//         },
+//       },
+//     );
 
-    if (!updatedCount) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Message was already read or invalid message.",
-      );
-    }
+//     if (!updatedCount) {
+//       return sendResponse(
+//         res,
+//         HttpsStatus.BAD_REQUEST,
+//         false,
+//         "Message was already read or invalid message.",
+//       );
+//     }
 
-    io.to(`chat_${chat_id}`).emit("message_status_update", {
-      message_id,
-      user_id: userId,
-      status: "read",
-    });
+//     io.to(`chat_${chat_id}`).emit("message_status_update", {
+//       message_id,
+//       user_id: userId,
+//       status: "read",
+//     });
 
-    return sendResponse(
-      res,
-      HttpsStatus.OK,
-      true,
-      "Message marked read!",
-      updatedCount,
-    );
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Server error!",
-      null,
-      { server: err.message },
-    );
-  }
-};
+//     return sendResponse(
+//       res,
+//       HttpsStatus.OK,
+//       true,
+//       "Message marked read!",
+//       updatedCount,
+//     );
+//   } catch (err) {
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       "Server error!",
+//       null,
+//       { server: err.message },
+//     );
+//   }
+// };
 
-exports.startTyping = async (req, res) => {
-  try {
-    const { chat_id } = req.body;
-    const userId = req.user.id;
-    const io = req.app.get("io");
+// exports.startTyping = async (req, res) => {
+//   try {
+//     const { chat_id } = req.body;
+//     const userId = req.user.id;
+//     const io = req.app.get("io");
 
-    if (!chat_id) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Chat id is required!",
-      );
-    }
+//     if (!chat_id) {
+//       return sendResponse(
+//         res,
+//         HttpsStatus.BAD_REQUEST,
+//         false,
+//         "Chat id is required!",
+//       );
+//     }
 
-    io.to(`chat_${chat_id}`).emit(EVENTS.USER_TYPING, {
-      chat_id,
-      user_id: userId,
-    });
+//     io.to(`chat_${chat_id}`).emit(EVENTS.USER_TYPING, {
+//       chat_id,
+//       user_id: userId,
+//     });
 
-    return sendResponse(res, HttpsStatus.OK, true, "Typing event sent");
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Server error!",
-      null,
-      { server: err.message },
-    );
-  }
-};
+//     return sendResponse(res, HttpsStatus.OK, true, "Typing event sent");
+//   } catch (err) {
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       "Server error!",
+//       null,
+//       { server: err.message },
+//     );
+//   }
+// };
 
-exports.stopTyping = async (req, res) => {
-  try {
-    const { chat_id } = req.body;
-    const userId = req.user.id;
-    const io = req.app.get("io");
+// exports.stopTyping = async (req, res) => {
+//   try {
+//     const { chat_id } = req.body;
+//     const userId = req.user.id;
+//     const io = req.app.get("io");
 
-    if (!chat_id) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Chat id is required!",
-      );
-    }
+//     if (!chat_id) {
+//       return sendResponse(
+//         res,
+//         HttpsStatus.BAD_REQUEST,
+//         false,
+//         "Chat id is required!",
+//       );
+//     }
 
-    io.to(`chat_${chat_id}`).emit(EVENTS.USER_STOP_TYPING, {
-      chat_id,
-      user_id: userId,
-    });
+//     io.to(`chat_${chat_id}`).emit(EVENTS.USER_STOP_TYPING, {
+//       chat_id,
+//       user_id: userId,
+//     });
 
-    return sendResponse(res, HttpsStatus.OK, true, "Stop typing event sent!");
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Server error!",
-      null,
-      { server: err.message },
-    );
-  }
-};
+//     return sendResponse(res, HttpsStatus.OK, true, "Stop typing event sent!");
+//   } catch (err) {
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       "Server error!",
+//       null,
+//       { server: err.message },
+//     );
+//   }
+// };
 
 exports.forwardMessage = async (req, res) => {
+
   const t = await sequelize.transaction();
 
   try {
+
     const { message_id, forwarded_chat_ids } = req.body;
     const senderId = req.user.id;
+    const org_id = req.org_id;
     const io = req.app.get("io");
 
-    if (
-      !message_id ||
-      !Array.isArray(forwarded_chat_ids) ||
-      !forwarded_chat_ids.length
-    ) {
+    if (!message_id || !Array.isArray(forwarded_chat_ids) || !forwarded_chat_ids.length) {
+
       await t.rollback();
+
       return sendResponse(
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        "Invalid payload!",
+        "Invalid payload!"
       );
     }
 
-    const originalMessage = await Message.findByPk(message_id, {
+    /**
+     * 1️⃣ Fetch original message
+     */
+    const originalMessage = await Message.findOne({
+      where: { id: message_id, is_deleted: false },
       include: [{ model: SharedFile }],
-      transaction: t,
+      transaction: t
     });
 
     if (!originalMessage) {
+
       await t.rollback();
+
       return sendResponse(
         res,
         HttpsStatus.NOT_FOUND,
         false,
-        "Message not found!",
+        "Message not found!"
       );
     }
 
     const forwardedMessages = [];
 
     for (const chat_id of forwarded_chat_ids) {
+
+      /**
+       * 2️⃣ Validate chat
+       */
+      const chat = await Chat.findOne({
+        where: {
+          id: chat_id,
+          organization_id: org_id,
+          is_deleted: false
+        },
+        transaction: t
+      });
+
+      if (!chat) continue;
+
+      /**
+       * 3️⃣ Validate membership
+       */
       const isMember = await ChatMember.findOne({
         where: { chat_id, user_id: senderId },
-        transaction: t,
+        transaction: t
       });
 
       if (!isMember) continue;
 
+      /**
+       * 4️⃣ Fetch chat members
+       */
       const members = await ChatMember.findAll({
         where: { chat_id },
-        transaction: t,
+        transaction: t
       });
 
+      /**
+       * 5️⃣ Create forwarded message
+       */
       const message = await Message.create(
         {
           chat_id,
@@ -902,15 +1130,22 @@ exports.forwardMessage = async (req, res) => {
           message_type: originalMessage.message_type,
           content: originalMessage.content,
           forwarded_from_message_id: originalMessage.id,
+          forwarded_from_user_id: originalMessage.sender_id,
+          forwarded_from_chat_id: originalMessage.chat_id
         },
-        { transaction: t },
+        { transaction: t }
       );
 
-      let attachedFiles = [];
+      /**
+       * 6️⃣ Copy files
+       */
+      let files = [];
 
       if (originalMessage.SharedFiles?.length) {
+
         for (const file of originalMessage.SharedFiles) {
-          const sharedFile = await SharedFile.create(
+
+          const newFile = await SharedFile.create(
             {
               message_id: message.id,
               chat_id,
@@ -921,34 +1156,38 @@ exports.forwardMessage = async (req, res) => {
               file_size: file.file_size,
               mime_type: file.mime_type,
               duration: file.duration,
-              thumbnail_url: file.thumbnail_url,
+              thumbnail_url: file.thumbnail_url
             },
-            { transaction: t },
+            { transaction: t }
           );
 
-          attachedFiles.push(sharedFile);
+          files.push(newFile);
         }
+
       }
 
+      /**
+       * 7️⃣ Create message statuses
+       */
       await MessageStatus.bulkCreate(
-        members.map((m) => ({
+        members.map(m => ({
           message_id: message.id,
           user_id: m.user_id,
           chat_id,
-          status: "sent",
+          status: m.user_id === senderId ? "read" : "sent"
         })),
-        { transaction: t },
+        { transaction: t }
       );
 
       const payload = {
-        id: message.id,
+        message_id: message.id,
         chat_id,
         sender_id: senderId,
         message_type: message.message_type,
         content: message.content,
-        files: attachedFiles,
+        files,
         forwarded_from_message_id: originalMessage.id,
-        created_at: message.created_at,
+        created_at: message.createdAt
       };
 
       io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
@@ -957,12 +1196,14 @@ exports.forwardMessage = async (req, res) => {
     }
 
     if (!forwardedMessages.length) {
+
       await t.rollback();
+
       return sendResponse(
         res,
         HttpsStatus.FORBIDDEN,
         false,
-        "You are not a member of target chats",
+        "You are not a member of target chats"
       );
     }
 
@@ -973,143 +1214,147 @@ exports.forwardMessage = async (req, res) => {
       HttpsStatus.CREATED,
       true,
       "Message forwarded successfully!",
-      forwardedMessages,
+      forwardedMessages
     );
+
   } catch (err) {
+
     await t.rollback();
+
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
       false,
       "Server error!",
       null,
-      { server: err.message },
+      { server: err.message }
     );
   }
+
 };
 
-exports.mentionUser = async (req, res) => {
-  const t = await sequelize.transaction();
+// exports.mentionUser = async (req, res) => {
+//   const t = await sequelize.transaction();
 
-  try {
-    const { chat_id, content, mentioned_user_ids = [] } = req.body;
-    const senderId = req.user.id;
-    const io = req.app.get("io");
+//   try {
+//     const { chat_id, content, mentioned_user_ids = [] } = req.body;
+//     const senderId = req.user.id;
+//     const io = req.app.get("io");
 
-    if (!chat_id || !content?.trim()) {
-      await t.rollback();
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Invalid payload!",
-      );
-    }
+//     if (!chat_id || !content?.trim()) {
+//       await t.rollback();
+//       return sendResponse(
+//         res,
+//         HttpsStatus.BAD_REQUEST,
+//         false,
+//         "Invalid payload!",
+//       );
+//     }
 
-    const isMember = await ChatMember.findOne({
-      where: { chat_id, user_id: senderId },
-    });
+//     const isMember = await ChatMember.findOne({
+//       where: { chat_id, user_id: senderId },
+//     });
 
-    if (!isMember) {
-      await t.rollback();
-      return sendResponse(
-        res,
-        HttpsStatus.FORBIDDEN,
-        false,
-        "Not a chat member",
-      );
-    }
+//     if (!isMember) {
+//       await t.rollback();
+//       return sendResponse(
+//         res,
+//         HttpsStatus.FORBIDDEN,
+//         false,
+//         "Not a chat member",
+//       );
+//     }
 
-    let validMentionedUsers = [];
+//     let validMentionedUsers = [];
 
-    if (Array.isArray(mentioned_user_ids) && mentioned_user_ids.length) {
-      const members = await ChatMember.findAll({
-        where: {
-          chat_id,
-          user_id: mentioned_user_ids,
-        },
-        attributes: ["user_id"],
-        transaction: t,
-      });
+//     if (Array.isArray(mentioned_user_ids) && mentioned_user_ids.length) {
+//       const members = await ChatMember.findAll({
+//         where: {
+//           chat_id,
+//           user_id: mentioned_user_ids,
+//         },
+//         attributes: ["user_id"],
+//         transaction: t,
+//       });
 
-      validMentionedUsers = members
-        .map((m) => m.user_id)
-        .filter((id) => id !== senderId);
-    }
+//       validMentionedUsers = members
+//         .map((m) => m.user_id)
+//         .filter((id) => id !== senderId);
+//     }
 
-    const message = await Message.create(
-      {
-        chat_id,
-        sender_id: senderId,
-        message_type: "text",
-        content,
-      },
-      { transaction: t },
-    );
+//     const message = await Message.create(
+//       {
+//         chat_id,
+//         sender_id: senderId,
+//         message_type: "text",
+//         content,
+//       },
+//       { transaction: t },
+//     );
 
-    const members = await ChatMember.findAll({
-      where: { chat_id },
-      transaction: t,
-    });
+//     const members = await ChatMember.findAll({
+//       where: { chat_id },
+//       transaction: t,
+//     });
 
-    await MessageStatus.bulkCreate(
-      members.map((m) => ({
-        message_id: message.id,
-        user_id: m.user_id,
-        chat_id,
-        status: "sent",
-      })),
-      { transaction: t },
-    );
+//     await MessageStatus.bulkCreate(
+//       members.map((m) => ({
+//         message_id: message.id,
+//         user_id: m.user_id,
+//         chat_id,
+//         status: "sent",
+//       })),
+//       { transaction: t },
+//     );
 
-    if (validMentionedUsers.length) {
-      await MessageMention.bulkCreate(
-        validMentionedUsers.map((userId) => ({
-          message_id: message.id,
-          mentioned_user_id: userId,
-        })),
-        { transaction: t },
-      );
-    }
+//     if (validMentionedUsers.length) {
+//       await MessageMention.bulkCreate(
+//         validMentionedUsers.map((userId) => ({
+//           message_id: message.id,
+//           mentioned_user_id: userId,
+//         })),
+//         { transaction: t },
+//       );
+//     }
 
-    await t.commit();
+//     await t.commit();
 
-    const payload = {
-      id: message.id,
-      chat_id,
-      sender_id: senderId,
-      content,
-      mentioned_user_ids: validMentionedUsers,
-      created_at: message.created_at,
-    };
+//     const payload = {
+//       id: message.id,
+//       chat_id,
+//       sender_id: senderId,
+//       content,
+//       mentioned_user_ids: validMentionedUsers,
+//       created_at: message.created_at,
+//     };
 
-    io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
+//     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
 
-    validMentionedUsers.forEach((userId) => {
-      io.to(`user_${userId}`).emit(EVENTS.USER_MENTIONED, {
-        chat_id,
-        message_id: message.id,
-        mentioned_by: senderId,
-        content,
-      });
-    });
+//     validMentionedUsers.forEach((userId) => {
+//       io.to(`user_${userId}`).emit(EVENTS.USER_MENTIONED, {
+//         chat_id,
+//         message_id: message.id,
+//         mentioned_by: senderId,
+//         content,
+//       });
+//     });
 
-    return sendResponse(
-      res,
-      HttpsStatus.CREATED,
-      true,
-      "Message sent with mentions!",
-      payload,
-    );
-  } catch (err) {
-    await t.rollback();
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Server error!",
-      null,
-      { server: err.message },
-    );
-  }
-};
+//     return sendResponse(
+//       res,
+//       HttpsStatus.CREATED,
+//       true,
+//       "Message sent with mentions!",
+//       payload,
+//     );
+//   } catch (err) {
+//     await t.rollback();
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       "Server error!",
+//       null,
+//       { server: err.message },
+//     );
+//   }
+// };

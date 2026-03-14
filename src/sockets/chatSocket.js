@@ -91,6 +91,39 @@ module.exports = (io) => {
     /**
      * JOIN CHAT
      */
+    // socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
+
+    //   try {
+
+    //     if (!chat_id) {
+    //       return socket.emit(EVENTS.SOCKET_ERROR, {
+    //         message: "chat_id is required"
+    //       });
+    //     }
+
+    //     const isMember = await ChatMember.findOne({
+    //       where: { chat_id, user_id: userId }
+    //     });
+
+    //     if (!isMember) {
+    //       return socket.emit(EVENTS.SOCKET_ERROR, {
+    //         message: "Not a member of this chat"
+    //       });
+    //     }
+
+    //     socket.join(`chat_${chat_id}`);
+
+    //     socket.emit(EVENTS.JOINED_CHAT, { chat_id });
+
+    //   } catch (err) {
+
+    //     socket.emit(EVENTS.SOCKET_ERROR, {
+    //       message: err.message
+    //     });
+
+    //   }
+    // });
+
     socket.on(EVENTS.JOIN_CHAT, async (chat_id) => {
 
       try {
@@ -113,6 +146,37 @@ module.exports = (io) => {
 
         socket.join(`chat_${chat_id}`);
 
+        /**
+         * MARK MESSAGES DELIVERED
+         */
+        const [count, rows] = await MessageStatus.update(
+          {
+            status: "delivered",
+            delivered_at: new Date()
+          },
+          {
+            where: {
+              chat_id,
+              user_id: userId,
+              status: "sent"
+            },
+            returning: true
+          }
+        );
+
+        rows.forEach(row => {
+
+          io.to(`chat_${chat_id}`).emit(
+            EVENTS.MESSAGE_STATUS_UPDATE,
+            {
+              message_id: row.message_id,
+              user_id: userId,
+              status: "delivered"
+            }
+          );
+
+        });
+
         socket.emit(EVENTS.JOINED_CHAT, { chat_id });
 
       } catch (err) {
@@ -122,31 +186,71 @@ module.exports = (io) => {
         });
 
       }
+
     });
-
-
     /**
      * MESSAGE READ
      */
+    // socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
+
+    //   try {
+
+    //     await MessageStatus.update(
+    //       { status: "read", read_at: new Date() },
+    //       {
+    //         where: {
+    //           chat_id,
+    //           user_id: userId,
+    //           status: { [Op.ne]: "read" }
+    //         }
+    //       }
+    //     );
+
+    //     socket.to(`chat_${chat_id}`).emit(
+    //       EVENTS.MESSAGE_READ_UPDATE,
+    //       { chat_id, user_id: userId }
+    //     );
+
+    //   } catch (err) {
+
+    //     socket.emit(EVENTS.SOCKET_ERROR, {
+    //       message: err.message
+    //     });
+
+    //   }
+    // });
+
     socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
 
       try {
 
-        await MessageStatus.update(
-          { status: "read", read_at: new Date() },
+        const [count, rows] = await MessageStatus.update(
+          {
+            status: "read",
+            read_at: new Date()
+          },
           {
             where: {
               chat_id,
               user_id: userId,
-              status: { [Op.ne]: "read" }
-            }
+              status: { [Op.in]: ["sent", "delivered"] }
+            },
+            returning: true
           }
         );
 
-        socket.to(`chat_${chat_id}`).emit(
-          EVENTS.MESSAGE_READ_UPDATE,
-          { chat_id, user_id: userId }
-        );
+        rows.forEach(row => {
+
+          io.to(`chat_${chat_id}`).emit(
+            EVENTS.MESSAGE_STATUS_UPDATE,
+            {
+              message_id: row.message_id,
+              user_id: userId,
+              status: "read"
+            }
+          );
+
+        });
 
       } catch (err) {
 
@@ -155,9 +259,8 @@ module.exports = (io) => {
         });
 
       }
+
     });
-
-
     /**
      * TYPING START
      */

@@ -11,8 +11,11 @@ async function notifyUser(io, {
   title,
   body
 }) {
-  try
-  {
+  try {
+
+    /**
+     * 1️⃣ Save notification
+     */
     const notification = await Notification.create({
       recipient_id,
       sender_id,
@@ -25,36 +28,95 @@ async function notifyUser(io, {
     });
 
     const room = `user_${recipient_id}`;
-    const onlineRoom = io.sockets.adapter.rooms.get(room);
 
-    // ✅ If user online → realtime
-    if (onlineRoom && onlineRoom.size > 0) {
-      io.to(room).emit(event, notification.toJSON());
+    /**
+     * 2️⃣ Check if user is online
+     */
+    const sockets = await io.in(room).fetchSockets();
+    const isOnline = sockets.length > 0;
+
+    /**
+     * 3️⃣ If user online → realtime
+     */
+    if (isOnline) {
+
+      io.to(room).emit(event, {
+        notification_id: notification.id,
+        recipient_id,
+        sender_id,
+        chat_id,
+        message_id,
+        type,
+        title,
+        body
+      });
+
       return notification;
     }
 
-    // ✅ If offline → FCM
+    /**
+     * 4️⃣ Fetch user devices
+     */
     const devices = await UserDevice.findAll({
-      where: { user_id: recipient_id, is_active: true }
+      where: {
+        user_id: recipient_id,
+        is_active: true
+      }
     });
 
-    const tokens = devices.map(d => d.fcm_token).filter(Boolean);
+    const tokens = devices
+      .map(d => d.fcm_token)
+      .filter(Boolean);
+
     if (!tokens.length) return notification;
 
-    await admin.messaging().sendMulticast({
+    /**
+     * 5️⃣ Send FCM push
+     */
+    const response = await admin.messaging().sendEachForMulticast({
       tokens,
-      notification: { title, body },
+      notification: {
+        title,
+        body
+      },
       data: {
         chat_id: String(chat_id),
-        message_id: message_id ? String(message_id) : '',
+        message_id: message_id ? String(message_id) : "",
         type: type
       }
     });
 
+    /**
+     * 6️⃣ Remove invalid tokens
+     */
+    const invalidTokens = [];
+
+    response.responses.forEach((res, idx) => {
+      if (!res.success) {
+        invalidTokens.push(tokens[idx]);
+      }
+    });
+
+    if (invalidTokens.length) {
+
+      await UserDevice.update(
+        { is_active: false },
+        {
+          where: {
+            fcm_token: invalidTokens
+          }
+        }
+      );
+
+    }
+
     return notification;
+
   } catch (err) {
-    console.error('notifyUser error:', err);
+
+    console.error("notifyUser error:", err);
     return null;
+
   }
 }
 

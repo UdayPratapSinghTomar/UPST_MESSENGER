@@ -26,6 +26,7 @@ module.exports = {
   MESSAGE_DELIVERED: "message_delivered",
   MESSAGE_READ: "message_read",
   MESSAGE_READ_UPDATE: "message_read_update",
-
+  MESSAGE_STATUS_UPDATE: "message_status_update",
+  
   SOCKET_ERROR: "socket_error"
 };
