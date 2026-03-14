@@ -1,7 +1,7 @@
 const { Op } = require("sequelize");
 const { User, SharedFile } = require("../models");
 
-const getActiveUsers = async (orgId) => {
+const getActiveUsers = async (userId, orgId) => {
 
   const users = await User.findAll({
     where: {

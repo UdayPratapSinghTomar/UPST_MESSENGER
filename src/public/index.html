@@ -84,7 +84,7 @@ function connectSocket() {
   }
 
   socket = io("http://localhost:3000", {
-    auth: { token: tokenGlobal }
+    auth: { token: tokenGlobal, organization_id: 2 }
   });
 
   socket.on("connect", () => {

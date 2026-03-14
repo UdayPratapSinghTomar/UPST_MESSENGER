@@ -16,13 +16,20 @@ module.exports = (io) => {
         socket.handshake.auth?.token ||
         socket.handshake.query?.token;
 
+      const orgId =
+      socket.handshake.auth?.organization_id ||
+      socket.handshake.query?.organization_id;
+
+      // console.log("organization di", orgId);
       if (!token) return next(new Error("Token missing"));
 
-      socket.user = jwt.verify(
+      const payload = jwt.verify(
         token,
         process.env.ACCESS_TOKEN_SECRET
       );
-
+      // console.log(payload)
+      socket.user = payload;
+      socket.org_id = orgId;
       next();
 
     } catch (err) {
@@ -37,7 +44,7 @@ module.exports = (io) => {
   io.on(EVENTS.CONNECTION, async (socket) => {
 
     const userId = socket.user.id;
-    const orgId = socket.user.org_id;
+    const orgId = socket.org_id;
 
     console.log("User connected:", userId);
 
@@ -73,7 +80,8 @@ module.exports = (io) => {
     //   },
     //   attributes: ["file_url"]
     // });
-    const activeUsers = await getActiveUsers(orgId);
+    const activeUsers = await getActiveUsers(userId,orgId);
+    // console.log("active users listing - ",activeUsers);
     /**
      * Broadcast user online
      */
