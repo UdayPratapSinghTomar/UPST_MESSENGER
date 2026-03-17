@@ -7,7 +7,8 @@ exports.searchAll = async (req, res) => {
 
     const user_id = req.user.id;
     const org_id = req.org_id;
-    const { q } = req.query;
+    const { search } = req.query;
+    const q = search.trim();
 
     if (!q) {
       return sendResponse(
@@ -27,19 +28,34 @@ exports.searchAll = async (req, res) => {
       where: {
         id: { [Op.ne]: user_id },
         is_deleted: false,
-        full_name: { [Op.iLike]: `%${q}%` },
 
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
+        // ✅ Group search condition properly
+        [Op.and]: [
+
+          {
+            // full_name OR email
+            [Op.or]: [
+              { full_name: { [Op.iLike]: `%${q}%` } },
+              { email: { [Op.iLike]: `%${q}%` } }
+            ]
+          },
+
+          {
+            // organization must match
+            [Op.or]: [
+              { organization_id: org_id },
+              { org_2: org_id },
+              { org_3: org_id },
+              { org_4: org_id },
+              { org_5: org_id },
+              { org_6: org_id },
+              { org_7: org_id },
+              { org_8: org_id },
+              { org_9: org_id },
+              { org_10: org_id }
+            ]
+          }
+
         ]
       },
 
@@ -50,8 +66,7 @@ exports.searchAll = async (req, res) => {
           model: SharedFile,
           as: "uploadedFiles",
           attributes: ["file_url"],
-          required: false,
-          where: { file_type: "image" }
+          required: false
         }
       ]
     });
@@ -108,11 +123,12 @@ exports.searchAll = async (req, res) => {
           as: "files",
           attributes: ["file_url"],
           required: false,
-          where: { file_type: "image" }
+          // where: { file_type: "image" }
         }
       ],
 
-      attributes: ["id", "group_name"]
+      attributes: ["id", "group_name"],
+      distinct: true
     });
 
     const groups = groupsRaw.map(g => ({
@@ -170,7 +186,8 @@ exports.searchAll = async (req, res) => {
         "created_at"
       ],
 
-      order: [["created_at", "DESC"]]
+      order: [["created_at", "DESC"]],
+      distinct: true
     });
 
     const messages = messagesRaw.map(m => ({
@@ -224,7 +241,8 @@ exports.searchAll = async (req, res) => {
         "file_type",
         "user_id",
         "created_at"
-      ]
+      ],
+      distinct: true 
     });
 
     const files = filesRaw.map(f => ({
@@ -269,12 +287,12 @@ exports.searchAll = async (req, res) => {
   }
 };
 
-
 exports.searchChatMessages = async (req, res) => {
   try {
 
-    const { chat_id } = req.body;
-    const { q } = req.query;
+    const { chat_id } = req.params;
+    const { search } = req.query;
+    const q = search.trim();
     const user_id = req.user.id;
     const org_id = req.org_id;
 
@@ -314,7 +332,10 @@ exports.searchChatMessages = async (req, res) => {
     const messages = await Message.findAll({
       where: {
         chat_id,
-        content: { [Op.iLike]: `%${q}%` }
+        [Op.or]: [
+          { content: { [Op.iLike]: `%${q}%` } },
+          { "$files.file_name$": { [Op.iLike]: `%${q}%` } } // ✅ key fix
+        ]
       },
 
       include: [
@@ -323,9 +344,9 @@ exports.searchChatMessages = async (req, res) => {
           as: "files",
           attributes: ["file_name", "file_url"],
           required: false,
-          where: {
-            file_name: { [Op.iLike]: `%${q}%` }
-          }
+          // where: {
+          //   file_name: { [Op.iLike]: `%${q}%` }
+          // }
         },
 
         {
@@ -338,7 +359,7 @@ exports.searchChatMessages = async (req, res) => {
               as: "uploadedFiles",
               attributes: ["file_url"],
               required: false,
-              where: { file_type: "image" }
+              // where: { file_type: "image" }
             }
           ]
         }
@@ -346,8 +367,8 @@ exports.searchChatMessages = async (req, res) => {
 
       attributes: ["id", "chat_id", "sender_id", "content", "created_at"],
       order: [["created_at", "DESC"]],
-      limit: 50,
-      distinct: true
+      distinct: true,
+      subQuery: false
     });
 
     return sendResponse(
@@ -374,10 +395,10 @@ exports.searchChatMessages = async (req, res) => {
 exports.searchUsers = async (req, res) => {
   try {
 
-    const { q } = req.query;
+    const { search } = req.query;
+    const q = search.trim();
     const org_id = req.org_id;
     const currentUserId = req.user.id;
-
     if (!q) {
       return sendResponse(
         res,
@@ -390,16 +411,16 @@ exports.searchUsers = async (req, res) => {
 
     const users = await User.findAll({
       where: {
-        is_deleted: false,
         id: { [Op.ne]: currentUserId },
+        is_deleted: false,
 
         [Op.and]: [
 
           // 🔎 search by name or email
           {
             [Op.or]: [
-              { full_name: { [Op.like]: `%${q}%` } },
-              { email: { [Op.like]: `%${q}%` } }
+              { full_name: { [Op.iLike]: `%${q}%` } },
+              { email: { [Op.iLike]: `%${q}%` } }
             ]
           },
 
@@ -428,18 +449,36 @@ exports.searchUsers = async (req, res) => {
         "email",
         "phone",
         "role",
-        "profile_url",
         "designation",
       ],
+      include: [
+        {
+          model: SharedFile,
+          as: "uploadedFiles",
+          attributes: ["file_url"],
+          required: false
+        }
+      ],
+      distinct: true
 
     });
+
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      designation: user.designation,
+      profile_url: user.uploadedFiles?.[0]?.file_url ?? null
+    }));
 
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
       "Users retrieved successfully!",
-      users
+      formattedUsers
     );
 
   } catch (err) {
