@@ -177,6 +177,7 @@ exports.sendMessage = async (req, res) => {
       content: message.content,
       message_type,
       files,
+      last_message: content,
       created_at: message.createdAt
     };
 

@@ -2586,21 +2586,16 @@ exports.chatList = async (req, res) => {
      */
     const chatMembers = await ChatMember.findAll({
       where: { user_id },
-
       attributes: ['chat_id'],
-
       include: [
         {
           model: Chat,
           as: 'chat',
-
           where: {
             organization_id: org_id,
             is_deleted: false
           },
-
           attributes: ['id', 'type', 'group_name', 'created_at'],
-
           include: [
             {
               model: ChatMember,
@@ -2697,9 +2692,7 @@ exports.chatList = async (req, res) => {
               { org_10: org_id }
             ]
           },
-
           required: false,
-
           attributes: ['id', 'full_name']
         }
       ],
@@ -2707,9 +2700,20 @@ exports.chatList = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // console.log("****************************************Last message ********************",lastMessages)
+    // const lastMessageMap = {};
+    // for (const msg of lastMessages) {
+    //   if (!lastMessageMap[msg.chat_id]) {
+    //     lastMessageMap[msg.chat_id] = msg;
+    //   }
+    // }
+
     const lastMessageMap = {};
     for (const msg of lastMessages) {
-      if (!lastMessageMap[msg.chat_id]) {
+      if (
+        !lastMessageMap[msg.chat_id] ||
+        new Date(msg.created_at) > new Date(lastMessageMap[msg.chat_id].created_at)
+      ) {
         lastMessageMap[msg.chat_id] = msg;
       }
     }
@@ -2812,7 +2816,7 @@ exports.chatList = async (req, res) => {
         ?.filter(u => u); // only valid users
 
       // ❌ If no valid members → skip
-      if (!validMembers || validMembers.length === 0) return null;
+      // if (!validMembers || validMembers.length === 0) return null;
 
       let name = null;
       let profile_url = null;
@@ -2821,14 +2825,14 @@ exports.chatList = async (req, res) => {
       if (chat.type === 'private') {
 
         // ❗ Must have exactly 2 valid users in private chat
-        if (validMembers.length < 2) return null;
+        // if (validMembers.length < 2) return null;
 
         const otherUser = validMembers.find(u => u.id !== user_id);
 
         // ❌ If other user missing → skip chat completely
-        if (!otherUser) return null;
+        // if (!otherUser) return null;
 
-        name = otherUser.full_name;
+        name = otherUser?.full_name || "Unknown User";
         profile_url = otherUser.uploadedFiles?.[0]?.file_url || null;
         is_online = otherUser.is_online || false;
 
@@ -2837,41 +2841,53 @@ exports.chatList = async (req, res) => {
         // ❗ Optional: ensure at least 2 valid users in group
         if (validMembers.length < 2) return null;
 
-        name = chat.group_name;
+        name = chat.group_name || "Unnamed Group";
       }
-
+  
       const lastMessage = lastMessageMap[chat.id] || null;
-
       const last_message = lastMessage
         ? {
             content: lastMessage.content,
             message_type: lastMessage.message_type,
-            created_at: lastMessage.created_at,
+            created_at: lastMessage.dataValues.created_at,
             sender_name:
               lastMessage.sender_id === user_id
                 ? 'You'
                 : lastMessage.sender?.full_name || null
           }
         : null;
-
       return {
         chat_id: chat.id,
         type: chat.type,
         name,
         profile_url,
         is_online,
+        created_at: chat.created_at,
         last_message,
         unread_count: unreadMap[chat.id] || 0
       };
 
     }).filter(Boolean);
+    
     /**
      * 5️⃣ Sort by last message time
      */
+    // chatList.sort((a, b) => {
+    //   const t1 = a.last_message?.created_at || 0;
+    //   const t2 = b.last_message?.created_at || 0;
+    //   return new Date(t2) - new Date(t1);
+    // });
+
     chatList.sort((a, b) => {
-      const t1 = a.last_message?.created_at || 0;
-      const t2 = b.last_message?.created_at || 0;
-      return new Date(t2) - new Date(t1);
+      const t1 = a.last_message?.created_at
+        ? new Date(a.last_message.created_at).getTime()
+        : new Date(a.created_at || 0).getTime();
+
+      const t2 = b.last_message?.created_at
+        ? new Date(b.last_message.created_at).getTime()
+        : new Date(b.created_at || 0).getTime();
+
+      return t2 - t1;
     });
 
     return sendResponse(
