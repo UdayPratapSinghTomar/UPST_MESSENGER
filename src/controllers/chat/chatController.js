@@ -2388,6 +2388,73 @@ exports.openChat = async (req, res) => {
       return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Not authorized!');
     }
 
+    // 🔥 ============================
+    // 🔥 ADDED: STRICT MEMBER VALIDATION
+    // 🔥 ============================
+
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+
+      include: [
+        {
+          model: User,
+          as: 'user',
+
+          where: {
+            is_deleted: false,
+            [Op.or]: [
+              { organization_id: org_id },
+              { org_2: org_id },
+              { org_3: org_id },
+              { org_4: org_id },
+              { org_5: org_id },
+              { org_6: org_id },
+              { org_7: org_id },
+              { org_8: org_id },
+              { org_9: org_id },
+              { org_10: org_id }
+            ]
+          },
+
+          required: false, // 🔥 IMPORTANT (we filter manually)
+
+          attributes: ['id']
+        }
+      ]
+    });
+
+    const validMembers = members
+      .map(m => m.user)
+      .filter(u => u);
+
+    // 🔥 BLOCK invalid private chat
+    if (chat.type === 'private') {
+      if (validMembers.length !== 2) {
+        return sendResponse(
+          res,
+          HttpsStatus.FORBIDDEN,
+          false,
+          'Invalid private chat!'
+        );
+      }
+    }
+
+    // 🔥 BLOCK invalid group chat
+    if (chat.type === 'group') {
+      if (validMembers.length < 2) {
+        return sendResponse(
+          res,
+          HttpsStatus.FORBIDDEN,
+          false,
+          'Invalid group chat!'
+        );
+      }
+    }
+
+    // 🔥 ============================
+    // 🔥 END VALIDATION
+    // 🔥 ============================
+
     // ✅ Fetch messages with sender + files + status
     const messages = await Message.findAll({
       where: {
@@ -2417,7 +2484,7 @@ exports.openChat = async (req, res) => {
             ]
           },
 
-          required: false,
+          required: true,
 
           attributes: ['id', 'full_name'],
 
@@ -2452,7 +2519,7 @@ exports.openChat = async (req, res) => {
     });
 
     // ✅ Format response (consistent with chatHistory)
-    const formattedMessages = messages.map(msg => {
+    const formattedMessages = messages.filter(msg => msg.sender).map(msg => {
 
       const isYou = msg.sender_id === user_id;
 
@@ -2980,16 +3047,59 @@ exports.allPrivateChats = async (req, res) => {
       if (chatId) unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
     }
 
+    // const privateChats = chatMembers.map(cm => {
+
+    //   const chat = cm.chat;
+    //   if (!chat) return null;
+
+    //   const lastMessage = lastMessageMap[chat.id] || null;
+
+    //   const otherUser = chat.memberships
+    //     ?.map(m => m.user)
+    //     ?.find(u => u && u.id !== user_id);
+
+    //   return {
+    //     chat_id: chat.id,
+    //     type: chat.type,
+    //     name: otherUser?.full_name || null,
+    //     profile_url: otherUser?.uploadedFiles?.[0]?.file_url || null,
+    //     is_online: otherUser?.is_online || false,
+
+    //     last_message: lastMessage
+    //       ? {
+    //           content: lastMessage.content,
+    //           message_type: lastMessage.message_type,
+    //           created_at: lastMessage.created_at,
+    //           sender_name:
+    //             lastMessage.sender_id === user_id
+    //               ? 'You'
+    //               : lastMessage.sender?.full_name || null
+    //         }
+    //       : null,
+
+    //     unread_count: unreadMap[chat.id] || 0
+    //   };
+
+    // }).filter(Boolean);
+
     const privateChats = chatMembers.map(cm => {
 
       const chat = cm.chat;
       if (!chat) return null;
 
+      // 🔥 ADDED: validate members
+      const validUsers = chat.memberships
+        ?.map(m => m.user)
+        ?.filter(u => u);
+
+      // 🔥 BLOCK invalid private chat
+      if (!validUsers || validUsers.length !== 2) {
+        return null;
+      }
+
       const lastMessage = lastMessageMap[chat.id] || null;
 
-      const otherUser = chat.memberships
-        ?.map(m => m.user)
-        ?.find(u => u && u.id !== user_id);
+      const otherUser = validUsers.find(u => u.id !== user_id);
 
       return {
         chat_id: chat.id,
@@ -3014,7 +3124,6 @@ exports.allPrivateChats = async (req, res) => {
       };
 
     }).filter(Boolean);
-
     privateChats.sort((a, b) => {
       const t1 = a.last_message?.created_at || 0;
       const t2 = b.last_message?.created_at || 0;
@@ -3187,10 +3296,51 @@ exports.allGroupChats = async (req, res) => {
       if (chatId) unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
     }
 
+    // const groupChats = chatMembers.map(cm => {
+
+    //   const chat = cm.chat;
+    //   if (!chat) return null;
+
+    //   const lastMessage = lastMessageMap[chat.id] || null;
+
+    //   return {
+    //     chat_id: chat.id,
+    //     type: chat.type,
+    //     name: chat.group_name,
+    //     profile_url: chat.files?.[0]?.file_url || null,
+    //     is_online: false,
+
+    //     last_message: lastMessage
+    //       ? {
+    //           content: lastMessage.content,
+    //           message_type: lastMessage.message_type,
+    //           created_at: lastMessage.created_at,
+    //           sender_name:
+    //             lastMessage.sender_id === user_id
+    //               ? 'You'
+    //               : lastMessage.sender?.full_name || null
+    //         }
+    //       : null,
+
+    //     unread_count: unreadMap[chat.id] || 0
+    //   };
+
+    // }).filter(Boolean);
+
     const groupChats = chatMembers.map(cm => {
 
       const chat = cm.chat;
       if (!chat) return null;
+
+      // 🔥 ADDED: validate members
+      const validUsers = chat.memberships
+        ?.map(m => m.user)
+        ?.filter(u => u);
+
+      // 🔥 BLOCK invalid group
+      if (!validUsers || validUsers.length < 2) {
+        return null;
+      }
 
       const lastMessage = lastMessageMap[chat.id] || null;
 
@@ -3278,6 +3428,56 @@ exports.chatHistory = async (req, res) => {
       );
     }
 
+    // 🔥 ============================
+    // 🔥 ADDED: STRICT MEMBER VALIDATION
+    // 🔥 ============================
+
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+
+      include: [
+        {
+          model: User,
+          as: 'user',
+          where: {
+            is_deleted: false,
+            [Op.or]: [
+              { organization_id: org_id },
+              { org_2: org_id },
+              { org_3: org_id },
+              { org_4: org_id },
+              { org_5: org_id },
+              { org_6: org_id },
+              { org_7: org_id },
+              { org_8: org_id },
+              { org_9: org_id },
+              { org_10: org_id }
+            ]
+          },
+          required: false,
+          attributes: ['id']
+        }
+      ]
+    });
+
+    const validMembers = members
+      .map(m => m.user)
+      .filter(u => u);
+
+    // 🔥 BLOCK invalid private chat
+    if (chat.type === 'private') {
+      if (validMembers.length !== 2) {
+        return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Invalid private chat!');
+      }
+    }
+
+    // 🔥 BLOCK invalid group chat
+    if (chat.type === 'group') {
+      if (validMembers.length < 2) {
+        return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'Invalid group chat!');
+      }
+    }
+
     /**
      * 3️⃣ Fetch messages
      */
@@ -3309,7 +3509,7 @@ exports.chatHistory = async (req, res) => {
             ]
           },
 
-          required: false,
+          required: true,
 
           attributes: ["id", "full_name"],
 
@@ -3348,7 +3548,7 @@ exports.chatHistory = async (req, res) => {
     /**
      * 4️⃣ Format messages
      */
-    const formattedMessages = messages.map(msg => {
+    const formattedMessages = messages.filter(msg => msg.sender).map(msg => {
 
       const isYou = msg.sender_id === currentUserId;
 
