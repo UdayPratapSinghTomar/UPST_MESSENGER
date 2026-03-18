@@ -2562,7 +2562,7 @@ exports.chatList = async (req, res) => {
                     ]
                   },
 
-                  required: false,
+                  required: true,
 
                   attributes: [
                     'id',
@@ -2683,12 +2683,69 @@ exports.chatList = async (req, res) => {
     /**
      * 4️⃣ Build final response
      */
+    // const chatList = chatMembers.map(cm => {
+
+    //   const chat = cm.chat;
+    //   if (!chat) return null;
+
+    //   const lastMessage = lastMessageMap[chat.id] || null;
+
+    //   let name = null;
+    //   let profile_url = null;
+    //   let is_online = false;
+
+    //   if (chat.type === 'private') {
+
+    //     const otherUser = chat.memberships
+    //       ?.map(m => m.user)
+    //       ?.find(u => u && u.id !== user_id);
+
+    //     name = otherUser?.full_name || null;
+    //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+    //     is_online = otherUser?.is_online || false;
+
+    //   } else {
+
+    //     name = chat.group_name;
+    //     profile_url = null;
+    //   }
+
+    //   const last_message = lastMessage
+    //     ? {
+    //         content: lastMessage.content,
+    //         message_type: lastMessage.message_type,
+    //         created_at: lastMessage.created_at,
+    //         sender_name:
+    //           lastMessage.sender_id === user_id
+    //             ? 'You'
+    //             : lastMessage.sender?.full_name || null
+    //       }
+    //     : null;
+
+    //   return {
+    //     chat_id: chat.id,
+    //     type: chat.type,
+    //     name,
+    //     profile_url,
+    //     is_online,
+    //     last_message,
+    //     unread_count: unreadMap[chat.id] || 0
+    //   };
+
+    // }).filter(Boolean); // ✅ remove nulls
+
     const chatList = chatMembers.map(cm => {
 
       const chat = cm.chat;
       if (!chat) return null;
 
-      const lastMessage = lastMessageMap[chat.id] || null;
+      // ❗ Ensure valid memberships exist
+      const validMembers = chat.memberships
+        ?.map(m => m.user)
+        ?.filter(u => u); // only valid users
+
+      // ❌ If no valid members → skip
+      if (!validMembers || validMembers.length === 0) return null;
 
       let name = null;
       let profile_url = null;
@@ -2696,19 +2753,27 @@ exports.chatList = async (req, res) => {
 
       if (chat.type === 'private') {
 
-        const otherUser = chat.memberships
-          ?.map(m => m.user)
-          ?.find(u => u && u.id !== user_id);
+        // ❗ Must have exactly 2 valid users in private chat
+        if (validMembers.length < 2) return null;
 
-        name = otherUser?.full_name || null;
-        profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
-        is_online = otherUser?.is_online || false;
+        const otherUser = validMembers.find(u => u.id !== user_id);
+
+        // ❌ If other user missing → skip chat completely
+        if (!otherUser) return null;
+
+        name = otherUser.full_name;
+        profile_url = otherUser.uploadedFiles?.[0]?.file_url || null;
+        is_online = otherUser.is_online || false;
 
       } else {
 
+        // ❗ Optional: ensure at least 2 valid users in group
+        if (validMembers.length < 2) return null;
+
         name = chat.group_name;
-        profile_url = null;
       }
+
+      const lastMessage = lastMessageMap[chat.id] || null;
 
       const last_message = lastMessage
         ? {
@@ -2732,8 +2797,7 @@ exports.chatList = async (req, res) => {
         unread_count: unreadMap[chat.id] || 0
       };
 
-    }).filter(Boolean); // ✅ remove nulls
-
+    }).filter(Boolean);
     /**
      * 5️⃣ Sort by last message time
      */
