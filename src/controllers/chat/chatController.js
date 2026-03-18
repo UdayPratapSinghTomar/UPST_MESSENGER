@@ -2833,8 +2833,8 @@ exports.chatList = async (req, res) => {
         // if (!otherUser) return null;
 
         name = otherUser?.full_name || "Unknown User";
-        profile_url = otherUser.uploadedFiles?.[0]?.file_url || null;
-        is_online = otherUser.is_online || false;
+        profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+        is_online = otherUser?.is_online || false;
 
       } else {
 
