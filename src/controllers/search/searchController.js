@@ -146,7 +146,8 @@ exports.searchAll = async (req, res) => {
     const messagesRaw = await Message.findAll({
 
       where: {
-        content: { [Op.iLike]: `%${q}%` }
+        content: { [Op.iLike]: `%${q}%` },
+        is_deleted: false
       },
 
       include: [
@@ -332,6 +333,7 @@ exports.searchChatMessages = async (req, res) => {
     const messages = await Message.findAll({
       where: {
         chat_id,
+        is_deleted: false,
         [Op.or]: [
           { content: { [Op.iLike]: `%${q}%` } },
           { "$files.file_name$": { [Op.iLike]: `%${q}%` } } // ✅ key fix

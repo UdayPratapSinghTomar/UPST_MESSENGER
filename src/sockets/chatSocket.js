@@ -264,10 +264,10 @@ module.exports = (io) => {
     /**
      * TYPING START
      */
-    socket.on(EVENTS.USER_TYPING, ({ chat_id }) => {
+    socket.on(EVENTS.START_TYPING, ({ chat_id }) => {
 
       socket.to(`chat_${chat_id}`).emit(
-        EVENTS.USER_TYPING,
+        EVENTS.START_TYPING,
         {
           chat_id,
           user_id: userId
@@ -280,10 +280,10 @@ module.exports = (io) => {
     /**
      * TYPING STOP
      */
-    socket.on(EVENTS.USER_STOP_TYPING, ({ chat_id }) => {
+    socket.on(EVENTS.STOP_TYPING, ({ chat_id }) => {
 
       socket.to(`chat_${chat_id}`).emit(
-        EVENTS.USER_STOP_TYPING,
+        EVENTS.STOP_TYPING,
         {
           chat_id,
           user_id: userId

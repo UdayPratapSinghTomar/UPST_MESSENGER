@@ -20,8 +20,8 @@ module.exports = {
 
   NEW_MESSAGE: "new_message",
 
-  USER_TYPING: "user_typing",
-  USER_STOP_TYPING: "user_stop_typing",
+  START_TYPING: "start_typing",
+  STOP_TYPING: "stop_typing",
 
   MESSAGE_DELIVERED: "message_delivered",
   MESSAGE_READ: "message_read",

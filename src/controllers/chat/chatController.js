@@ -178,7 +178,19 @@ exports.createPrivateChat = async (req, res) => {
      * Validate user belongs to same organization
      */
     const targetUser = await User.findOne({
-      where: { id: user_id, is_deleted: false }
+      where: { id: user_id, is_deleted: false },
+      [Op.or]: [
+        { organization_id: org_id },
+        { org_2: org_id },
+        { org_3: org_id },
+        { org_4: org_id },
+        { org_5: org_id },
+        { org_6: org_id },
+        { org_7: org_id },
+        { org_8: org_id },
+        { org_9: org_id },
+        { org_10: org_id }
+      ]
     });
 
     if (!targetUser) {
@@ -581,7 +593,7 @@ exports.groupDetails = async (req, res) => {
                   as: "uploadedFiles",
                   attributes: ["file_url"],
                   required: false,
-                  where: { file_type: "image" }
+                  // where: { file_type: "image" }
                 }
               ]
             }
@@ -611,7 +623,7 @@ exports.groupDetails = async (req, res) => {
                   as: "uploadedFiles",
                   attributes: ["file_url"],
                   required: false,
-                  where: { file_type: "image" }
+                  // where: { file_type: "image" }
                 }
               ]
             }
@@ -828,7 +840,7 @@ exports.openChat = async (req, res) => {
     }
 
     const messages = await Message.findAll({
-      where: { chat_id },
+      where: { chat_id, is_deleted: false },
       order: [['created_at', 'ASC']]
     });
 
@@ -1007,7 +1019,7 @@ exports.chatList = async (req, res) => {
                       as: 'uploadedFiles',
                       attributes: [],
                       required: false,
-                      where: { file_type: 'image' }
+                      // where: { file_type: 'image' }
                     }
                   ]
                 }
@@ -1029,7 +1041,8 @@ exports.chatList = async (req, res) => {
      */
     const lastMessages = await Message.findAll({
       where: {
-        chat_id: { [Op.in]: chatIds }
+        chat_id: { [Op.in]: chatIds },
+        is_deleted: false
       },
       attributes: [
         'chat_id',
@@ -1070,7 +1083,8 @@ exports.chatList = async (req, res) => {
           attributes: ['chat_id'],
           where: {
             chat_id: { [Op.in]: chatIds },
-            sender_id: { [Op.ne]: user_id }
+            sender_id: { [Op.ne]: user_id },
+            is_deleted: false
           }
         }
       ]
@@ -1221,7 +1235,7 @@ exports.allPrivateChats = async (req, res) => {
                       as: 'uploadedFiles',
                       attributes: ['file_url'],
                       required: false,
-                      where: { file_type: 'image' }
+                      // where: { file_type: 'image' }
                     }
                   ]
                 }
@@ -1249,7 +1263,7 @@ exports.allPrivateChats = async (req, res) => {
      */
 
     const lastMessages = await Message.findAll({
-      where: { chat_id: { [Op.in]: chatIds } },
+      where: { chat_id: { [Op.in]: chatIds }, is_deleted: false },
 
       attributes: [
         'chat_id',
@@ -1297,7 +1311,8 @@ exports.allPrivateChats = async (req, res) => {
 
           where: {
             chat_id: { [Op.in]: chatIds },
-            sender_id: { [Op.ne]: user_id }
+            sender_id: { [Op.ne]: user_id },
+            is_deleted: false
           }
         }
       ]
@@ -1437,7 +1452,7 @@ exports.allGroupChats = async (req, res) => {
                       as: 'uploadedFiles',
                       attributes: ['file_url'],
                       required: false,
-                      where: { file_type: 'image' }
+                      // where: { file_type: 'image' }
                     }
                   ]
                 }
@@ -1449,7 +1464,7 @@ exports.allGroupChats = async (req, res) => {
               as: 'files',
               attributes: ['file_url'],
               required: false,
-              where: { file_type: 'group_profile' }
+              // where: { file_type: 'group_profile' }
             }
           ]
         }
@@ -1473,7 +1488,7 @@ exports.allGroupChats = async (req, res) => {
      */
 
     const lastMessages = await Message.findAll({
-      where: { chat_id: { [Op.in]: chatIds } },
+      where: { chat_id: { [Op.in]: chatIds }, is_deleted: false },
 
       attributes: [
         'chat_id',
@@ -1520,7 +1535,8 @@ exports.allGroupChats = async (req, res) => {
 
           where: {
             chat_id: { [Op.in]: chatIds },
-            sender_id: { [Op.ne]: user_id }
+            sender_id: { [Op.ne]: user_id },
+            is_deleted: false
           }
         }
       ]
@@ -1654,7 +1670,7 @@ exports.chatHistory = async (req, res) => {
      */
 
     const messages = await Message.findAll({
-      where: { chat_id },
+      where: { chat_id, is_deleted: false },
 
       include: [
         {
@@ -1668,7 +1684,7 @@ exports.chatHistory = async (req, res) => {
               as: "uploadedFiles",
               attributes: ["file_url"],
               required: false,
-              where: { file_type: "image" }
+              // where: { file_type: "image" }
             }
           ]
         },
