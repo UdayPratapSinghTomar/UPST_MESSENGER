@@ -71,11 +71,16 @@ exports.sendMessage = async (req, res) => {
     /**
      * 3️⃣ Detect message type
      */
-    let message_type = "text";
 
     const hasFiles = req.files && req.files.length > 0;
     const hasContent = content && content.trim().length > 0;
 
+    if (!hasFiles && !hasContent) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Message cannot be empty!');
+    }
+
+    let message_type = "text";
     if (hasFiles && hasContent) message_type = "mixed";
     else if (hasFiles) message_type = "file";
 
@@ -188,7 +193,7 @@ exports.sendMessage = async (req, res) => {
         mime_type: file.mimetype,
         file_size: file.size
       }));
-      console.log("files payload -",filesPayload);
+      // console.log("files payload -",filesPayload);
       files = await SharedFile.bulkCreate(filesPayload, { transaction: t, returning: true });
     }
 
@@ -202,7 +207,7 @@ exports.sendMessage = async (req, res) => {
       content: message.content,
       message_type,
       files,
-      last_message: content,
+      last_message: content || "Attachment",
       created_at: message.createdAt
     };
 
@@ -229,7 +234,13 @@ exports.sendMessage = async (req, res) => {
 
     }
 
-    const sender = await User.findByPk(sender_id);
+    // const sender = await User.findByPk(sender_id);
+    const sender = await User.findOne({
+      where: {
+        id: sender_id,
+        is_deleted: false // ✅ CHANGE
+      }
+    });
 
     for (const member_id of memberIds) {
 
@@ -303,220 +314,6 @@ exports.sendMessage = async (req, res) => {
     );
   }
 };
-
-
-// exports.sendMessage = async (req, res) => {
-//   const t = await sequelize.transaction();
-//   try {
-//     const { chat_id, content } = req.body;
-//     const senderId = req.user.id;
-//     const io = req.app.get("io");
-
-//     if (!chat_id) {
-//       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Chat id is required");
-//     }
-
-//     const isMember = await ChatMember.findOne({
-//       where: { chat_id, user_id: senderId },
-//     });
-
-//     if (!isMember) {
-//       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not a chat member");
-//     }
-
-//     const members = await ChatMember.findAll({ where: { chat_id } });
-
-//     const hasFiles = Array.isArray(req.files) && req.files.length > 0;
-//     const hasContent = typeof content === "string" && content.trim().length > 0;
-
-//     if (!hasFiles && !hasContent) {
-//       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Message cannot be empty!");
-//     }
-
-//     let messageType = "text";
-//     if (hasFiles && hasContent) {
-//       messageType = "mixed";
-//     } else if (hasFiles) {
-//       messageType = "file";
-//     }
-
-//     const message = await Message.create(
-//       {
-//         chat_id,
-//         sender_id: senderId,
-//         message_type: messageType,
-//         content: hasContent ? content : null,
-//       },
-//       {
-//         transaction: t,
-//       },
-//     );
-
-//     let attachedFiles = [];
-
-//     if (hasFiles) {
-//       for (const file of req.files) {
-//         const sharedFile = await SharedFile.create(
-//           {
-//             message_id: message.id,
-//             chat_id,
-//             user_id: senderId,
-//             file_name: file.originalname,
-//             file_url: `/uploads/${file.filename}`,
-//             file_type: getFileType(file.mimetype),
-//             file_size: file.size,
-//             mime_type: file.mimetype,
-//           },
-//           {
-//             transaction: t,
-//           },
-//         );
-//         attachedFiles.push(sharedFile);
-//       }
-//     }
-
-//     await MessageStatus.bulkCreate(
-//       members.map((m) => ({
-//         message_id: message.id,
-//         user_id: m.user_id,
-//         chat_id,
-//         status: "sent",
-//       })),
-//       { transaction: t },
-//     );
-
-//     await t.commit();
-
-//     const payload = {
-//       id: message.id,
-//       chat_id,
-//       sender_id: senderId,
-//       message_type: messageType,
-//       content: message.content,
-//       files: attachedFiles,
-//       created_at: message.created_at,
-//     };
-
-//     io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, payload);
-
-//     return sendResponse(res, HttpsStatus.CREATED, true, "Message Sent!", payload,);
-//     // const messagesPayload = [];
-
-//     // // ❗ TEXT ONLY (no files)
-//     // if (!req.files || req.files.length === 0) {
-//     //   const message = await Message.create(
-//     //     {
-//     //       chat_id,
-//     //       sender_id: senderId,
-//     //       message_type: "text",
-//     //       content,
-//     //     },
-//     //     { transaction: t }
-//     //   );
-
-//     //   await MessageStatus.bulkCreate(
-//     //     members.map((m) => ({
-//     //       message_id: message.id,
-//     //       user_id: m.user_id,
-//     //       chat_id,
-//     //       status: "sent",
-//     //     })),
-//     //     { transaction: t }
-//     //   );
-
-//     //   const textPayload = {
-//     //     id: message.id,
-//     //     chat_id,
-//     //     sender_id: senderId,
-//     //     message_type: "text",
-//     //     content,
-//     //     file: null,
-//     //     created_at: message.created_at,
-//     //   };
-
-//     //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, textPayload);
-
-//     //   await t.commit();
-//     //   return sendResponse(
-//     //     res,
-//     //     HttpsStatus.CREATED,
-//     //     true,
-//     //     "Message created!",
-//     //     textPayload
-//     //   );
-//     // }
-
-//     // // ❗ FILES PRESENT
-//     // if (req.files && req.files.length > 0) {
-//     //   for (const file of req.files) {
-//     //     let messageType = "file";
-//     //     if (file.mimetype.startsWith("image")) messageType = "image";
-//     //     if (file.mimetype.startsWith("video")) messageType = "video";
-//     //     if (file.mimetype.startsWith("audio")) messageType = "audio";
-
-//     //     const message = await Message.create(
-//     //       {
-//     //         chat_id,
-//     //         sender_id: senderId,
-//     //         message_type: messageType,
-//     //         content: content || null,
-//     //       },
-//     //       { transaction: t }
-//     //     );
-
-//     //     const fileUrl = `/uploads/${file.filename}`;
-
-//     //     const sharedFile = await SharedFile.create(
-//     //       {
-//     //         message_id: message.id,
-//     //         chat_id,
-//     //         user_id: senderId,
-//     //         file_name: file.originalname,
-//     //         file_url: fileUrl,
-//     //         file_type: messageType,
-//     //         file_size: file.size,
-//     //         mime_type: file.mimetype,
-//     //       },
-//     //       { transaction: t }
-//     //     );
-
-//     //     await MessageStatus.bulkCreate(
-//     //       members.map((m) => ({
-//     //         message_id: message.id,
-//     //         user_id: m.user_id,
-//     //         chat_id,
-//     //         status: "sent",
-//     //       })),
-//     //       { transaction: t }
-//     //     );
-
-//     //     messagesPayload.push({
-//     //       id: message.id,
-//     //       chat_id,
-//     //       sender_id: senderId,
-//     //       message_type: messageType,
-//     //       content: content || null,
-//     //       file: sharedFile,
-//     //       created_at: message.created_at,
-//     //     });
-//     //   }
-
-//     //   io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, messagesPayload);
-
-//     //   await t.commit();
-//     //   return sendResponse(
-//     //     res,
-//     //     HttpsStatus.CREATED,
-//     //     true,
-//     //     "Messages created!",
-//     //     messagesPayload
-//     //   );
-//     // }
-//   } catch (err) {
-//     await t.rollback();
-//     return sendResponse(res, 500, false, "Server error", null, { server: err.message });
-//   }
-// };
 
 exports.editMessage = async (req, res) => {
 
@@ -1052,9 +849,7 @@ exports.forwardMessage = async (req, res) => {
     const io = req.app.get("io");
 
     if (!message_id || !Array.isArray(forwarded_chat_ids) || !forwarded_chat_ids.length) {
-
       await t.rollback();
-
       return sendResponse(
         res,
         HttpsStatus.BAD_REQUEST,
@@ -1063,12 +858,48 @@ exports.forwardMessage = async (req, res) => {
       );
     }
 
+    const sender = await User.findOne({
+      where: {
+        id: senderId,
+        is_deleted: false
+      },
+      attributes: ['id', 'full_name']
+    });
+
+    if (!sender) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid user!");
+    }
+
     /**
      * 1️⃣ Fetch original message
      */
     const originalMessage = await Message.findOne({
-      where: { id: message_id, is_deleted: false },
-      include: [{ model: SharedFile }],
+      where: { 
+        id: message_id, 
+        is_deleted: false 
+      },
+
+      include: [
+        {
+          model: SharedFile,
+          as: "files", // ✅ IMPORTANT FIX
+
+          attributes: [
+            "id",
+            "file_name",
+            "file_url",
+            "file_type",
+            "mime_type",
+            "file_size",
+            "duration",
+            "thumbnail_url"
+          ],
+
+          required: false
+        }
+      ],
+
       transaction: t
     });
 

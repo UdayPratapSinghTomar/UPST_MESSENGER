@@ -7,8 +7,9 @@ exports.searchAll = async (req, res) => {
 
     const user_id = req.user.id;
     const org_id = req.org_id;
-    const { search } = req.query;
-    const q = search.trim();
+    // const { search } = req.query;
+    // const q = search.trim();
+    const q = req.query.search?.trim();
 
     if (!q) {
       return sendResponse(
@@ -71,33 +72,66 @@ exports.searchAll = async (req, res) => {
       ]
     });
 
-    const users = [];
+    // const users = [];
 
-    for (const u of usersRaw) {
+    // for (const u of usersRaw) {
 
-      const privateChat = await ChatMember.findOne({
-        attributes: ["chat_id"],
+    //   const privateChat = await ChatMember.findOne({
+    //     attributes: ["chat_id"],
 
+    //     where: {
+    //       user_id: { [Op.in]: [user_id, u.id] }
+    //     },
+
+    //     group: ["chat_id"],
+
+    //     having: sequelize.literal(`COUNT(DISTINCT "user_id") = 2`),
+
+    //     raw: true
+    //   });
+
+    //   users.push({
+    //     user_id: u.id,
+    //     name: u.full_name,
+    //     profile_image: u.uploadedFiles?.[0]?.file_url ?? null,
+    //     chat_id: privateChat?.chat_id ?? null,
+    //     chat_type: "private"
+    //   });
+
+    // }
+
+    const users = await Promise.all(usersRaw.map(async (u) => {
+
+      const privateChat = await Chat.findOne({
         where: {
-          user_id: { [Op.in]: [user_id, u.id] }
+          type: "private",
+          organization_id: org_id,
+          is_deleted: false
         },
-
-        group: ["chat_id"],
-
-        having: sequelize.literal(`COUNT(DISTINCT "user_id") = 2`),
-
-        raw: true
+        include: [
+          {
+            model: ChatMember,
+            as: "memberships",
+            where: {
+              user_id: { [Op.in]: [user_id, u.id] }
+            },
+            attributes: []
+          }
+        ],
+        group: ["Chat.id"],
+        having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
+        subQuery: false
       });
 
-      users.push({
+      return {
         user_id: u.id,
         name: u.full_name,
         profile_image: u.uploadedFiles?.[0]?.file_url ?? null,
-        chat_id: privateChat?.chat_id ?? null,
+        chat_id: privateChat?.id ?? null,
         chat_type: "private"
-      });
+      };
 
-    }
+    }));
 
     /**
      * 2️⃣ GROUP SEARCH
@@ -174,6 +208,22 @@ exports.searchAll = async (req, res) => {
         {
           model: User,
           as: "sender",
+          where: {
+            is_deleted: false,
+            [Op.or]: [
+              { organization_id: org_id },
+              { org_2: org_id },
+              { org_3: org_id },
+              { org_4: org_id },
+              { org_5: org_id },
+              { org_6: org_id },
+              { org_7: org_id },
+              { org_8: org_id },
+              { org_9: org_id },
+              { org_10: org_id }
+            ]
+          },
+          required: false,
           attributes: ["id", "full_name"]
         }
       ],
@@ -207,11 +257,9 @@ exports.searchAll = async (req, res) => {
      * 4️⃣ FILE SEARCH
      */
     const filesRaw = await SharedFile.findAll({
-
       where: {
         file_name: { [Op.iLike]: `%${q}%` }
       },
-
       include: [
         {
           model: Chat,
@@ -222,7 +270,6 @@ exports.searchAll = async (req, res) => {
             organization_id: org_id,
             is_deleted: false
           },
-
           include: [
             {
               model: ChatMember,
@@ -231,6 +278,31 @@ exports.searchAll = async (req, res) => {
               attributes: []
             }
           ]
+        },
+
+        {
+          model: User,
+          as: "user",
+
+          // ✅ CHANGE: uploader validation
+          where: {
+            is_deleted: false,
+            [Op.or]: [
+              { organization_id: org_id },
+              { org_2: org_id },
+              { org_3: org_id },
+              { org_4: org_id },
+              { org_5: org_id },
+              { org_6: org_id },
+              { org_7: org_id },
+              { org_8: org_id },
+              { org_9: org_id },
+              { org_10: org_id }
+            ]
+          },
+
+          required: false,
+          attributes: ["id"]
         }
       ],
 
@@ -292,8 +364,9 @@ exports.searchChatMessages = async (req, res) => {
   try {
 
     const { chat_id } = req.params;
-    const { search } = req.query;
-    const q = search.trim();
+    // const { search } = req.query;
+    // const q = search.trim();
+    const q = req.query.search?.trim();
     const user_id = req.user.id;
     const org_id = req.org_id;
 
@@ -397,8 +470,9 @@ exports.searchChatMessages = async (req, res) => {
 exports.searchUsers = async (req, res) => {
   try {
 
-    const { search } = req.query;
-    const q = search.trim();
+    // const { search } = req.query;
+    // const q = search.trim();
+    const q = req.query.search?.trim();
     const org_id = req.org_id;
     const currentUserId = req.user.id;
     if (!q) {

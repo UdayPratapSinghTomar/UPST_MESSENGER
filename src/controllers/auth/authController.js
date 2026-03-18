@@ -254,7 +254,8 @@ exports.login = async (req, res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
         }
 
-        const user = await User.findOne({ where: { email }});
+        const user = await User.findOne({ where: { email, is_deleted: false }});
+
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Invalid credentials!'});
         }
@@ -280,19 +281,7 @@ exports.login = async (req, res) => {
         if(force_login && existingSession){
 
             /**
-             * 1️⃣ Get previously active devices except current device
-             */
-
-            const previousDevices = await UserDevice.findAll({
-                where: {
-                user_id: user.id,
-                is_active: true,
-                device_id: { [Op.ne]: device_id }
-                }
-            });
-
-            /**
-             * 2️⃣ Destroy refresh tokens of previous devices
+             * Destroy refresh tokens of previous devices
              */
 
             await RefreshToken.destroy({
@@ -305,7 +294,7 @@ exports.login = async (req, res) => {
             });
 
             /**
-             * 3️⃣ Deactivate previous devices
+             * Deactivate previous devices
              */
 
             await UserDevice.update(
@@ -317,6 +306,18 @@ exports.login = async (req, res) => {
                 }
                 }
             );
+
+            /**
+             * Get previously active devices except current device
+             */
+
+            // const previousDevices = await UserDevice.findAll({
+            //     where: {
+            //     user_id: user.id,
+            //     is_active: true,
+            //     device_id: { [Op.ne]: device_id }
+            //     }
+            // });
 
             /**
              * 4️⃣ Notify previous devices
@@ -372,13 +373,15 @@ exports.login = async (req, res) => {
             user.org_10,
         ].filter(Boolean);
 
+        const uniqueOrgIds = [...new Set(orgIds)];
+
         const organizations = await Organization.findAll({
-            where: { id: orgIds },
+            where: { id: uniqueOrgIds },
             attributes: ["id", "name"],
         });
         // await t.commit();
             
-        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(),organizations } });
+        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(), organizations } });
         // }catch(err){
         //     await t.rollback();
         //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
@@ -393,6 +396,7 @@ exports.logout = async (req, res) => {
     try {
         // const { device_id } = req.body;
         const device_id = req.device_id;
+        const user_id = req.user.id;
 
         if (!device_id) {
             return sendResponse(
@@ -404,7 +408,7 @@ exports.logout = async (req, res) => {
         } 
 
         const session = await RefreshToken.findOne({
-            where: { device_id }
+            where: { device_id, user_id }
         });
 
         if(!session){
@@ -418,13 +422,14 @@ exports.logout = async (req, res) => {
 
         await RefreshToken.destroy({
             where: {
-                device_id: device_id
+                device_id: device_id,
+                user_id
             }
         });
 
         await UserDevice.update(
             { is_active: false },
-            { where: { device_id } }
+            { where: { device_id, user_id } }
         );
 
         return sendResponse(
@@ -468,7 +473,7 @@ exports.requestPasswordOtp = async (req, res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Mail is required!');
         }
 
-        const user = await User.findOne({ where: { email } });
+        const user = await User.findOne({ where: { email, is_deleted: false } });
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Mail not found!');
         }
@@ -512,7 +517,7 @@ exports.verifyOtp = async (req, res) => {
     }
 
     // Find the user by email
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email, is_deleted: false } });
     if (!user || !user.reset_password_otp || !user.reset_password_expiry) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid OTP!");
     }
@@ -572,7 +577,8 @@ exports.updatePassword = async (req, res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Missing fields!', null, errors);
         }
 
-        const user = await User.findUserByEmail(email);
+        // const user = await User.findUserByEmail(email);
+        const user = await User.findOne({ where: { email, is_deleted: false } });
         
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid email!');

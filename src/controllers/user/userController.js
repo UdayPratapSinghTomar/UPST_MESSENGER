@@ -44,7 +44,7 @@ exports.usersByOrgId = async (req, res) => {
           as: "uploadedFiles",
           attributes: ["file_url"],
           required: false,
-          where: { file_type: "image" }
+          // where: { file_type: "image" }
         }
       ]
     });
@@ -127,7 +127,7 @@ exports.activeUsers = async (req, res) => {
           as: "uploadedFiles",
           attributes: ["file_url"],
           required: false,
-          where: { file_type: "image" }
+          // where: { file_type: "image" }
         }
       ]
     });
@@ -179,6 +179,19 @@ exports.updateProfile = async (req, res) => {
       );
     }
     
+    const user = await User.findOne({
+      where: {
+        id: userId,
+        is_deleted: false
+      },
+      transaction: t
+    });
+
+    if (!user) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User not found!");
+    }
+
     // const user = await User.findByPk(userId, { transaction: t });
     // if(!user){
     //     return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User not found!');
@@ -189,14 +202,14 @@ exports.updateProfile = async (req, res) => {
     }
 
     if (file) {
-      const fileUrl = `/uploads/${file.filename}`;
+      // const fileUrl = `/uploads/${file.filename}`;
       const file_type = file.mimetype.startsWith("image") ? "image" : null;
 
-      await sharedFile.create(
+      await SharedFile.create(
         {
           user_id: userId,
           file_name: file.originalname,
-          file_url: fileUrl,
+          file_url: file.path,
           file_type,
           file_size: file.size,
           mime_type: file.mimetype,
