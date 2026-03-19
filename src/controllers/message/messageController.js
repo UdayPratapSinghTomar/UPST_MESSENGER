@@ -882,7 +882,7 @@ exports.editMessage = async (req, res) => {
      * 9️⃣ Update edit metadata
      */
     message.edited_at = new Date();
-    message.edit_count += 1;
+    message.edit_count = (message.edit_count || 0) + 1;
 
     await message.save({ transaction: t });
 
@@ -900,13 +900,28 @@ exports.editMessage = async (req, res) => {
       edited_at: message.edited_at
     };
 
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_UPDATED, payload);
+    io.to(`chat_${message.chat_id}`).emit(EVENTS.EDITED_MESSAGE, payload);
+
+    const members = await ChatMember.findAll({
+      where: { chat_id: message.chat_id },
+      attributes: ["user_id"]
+    });
+
+    const memberIds = members.map(m => m.user_id);
+
+    // Emit to each user
+    memberIds.forEach(member_id => {
+      io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+        action: "edited_message",
+        data: payload
+      });
+    });
 
     // ✅ ADD THIS (chat list update)
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
-      action: "message_edited",
-      data: payload
-    });
+    // io.to(`chat_${message.chat_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+    //   action: "message_edited",
+    //   data: payload
+    // });
 
     return sendResponse(
       res,
@@ -1018,25 +1033,47 @@ exports.deleteMessage = async (req, res) => {
 
     await Message.update({ is_deleted: true }, { where: { id: message_id } });
 
+    // 6️⃣ Optional: delete attached files
+    // await SharedFile.destroy({
+    //   where: { message_id },
+    //   transaction: t
+    // });
+
     const payload = {
       message_id,
       chat_id: message.chat_id,
       deleted_by: userId
     };
 
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.MESSAGE_DELETED, payload);
+    io.to(`chat_${message.chat_id}`).emit(EVENTS.DELETED_MESSAGE, payload);
 
-    // ✅ ADD THIS
-    io.to(`chat_${message.chat_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
-      action: "message_deleted",
-      data: payload
+    // ✅ Get all members of chat
+    const members = await ChatMember.findAll({
+      where: { chat_id: message.chat_id },
+      attributes: ["user_id"]
     });
+
+    const memberIds = members.map(m => m.user_id);
+
+    // ✅ Emit chat list update to EACH user
+    memberIds.forEach(member_id => {
+      io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+        action: "deleted_message",
+        data: payload
+      });
+    });
+    // ✅ ADD THIS
+    // io.to(`chat_${message.chat_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+    //   action: "message_deleted",
+    //   data: payload
+    // });
   
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
-      "Message deleted successfully!"
+      "Message deleted successfully!",
+      payload
     );
 
   } catch (err) {
@@ -1153,7 +1190,7 @@ exports.forwardMessage = async (req, res) => {
        * ✅ Cross-org validation (CRITICAL)
        */
       const users = await User.findAll({
-        where: { id: memberIds },
+        where: { id: memberIds, is_deleted: false },
         transaction: t
       });
 
@@ -1179,25 +1216,47 @@ exports.forwardMessage = async (req, res) => {
       /**
        * 4️⃣ Copy files (FIXED)
        */
+      // let files = [];
+
+      // if (originalMessage.files?.length) {
+      //   for (const file of originalMessage.files) {
+      //     const newFile = await SharedFile.create({
+      //       message_id: message.id,
+      //       chat_id,
+      //       user_id: senderId,
+      //       file_name: file.file_name,
+      //       file_url: file.file_url,
+      //       file_type: file.file_type,
+      //       mime_type: file.mime_type,
+      //       file_size: file.file_size,
+      //       duration: file.duration,
+      //       thumbnail_url: file.thumbnail_url
+      //     }, { transaction: t });
+
+      //     files.push(newFile);
+      //   }
+      // }
+
       let files = [];
 
       if (originalMessage.files?.length) {
-        for (const file of originalMessage.files) {
-          const newFile = await SharedFile.create({
-            message_id: message.id,
-            chat_id,
-            user_id: senderId,
-            file_name: file.file_name,
-            file_url: file.file_url,
-            file_type: file.file_type,
-            mime_type: file.mime_type,
-            file_size: file.file_size,
-            duration: file.duration,
-            thumbnail_url: file.thumbnail_url
-          }, { transaction: t });
+        const filePayload = originalMessage.files.map(file => ({
+          message_id: message.id,
+          chat_id,
+          user_id: senderId,
+          file_name: file.file_name,
+          file_url: file.file_url,
+          file_type: file.file_type,
+          mime_type: file.mime_type,
+          file_size: file.file_size,
+          duration: file.duration,
+          thumbnail_url: file.thumbnail_url
+        }));
 
-          files.push(newFile);
-        }
+        files = await SharedFile.bulkCreate(filePayload, {
+          transaction: t,
+          returning: true
+        });
       }
 
       /**

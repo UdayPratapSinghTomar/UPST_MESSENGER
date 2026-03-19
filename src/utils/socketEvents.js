@@ -19,6 +19,8 @@ module.exports = {
   NOTIFICATION: "notification",
 
   NEW_MESSAGE: "new_message",
+  DELETED_MESSAGE: "deleted_message",
+  EDITED_MESSAGE: "edited_message",
 
   START_TYPING: "start_typing",
   STOP_TYPING: "stop_typing",
