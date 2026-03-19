@@ -3128,7 +3128,7 @@ exports.allPrivateChats = async (req, res) => {
           ? {
               content: lastMessage.content,
               message_type: lastMessage.message_type,
-              created_at: lastMessage.created_at,
+              created_at: lastMessage.dataValues.created_at,
               sender_name:
                 lastMessage.sender_id === user_id
                   ? 'You'
@@ -3140,6 +3140,7 @@ exports.allPrivateChats = async (req, res) => {
       };
 
     }).filter(Boolean);
+
     privateChats.sort((a, b) => {
       const t1 = a.last_message?.created_at || 0;
       const t2 = b.last_message?.created_at || 0;
@@ -3371,7 +3372,7 @@ exports.allGroupChats = async (req, res) => {
           ? {
               content: lastMessage.content,
               message_type: lastMessage.message_type,
-              created_at: lastMessage.created_at,
+              created_at: lastMessage.dataValues.created_at,
               sender_name:
                 lastMessage.sender_id === user_id
                   ? 'You'
