@@ -1158,7 +1158,7 @@ exports.forwardMessage = async (req, res) => {
     }
 
     const forwardedMessages = [];
-
+    const notificationQueue = [];
     /**
      * 2️⃣ Loop target chats
      */

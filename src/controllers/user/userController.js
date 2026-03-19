@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
+const { userBelongsToOrg } = require("../../utils/organizationFilter");
 const { Op } = require("sequelize");
 const { sequelize, User, SharedFile } = require("../../models");
 
@@ -16,7 +17,7 @@ exports.usersByOrgId = async (req, res) => {
       where: {
         is_deleted: false,
         id: { [Op.ne]: currentUserId },
-        ...getOrgCondition(orgId)
+        ...userBelongsToOrg(orgId)
       },
 
       attributes: [
