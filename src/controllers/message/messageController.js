@@ -178,6 +178,7 @@ exports.sendMessage = async (req, res) => {
       message_type,
       files,
       last_message: content,
+      mentioned_user_ids: validMentions,
       created_at: message.createdAt
     };
 
@@ -212,18 +213,48 @@ exports.sendMessage = async (req, res) => {
 
     const recipients = memberIds.filter(id => id !== sender_id);
 
-    if (recipients.length) {
+    const mentionedUsers = recipients.filter(id => validMentions.includes(id));
+    const normalUsers = recipients.filter(id => !validMentions.includes(id));
+
+    // 🟥 1. Mentioned users → SPECIAL notification
+    if (mentionedUsers.length) {
       await notifyUser(io, {
-        recipient_ids: recipients, // ✅ ARRAY
+        recipient_ids: mentionedUsers,
         sender_id,
         chat_id,
         message_id: message.id,
         type: "message",
-        action: 'new_message',
+        action: "mentioned",
+        title: `${sender.full_name} mentioned you`,
+        body: content || "Attachment"
+      });
+    }
+
+    // 🟦 2. Normal users → NORMAL notification
+    if (normalUsers.length) {
+      await notifyUser(io, {
+        recipient_ids: normalUsers,
+        sender_id,
+        chat_id,
+        message_id: message.id,
+        type: "message",
+        action: "new_message",
         title: chat.type === "private" ? sender.full_name : chat.group_name,
         body: content || "Attachment"
       });
     }
+    // if (recipients.length) {
+    //   await notifyUser(io, {
+    //     recipient_ids: recipients, // ✅ ARRAY
+    //     sender_id,
+    //     chat_id,
+    //     message_id: message.id,
+    //     type: "message",
+    //     action: 'new_message',
+    //     title: chat.type === "private" ? sender.full_name : chat.group_name,
+    //     body: content || "Attachment"
+    //   });
+    // }
 
     return sendResponse(res, HttpsStatus.CREATED, true, "Message sent", payload);
 
@@ -743,7 +774,7 @@ exports.editMessage = async (req, res) => {
   try {
 
     const { message_id } = req.params;
-    const { content, removed_file_ids = [] } = req.body;
+    const { content, removed_file_ids = [], mentioned_user_ids = [], removed_mentioned_user_ids = [] } = req.body;
 
     const userId = req.user.id;
     const org_id = req.org_id;
@@ -901,6 +932,42 @@ exports.editMessage = async (req, res) => {
 
     await message.save({ transaction: t });
 
+    const members = await ChatMember.findAll({
+      where: { chat_id: message.chat_id },
+      attributes: ["user_id"],
+      transaction: t
+    });
+
+    const memberIds = members.map(m => m.user_id);
+    const validNewMentions = [...new Set(
+      mentioned_user_ids.filter(id => memberIds.includes(id))
+    )];
+
+    const validRemovedMentions = [...new Set(
+      removed_mentioned_user_ids.filter(id => memberIds.includes(id))
+    )];
+
+    if (validNewMentions.length) {
+      await MessageMention.bulkCreate(
+        validNewMentions.map(id => ({
+          message_id: message.id,
+          mentioned_user_id: id
+        })),
+        { transaction: t }
+      );
+    }
+
+    // ➖ Remove mentions
+    if (validRemovedMentions.length) {
+      await MessageMention.destroy({
+        where: {
+          message_id: message.id,
+          mentioned_user_id: validRemovedMentions
+        },
+        transaction: t
+      });
+    }
+
     await t.commit();
 
     const files = await SharedFile.findAll({ where: { message_id: message.id } });
@@ -912,17 +979,13 @@ exports.editMessage = async (req, res) => {
       content: message.content,
       message_type: message.message_type,
       files,
-      edited_at: message.edited_at
+      edited_at: message.edited_at,
+      is_edited: true,
+      is_forwarded: !!message.forwarded_from_message_id,
+      mentioned_user_ids: validNewMentions,
     };
 
     io.to(`chat_${message.chat_id}`).emit(EVENTS.EDITED_MESSAGE, payload);
-
-    const members = await ChatMember.findAll({
-      where: { chat_id: message.chat_id },
-      attributes: ["user_id"]
-    });
-
-    const memberIds = members.map(m => m.user_id);
 
     // Emit to each user
     memberIds.forEach(member_id => {
@@ -932,6 +995,45 @@ exports.editMessage = async (req, res) => {
       });
     });
 
+    const recipients = memberIds.filter(id => id !== userId);
+
+    const mentionedUsers = recipients.filter(id =>
+      validNewMentions.includes(id)
+    );
+
+    const normalUsers = recipients.filter(id =>
+      !validNewMentions.includes(id)
+    );
+
+    const sender = await User.findOne({ where: {id: userId, is_deleted: false } });
+    
+    // 🟥 Mentioned users
+    if (mentionedUsers.length) {
+      await notifyUser(io, {
+        recipient_ids: mentionedUsers,
+        sender_id: userId,
+        chat_id: message.chat_id,
+        message_id: message.id,
+        type: "message",
+        action: "mentioned",
+        title: `${sender.full_name} mentioned you`,
+        body: message.content || "Attachment"
+      });
+    }
+
+    // 🟦 Normal users (optional — can skip if you don't want spam)
+    // if (normalUsers.length) {
+    //   await notifyUser(io, {
+    //     recipient_ids: normalUsers,
+    //     sender_id: userId,
+    //     chat_id: message.chat_id,
+    //     message_id: message.id,
+    //     type: "message",
+    //     action: "message_edited",
+    //     title: "Message edited",
+    //     body: message.content || "Attachment"
+    //   });
+    // }
     // ✅ ADD THIS (chat list update)
     // io.to(`chat_${message.chat_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
     //   action: "message_edited",

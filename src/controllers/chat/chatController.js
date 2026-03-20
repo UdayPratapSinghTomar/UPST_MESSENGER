@@ -1,5 +1,5 @@
 const express = require('express');
-const { sequelize, Chat, ChatMember, Message, MessageStatus, User, SharedFile } = require('../../models');
+const { sequelize, Chat, ChatMember, Message, MessageStatus, MessageMention, User, SharedFile } = require('../../models');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
@@ -2598,10 +2598,22 @@ exports.openChat = async (req, res) => {
       order: [['created_at', 'ASC']]
     });
 
+    const mentions = await MessageMention.findAll({
+      where: { message_id: messages.map(m => m.id) }
+    });
+
+    const mentionMap = {};
+    mentions.forEach(m => {
+      if (!mentionMap[m.message_id]) mentionMap[m.message_id] = [];
+      mentionMap[m.message_id].push(m.mentioned_user_id);
+    });
+
     // ✅ Format response (consistent with chatHistory)
     const formattedMessages = messages.filter(msg => msg.sender).map(msg => {
 
       const isYou = msg.sender_id === user_id;
+      const messageMentions = mentionMap[msg.id] || [];
+      const isMentioned = messageMentions.includes(user_id);
 
       return {
         id: msg.id,
@@ -2612,7 +2624,8 @@ exports.openChat = async (req, res) => {
 
         sender_id: msg.sender_id,
         is_you: isYou,
-
+        is_mentioned: isMentioned,           // ✅ NEW FLAG
+        mentioned_user_ids: messageMentions,
         sender: {
           id: msg.sender?.id,
           full_name: msg.sender?.full_name,
@@ -2620,6 +2633,8 @@ exports.openChat = async (req, res) => {
         },
 
         status: msg.statuses?.[0]?.status || 'sent',
+        is_edited: !!msg.edited_at,
+        is_forwarded: !!msg.forwarded_from_message_id,
 
         files: msg.files?.map(file => ({
           id: file.id,
@@ -2744,10 +2759,13 @@ exports.chatList = async (req, res) => {
       },
 
       attributes: [
+        'id',
         'chat_id',
         'content',
         'message_type',
         'sender_id',
+        'edited_at',
+        'forwarded_from_message_id',
         'created_at'
       ],
 
@@ -2780,6 +2798,7 @@ exports.chatList = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // console.log(lastMessages)
     // console.log("****************************************Last message ********************",lastMessages)
     // const lastMessageMap = {};
     // for (const msg of lastMessages) {
@@ -2893,70 +2912,70 @@ exports.chatList = async (req, res) => {
 
     // }).filter(Boolean); // ✅ remove nulls
 
-    const chatList = chatMembers.map(cm => {
+    // const chatList = chatMembers.map(cm => {
 
-      const chat = cm.chat;
-      if (!chat) return null;
+    //   const chat = cm.chat;
+    //   if (!chat) return null;
 
-      // ❗ Ensure valid memberships exist
-      const validMembers = chat.memberships
-        ?.map(m => m.user)
-        ?.filter(u => u); // only valid users
+    //   // ❗ Ensure valid memberships exist
+    //   const validMembers = chat.memberships
+    //     ?.map(m => m.user)
+    //     ?.filter(u => u); // only valid users
 
-      // ❌ If no valid members → skip
-      // if (!validMembers || validMembers.length === 0) return null;
+    //   // ❌ If no valid members → skip
+    //   // if (!validMembers || validMembers.length === 0) return null;
 
-      let name = null;
-      let profile_url = null;
-      let is_online = false;
+    //   let name = null;
+    //   let profile_url = null;
+    //   let is_online = false;
 
-      if (chat.type === 'private') {
+    //   if (chat.type === 'private') {
 
-        // ❗ Must have exactly 2 valid users in private chat
-        // if (validMembers.length < 2) return null;
+    //     // ❗ Must have exactly 2 valid users in private chat
+    //     // if (validMembers.length < 2) return null;
 
-        const otherUser = validMembers.find(u => u.id !== user_id);
+    //     const otherUser = validMembers.find(u => u.id !== user_id);
 
-        // ❌ If other user missing → skip chat completely
-        // if (!otherUser) return null;
+    //     // ❌ If other user missing → skip chat completely
+    //     // if (!otherUser) return null;
 
-        name = otherUser?.full_name || "Unknown User";
-        profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
-        is_online = otherUser?.is_online || false;
+    //     name = otherUser?.full_name || "Unknown User";
+    //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+    //     is_online = otherUser?.is_online || false;
 
-      } else {
+    //   } else {
 
-        // ❗ Optional: ensure at least 2 valid users in group
-        if (validMembers.length < 2) return null;
+    //     // ❗ Optional: ensure at least 2 valid users in group
+    //     if (validMembers.length < 2) return null;
 
-        name = chat.group_name || "Unnamed Group";
-      }
+    //     name = chat.group_name || "Unnamed Group";
+    //   }
   
-      const lastMessage = lastMessageMap[chat.id] || null;
-      const last_message = lastMessage
-        ? {
-            content: lastMessage.content,
-            message_type: lastMessage.message_type,
-            created_at: lastMessage.dataValues.created_at,
-            sender_name:
-              lastMessage.sender_id === user_id
-                ? 'You'
-                : lastMessage.sender?.full_name || null
-          }
-        : null;
-      return {
-        chat_id: chat.id,
-        type: chat.type,
-        name,
-        profile_url,
-        is_online,
-        created_at: chat.created_at,
-        last_message,
-        unread_count: unreadMap[chat.id] || 0,
-        unread_message_id : unreadIdsMap[chat.id] || [] 
-      };
+    //   const lastMessage = lastMessageMap[chat.id] || null;
+    //   const last_message = lastMessage
+    //     ? {
+    //         content: lastMessage.content,
+    //         message_type: lastMessage.message_type,
+    //         created_at: lastMessage.dataValues.created_at,
+    //         sender_name:
+    //           lastMessage.sender_id === user_id
+    //             ? 'You'
+    //             : lastMessage.sender?.full_name || null
+    //       }
+    //     : null;
+    //   return {
+    //     chat_id: chat.id,
+    //     type: chat.type,
+    //     name,
+    //     profile_url,
+    //     is_online,
+    //     created_at: chat.created_at,
+    //     last_message,
+    //     unread_count: unreadMap[chat.id] || 0,
+    //     unread_message_id : unreadIdsMap[chat.id] || [] 
+    //   };
 
-    }).filter(Boolean);
+    // }).filter(Boolean);
     
     /**
      * 5️⃣ Sort by last message time
@@ -2967,7 +2986,75 @@ exports.chatList = async (req, res) => {
     //   return new Date(t2) - new Date(t1);
     // });
 
-    chatList.sort((a, b) => {
+    const chatList = await Promise.all(
+      chatMembers.map(async (cm) => {
+
+        const chat = cm.chat;
+        if (!chat) return null;
+
+        const validMembers = chat.memberships
+          ?.map(m => m.user)
+          ?.filter(u => u);
+
+        let name = null;
+        let profile_url = null;
+        let is_online = false;
+
+        if (chat.type === 'private') {
+          const otherUser = validMembers.find(u => u.id !== user_id);
+
+          name = otherUser?.full_name || "Unknown User";
+          profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+          is_online = otherUser?.is_online || false;
+
+        } else {
+          if (validMembers.length < 2) return null;
+          name = chat.group_name || "Unnamed Group";
+        }
+
+        const lastMessage = lastMessageMap[chat.id] || null;
+        let last_message = null;
+
+        if (lastMessage) {
+          const mentions = await MessageMention.findAll({
+            where: { message_id: lastMessage.id }
+          });
+
+          const mentionIds = mentions.map(m => m.mentioned_user_id);
+          const isMentioned = mentionIds.includes(user_id);
+
+          last_message = {
+            content: lastMessage.content,
+            message_type: lastMessage.message_type,
+            created_at: lastMessage.dataValues.created_at,
+            sender_name:
+              lastMessage.sender_id === user_id
+                ? 'You'
+                : lastMessage.sender?.full_name || null,
+            is_edited: !!lastMessage.edited_at,
+            is_forwarded: !!lastMessage.formattedMessages,
+            is_mentioned: isMentioned,
+            mentioned_user_ids: mentionIds
+          };
+        }
+
+        return {
+          chat_id: chat.id,
+          type: chat.type,
+          name,
+          profile_url,
+          is_online,
+          created_at: chat.created_at,
+          last_message,
+          unread_count: unreadMap[chat.id] || 0,
+          unread_message_id: unreadIdsMap[chat.id] || []
+        };
+
+      })
+    );
+
+    const filteredChatList = chatList.filter(Boolean);
+    filteredChatList.sort((a, b) => {
       const t1 = a.last_message?.created_at
         ? new Date(a.last_message.created_at).getTime()
         : new Date(a.created_at || 0).getTime();
@@ -2984,7 +3071,7 @@ exports.chatList = async (req, res) => {
       HttpsStatus.OK,
       true,
       'Chat list retrieved!',
-      chatList
+      filteredChatList
     );
 
   } catch (err) {
@@ -3086,7 +3173,7 @@ exports.allPrivateChats = async (req, res) => {
         is_deleted: false
       },
 
-      attributes: ['chat_id', 'content', 'message_type', 'sender_id', 'created_at'],
+      attributes: ['id', 'chat_id', 'content', 'message_type', 'sender_id', 'edited_at', 'forwarded_from_message_id', 'created_at'],
 
       include: [
         {
@@ -3118,9 +3205,19 @@ exports.allPrivateChats = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // const lastMessageMap = {};
+    // for (const msg of lastMessages) {
+    //   if (!lastMessageMap[msg.chat_id]) {
+    //     lastMessageMap[msg.chat_id] = msg;
+    //   }
+    // }
+
     const lastMessageMap = {};
     for (const msg of lastMessages) {
-      if (!lastMessageMap[msg.chat_id]) {
+      if (
+        !lastMessageMap[msg.chat_id] ||
+        new Date(msg.created_at) > new Date(lastMessageMap[msg.chat_id].created_at)
+      ) {
         lastMessageMap[msg.chat_id] = msg;
       }
     }
@@ -3195,57 +3292,85 @@ exports.allPrivateChats = async (req, res) => {
 
     // }).filter(Boolean);
 
-    const privateChats = chatMembers.map(cm => {
+    const privateChats = await Promise.all(
+      chatMembers.map(async (cm) => {
 
-      const chat = cm.chat;
-      if (!chat) return null;
+        const chat = cm.chat;
+        if (!chat) return null;
 
-      // 🔥 ADDED: validate members
-      const validUsers = chat.memberships
-        ?.map(m => m.user)
-        ?.filter(u => u);
+        // 🔥 ADDED: validate members
+        const validUsers = chat.memberships
+          ?.map(m => m.user)
+          ?.filter(u => u);
 
-      // 🔥 BLOCK invalid private chat
-      if (!validUsers || validUsers.length !== 2) {
-        return null;
-      }
+        // 🔥 BLOCK invalid private chat
+        if (!validUsers || validUsers.length !== 2) {
+          return null;
+        }
 
-      const lastMessage = lastMessageMap[chat.id] || null;
+        const lastMessage = lastMessageMap[chat.id] || null;
+        let last_message = null;
 
-      const otherUser = validUsers.find(u => u.id !== user_id);
+        if (lastMessage) {
+          const mentions = await MessageMention.findAll({
+            where: { message_id: lastMessage.id }
+          });
 
-      return {
-        chat_id: chat.id,
-        type: chat.type,
-        name: otherUser?.full_name || null,
-        profile_url: otherUser?.uploadedFiles?.[0]?.file_url || null,
-        is_online: otherUser?.is_online || false,
+          const mentionIds = mentions.map(m => m.mentioned_user_id);
+          const isMentioned = mentionIds.includes(user_id);
 
-        last_message: lastMessage
-          ? {
-              content: lastMessage.content,
-              message_type: lastMessage.message_type,
-              created_at: lastMessage.dataValues.created_at,
-              sender_name:
-                lastMessage.sender_id === user_id
-                  ? 'You'
-                  : lastMessage.sender?.full_name || null
-            }
-          : null,
+          last_message = {
+            content: lastMessage.content,
+            message_type: lastMessage.message_type,
+            created_at: lastMessage.dataValues.created_at,
+            sender_name:
+              lastMessage.sender_id === user_id
+                ? 'You'
+                : lastMessage.sender?.full_name || null,
+            is_edited: !!lastMessage.edited_at,
+            is_forwarded: !!lastMessage.formattedMessages,
+            is_mentioned: isMentioned,
+            mentioned_user_ids: mentionIds
+          };
+        }
+        const otherUser = validUsers.find(u => u.id !== user_id);
 
-        unread_count: unreadMap[chat.id] || 0,
-        unread_message_id : unreadIdsMap[chat.id] || [] 
-      };
+        return {
+          chat_id: chat.id,
+          type: chat.type,
+          name: otherUser?.full_name || null,
+          profile_url: otherUser?.uploadedFiles?.[0]?.file_url || null,
+          is_online: otherUser?.is_online || false,
 
-    }).filter(Boolean);
+          // last_message: lastMessage
+          //   ? {
+          //       content: lastMessage.content,
+          //       message_type: lastMessage.message_type,
+          //       created_at: lastMessage.dataValues.created_at,
+          //       sender_name:
+          //         lastMessage.sender_id === user_id
+          //           ? 'You'
+          //           : lastMessage.sender?.full_name || null
+          //     }
+          //   : null,
+          last_message,
 
-    privateChats.sort((a, b) => {
+          unread_count: unreadMap[chat.id] || 0,
+          unread_message_id : unreadIdsMap[chat.id] || [] 
+        };
+
+      })
+    );
+    
+    const filterPrivateChats = privateChats.filter(Boolean);
+
+    filterPrivateChats.sort((a, b) => {
       const t1 = a.last_message?.created_at || 0;
       const t2 = b.last_message?.created_at || 0;
       return new Date(t2) - new Date(t1);
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Private chat list retrieved!', privateChats);
+    return sendResponse(res, HttpsStatus.OK, true, 'Private chat list retrieved!', filterPrivateChats);
 
   } catch (err) {
     console.error('fetchPrivateChats error:', err);
@@ -3345,7 +3470,7 @@ exports.allGroupChats = async (req, res) => {
         is_deleted: false
       },
 
-      attributes: ['chat_id', 'content', 'message_type', 'sender_id', 'created_at'],
+      attributes: ['id', 'chat_id', 'content', 'message_type', 'sender_id', 'edited_at', 'forwarded_from_message_id', 'created_at'],
 
       include: [
         {
@@ -3377,12 +3502,23 @@ exports.allGroupChats = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // const lastMessageMap = {};
+    // for (const msg of lastMessages) {
+    //   if (!lastMessageMap[msg.chat_id]) {
+    //     lastMessageMap[msg.chat_id] = msg;
+    //   }
+    // }
+
     const lastMessageMap = {};
     for (const msg of lastMessages) {
-      if (!lastMessageMap[msg.chat_id]) {
+      if (
+        !lastMessageMap[msg.chat_id] ||
+        new Date(msg.created_at) > new Date(lastMessageMap[msg.chat_id].created_at)
+      ) {
         lastMessageMap[msg.chat_id] = msg;
       }
     }
+
 
     const unreadCounts = await MessageStatus.findAll({
       where: {
@@ -3449,7 +3585,8 @@ exports.allGroupChats = async (req, res) => {
 
     // }).filter(Boolean);
 
-    const groupChats = chatMembers.map(cm => {
+    const groupChats = await Promise.all(
+      chatMembers.map(async (cm) => {
 
       const chat = cm.chat;
       if (!chat) return null;
@@ -3465,6 +3602,30 @@ exports.allGroupChats = async (req, res) => {
       }
 
       const lastMessage = lastMessageMap[chat.id] || null;
+      let last_message = null;
+
+      if (lastMessage) {
+        const mentions = await MessageMention.findAll({
+          where: { message_id: lastMessage.id }
+        });
+
+        const mentionIds = mentions.map(m => m.mentioned_user_id);
+        const isMentioned = mentionIds.includes(user_id);
+
+        last_message = {
+          content: lastMessage.content,
+          message_type: lastMessage.message_type,
+          created_at: lastMessage.dataValues.created_at,
+          sender_name:
+            lastMessage.sender_id === user_id
+              ? 'You'
+              : lastMessage.sender?.full_name || null,
+          is_edited: !!lastMessage.edited_at,
+          is_forwarded: !!lastMessage.formattedMessages,
+          is_mentioned: isMentioned,
+          mentioned_user_ids: mentionIds
+        };
+      }
 
       return {
         chat_id: chat.id,
@@ -3473,31 +3634,34 @@ exports.allGroupChats = async (req, res) => {
         profile_url: chat.files?.[0]?.file_url || null,
         is_online: false,
 
-        last_message: lastMessage
-          ? {
-              content: lastMessage.content,
-              message_type: lastMessage.message_type,
-              created_at: lastMessage.dataValues.created_at,
-              sender_name:
-                lastMessage.sender_id === user_id
-                  ? 'You'
-                  : lastMessage.sender?.full_name || null
-            }
-          : null,
-
+        // last_message: lastMessage
+        //   ? {
+        //       content: lastMessage.content,
+        //       message_type: lastMessage.message_type,
+        //       created_at: lastMessage.dataValues.created_at,
+        //       sender_name:
+        //         lastMessage.sender_id === user_id
+        //           ? 'You'
+        //           : lastMessage.sender?.full_name || null
+        //     }
+        //   : null,
+        last_message,
         unread_count: unreadMap[chat.id] || 0,
         unread_message_id : unreadIdsMap[chat.id] || [] 
       };
 
-    }).filter(Boolean);
+    })
+  );
+  
+  const filterGroupChats = groupChats.filter(Boolean);
 
-    groupChats.sort((a, b) => {
+    filterGroupChats.sort((a, b) => {
       const t1 = a.last_message?.created_at || 0;
       const t2 = b.last_message?.created_at || 0;
       return new Date(t2) - new Date(t1);
     });
 
-    return sendResponse(res, HttpsStatus.OK, true, 'Group chat list retrieved!', groupChats);
+    return sendResponse(res, HttpsStatus.OK, true, 'Group chat list retrieved!', filterGroupChats);
 
   } catch (err) {
     console.error('fetchGroupChats error:', err);
@@ -3668,13 +3832,23 @@ exports.chatHistory = async (req, res) => {
       order: [["created_at", "ASC"]]
     });
 
-    console.log("messages, ", messages)
+    const mentions = await MessageMention.findAll({
+      where: { message_id: messages.map(m => m.id) }
+    });
+
+    const mentionMap = {};
+    mentions.forEach(m => {
+      if (!mentionMap[m.message_id]) mentionMap[m.message_id] = [];
+      mentionMap[m.message_id].push(m.mentioned_user_id);
+    });
     /**
      * 4️⃣ Format messages
      */
     const formattedMessages = messages.filter(msg => msg.sender).map(msg => {
 
       const isYou = msg.sender_id === currentUserId;
+      const messageMentions = mentionMap[msg.id] || [];
+      const isMentioned = messageMentions.includes(currentUserId);
 
       return {
         id: msg.id,
@@ -3685,6 +3859,8 @@ exports.chatHistory = async (req, res) => {
 
         sender_id: msg.sender_id,
         is_you: isYou,
+        is_mentioned: isMentioned,           // ✅ NEW FLAG
+        mentioned_user_ids: messageMentions,
 
         sender: {
           id: msg.sender?.id,
