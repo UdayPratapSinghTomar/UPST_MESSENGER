@@ -2812,7 +2812,7 @@ exports.chatList = async (req, res) => {
         {
           model: Message,
           as: 'message',
-          attributes: ['chat_id'],
+          attributes: ['id', 'chat_id'],
 
           where: {
             chat_id: { [Op.in]: chatIds },
@@ -2823,14 +2823,22 @@ exports.chatList = async (req, res) => {
       ]
     });
 
+    // console.log("unread counts ---------------",unreadCounts);
     const unreadMap = {};
+    const unreadIdsMap = {};
     for (const row of unreadCounts) {
+      // console.log(row.message)
       const chatId = row.message?.chat_id;
-      if (chatId) {
+      const msgId = row.message?.id;
+      if (chatId && msgId) {
         unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+
+      if (!unreadIdsMap[chatId]) unreadIdsMap[chatId] = [];
+      unreadIdsMap[chatId].push(msgId);
       }
     }
-
+    // console.log("unreadMap *****************",unreadMap);
+    // console.log("unreadIdsMap *****************",unreadIdsMap);
     /**
      * 4️⃣ Build final response
      */
@@ -2944,7 +2952,8 @@ exports.chatList = async (req, res) => {
         is_online,
         created_at: chat.created_at,
         last_message,
-        unread_count: unreadMap[chat.id] || 0
+        unread_count: unreadMap[chat.id] || 0,
+        unread_message_id : unreadIdsMap[chat.id] || [] 
       };
 
     }).filter(Boolean);
@@ -3120,14 +3129,14 @@ exports.allPrivateChats = async (req, res) => {
       where: {
         user_id,
         status: { [Op.ne]: 'read' },
-        is_deleted: false // ✅ FIX
+        // is_deleted: false // ✅ FIX
       },
 
       include: [
         {
           model: Message,
           as: 'message',
-          attributes: ['chat_id'],
+          attributes: ['id', 'chat_id'],
           where: {
             chat_id: { [Op.in]: chatIds },
             sender_id: { [Op.ne]: user_id },
@@ -3138,9 +3147,17 @@ exports.allPrivateChats = async (req, res) => {
     });
 
     const unreadMap = {};
+    const unreadIdsMap = {};
     for (const row of unreadCounts) {
       const chatId = row.message?.chat_id;
-      if (chatId) unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+      const msgId = row.message?.id;
+
+      if (chatId && msgId){ 
+        unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+        
+        if (!unreadIdsMap[chatId]) unreadIdsMap[chatId] = [];
+        unreadIdsMap[chatId].push(msgId);
+      }
     }
 
     // const privateChats = chatMembers.map(cm => {
@@ -3216,7 +3233,8 @@ exports.allPrivateChats = async (req, res) => {
             }
           : null,
 
-        unread_count: unreadMap[chat.id] || 0
+        unread_count: unreadMap[chat.id] || 0,
+        unread_message_id : unreadIdsMap[chat.id] || [] 
       };
 
     }).filter(Boolean);
@@ -3370,14 +3388,14 @@ exports.allGroupChats = async (req, res) => {
       where: {
         user_id,
         status: { [Op.ne]: 'read' },
-        is_deleted: false
+        // is_deleted: false
       },
 
       include: [
         {
           model: Message,
           as: 'message',
-          attributes: ['chat_id'],
+          attributes: ['id', 'chat_id'],
           where: {
             chat_id: { [Op.in]: chatIds },
             sender_id: { [Op.ne]: user_id },
@@ -3388,9 +3406,16 @@ exports.allGroupChats = async (req, res) => {
     });
 
     const unreadMap = {};
+    const unreadIdsMap = {};
     for (const row of unreadCounts) {
       const chatId = row.message?.chat_id;
-      if (chatId) unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+      const msgId = row.message?.id;
+      if (chatId && msgId) {
+        unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+
+        if (!unreadIdsMap[chatId]) unreadIdsMap[chatId] = [];
+        unreadIdsMap[chatId].push(msgId);
+      }
     }
 
     // const groupChats = chatMembers.map(cm => {
@@ -3460,7 +3485,8 @@ exports.allGroupChats = async (req, res) => {
             }
           : null,
 
-        unread_count: unreadMap[chat.id] || 0
+        unread_count: unreadMap[chat.id] || 0,
+        unread_message_id : unreadIdsMap[chat.id] || [] 
       };
 
     }).filter(Boolean);
@@ -3642,6 +3668,7 @@ exports.chatHistory = async (req, res) => {
       order: [["created_at", "ASC"]]
     });
 
+    console.log("messages, ", messages)
     /**
      * 4️⃣ Format messages
      */
@@ -3666,6 +3693,8 @@ exports.chatHistory = async (req, res) => {
         },
 
         status: msg.statuses?.[0]?.status || "sent",
+        is_edited: !!msg.edited_at,
+        is_forwarded: !!msg.forwarded_from_message_id,
 
         files: msg.files?.map(file => ({
           id: file.id,

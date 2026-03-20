@@ -24,4 +24,30 @@ const upload = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB
 });
 
-module.exports = upload;
+const uploadImage = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        const allowedMimeTypes = [
+            'image/png',
+            'image/jpeg', // covers jpg + jpeg
+        ];
+
+        const allowedExtensions = ['.png', '.jpg', '.jpeg'];
+
+        const ext = path.extname(file.originalname).toLowerCase();
+
+        if (
+            allowedMimeTypes.includes(file.mimetype) &&
+            allowedExtensions.includes(ext)
+        ) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PNG and JPG images are allowed!'), false);
+        }
+    },
+    limits: {
+        fileSize: 50 * 1024 * 1024 // 5MB
+    }
+});
+
+module.exports = { upload, uploadImage };

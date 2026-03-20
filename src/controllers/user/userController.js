@@ -314,7 +314,7 @@ exports.updateProfile = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-
+    console.log('inside')
     const file = req.file;
     const { bio } = req.body;
     const userId = req.user.id;
@@ -328,7 +328,7 @@ exports.updateProfile = async (req, res) => {
       where: { id: userId, is_deleted: false },
       transaction: t
     });
-
+    console.log('user')
     if (!user) {
       await t.rollback();
       return sendResponse(res, 400, false, "User not found!");
@@ -341,7 +341,7 @@ exports.updateProfile = async (req, res) => {
         { where: { id: userId }, transaction: t }
       );
     }
-
+    console.log(bio)
     // ✅ File fix
     if (file) {
       await SharedFile.create({
@@ -356,12 +356,12 @@ exports.updateProfile = async (req, res) => {
 
     await t.commit();
 
-    return sendResponse(res, 200, true, "Profile updated successfully!");
+    return sendResponse(res, HttpsStatus.OK, true, "Profile updated successfully!");
 
   } catch (err) {
 
-    await t.rollback();
-
+    if (!t.finished) await t.rollback();
+    console.log("errror",err)
     return sendResponse(res, 500, false, "Server error!", null, { server: err.message });
   }
 };

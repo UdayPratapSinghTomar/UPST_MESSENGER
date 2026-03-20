@@ -229,7 +229,7 @@ exports.sendMessage = async (req, res) => {
 
   } catch (err) {
     if (!t.finished) await t.rollback();
-    return sendResponse(res, 500, false, "Error", null, { server: err.message });
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Error", null, { server: err.message });
   }
 };
 

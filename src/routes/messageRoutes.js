@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middlewares/authMiddleware');
 const controller = require('../controllers/message/messageController');
-const upload = require('../utils/multer');
+const { upload } = require('../utils/multer');
 
 router.post('/send', auth, upload.any(), controller.sendMessage);
 router.patch('/edit/:message_id', auth, upload.any(), controller.editMessage);
