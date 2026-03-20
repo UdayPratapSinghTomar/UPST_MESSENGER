@@ -16,11 +16,14 @@ module.exports = {
 
   CHAT_CREATED: "chat_created",
   CHAT_LIST_UPDATE: "chat_list_update",
+  CHAT_MEMBER_ADDED: "chat_member_added",
+  CHAT_MEMBER_REMOVED: "chat_member_removed",
   NOTIFICATION: "notification",
 
   NEW_MESSAGE: "new_message",
   DELETED_MESSAGE: "deleted_message",
   EDITED_MESSAGE: "edited_message",
+  FORWARDED_MESSAGE: 'forwarded_message',
 
   START_TYPING: "start_typing",
   STOP_TYPING: "stop_typing",

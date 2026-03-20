@@ -1,122 +1,218 @@
+// const { Notification, UserDevice } = require('../models');
+// const admin = require('../config/firebase');
+
+// async function notifyUser(io, {
+//   recipient_id,
+//   sender_id = null,
+//   chat_id,
+//   message_id = null,
+//   type,
+//   event,
+//   action,
+//   title,
+//   body
+// }) {
+//   try {
+
+//     /**
+//      * 1️⃣ Save notification
+//      */
+//     const notification = await Notification.create({
+//       recipient_id,
+//       sender_id,
+//       chat_id,
+//       message_id,
+//       type,
+//       event,
+//       action,
+//       title,
+//       body
+//     });
+
+//     const room = `user_${recipient_id}`;
+
+//     /**
+//      * 2️⃣ Check if user is online
+//      */
+//     const sockets = await io.in(room).fetchSockets();
+//     const isOnline = sockets.length > 0;
+
+//     /**
+//      * 3️⃣ If user online → realtime
+//      */
+//     if (isOnline) {
+
+//       io.to(room).emit(event, {
+//         notification_id: notification.id,
+//         recipient_id,
+//         sender_id,
+//         chat_id,
+//         message_id,
+//         type,
+//         action,
+//         title,
+//         body
+//       });
+
+//       return notification;
+//     }
+
+//     /**
+//      * 4️⃣ Fetch user devices
+//      */
+//     const devices = await UserDevice.findAll({
+//       where: {
+//         user_id: recipient_id,
+//         is_active: true
+//       }
+//     });
+
+//     const tokens = devices
+//       .map(d => d.fcm_token)
+//       .filter(Boolean);
+
+//     if (!tokens.length) return notification;
+
+//     /**
+//      * 5️⃣ Send FCM push
+//      */
+//     const response = await admin.messaging().sendEachForMulticast({
+//       tokens,
+//       notification: {
+//         title,
+//         body
+//       },
+//       data: {
+//         chat_id: String(chat_id),
+//         message_id: message_id ? String(message_id) : "",
+//         type: type,
+//         action
+//       }
+//     });
+
+//     /**
+//      * 6️⃣ Remove invalid tokens
+//      */
+//     const invalidTokens = [];
+
+//     response.responses.forEach((res, idx) => {
+//       if (!res.success) {
+//         invalidTokens.push(tokens[idx]);
+//       }
+//     });
+
+//     if (invalidTokens.length) {
+
+//       await UserDevice.update(
+//         { is_active: false },
+//         {
+//           where: {
+//             fcm_token: invalidTokens
+//           }
+//         }
+//       );
+
+//     }
+
+//     return notification;
+
+//   } catch (err) {
+
+//     console.error("notifyUser error:", err);
+//     return null;
+
+//   }
+// }
+
+// module.exports = { notifyUser };
+
 const { Notification, UserDevice } = require('../models');
 const admin = require('../config/firebase');
+const EVENTS = require('./socketEvents');
 
 async function notifyUser(io, {
-  recipient_id,
+  recipient_ids, // 🔥 array
   sender_id = null,
   chat_id,
   message_id = null,
   type,
-  event,
+  action,
   title,
   body
 }) {
   try {
-
-    /**
-     * 1️⃣ Save notification
-     */
-    const notification = await Notification.create({
+    const event = EVENTS.NOTIFICATION;
+    // ✅ 1. Bulk insert notifications
+    const notificationsPayload = recipient_ids.map(recipient_id => ({
       recipient_id,
       sender_id,
       chat_id,
       message_id,
       type,
       event,
+      action,
       title,
       body
-    });
+    }));
+    // console.log(notificationsPayload);
+    const notifications = await Notification.bulkCreate(
+      notificationsPayload,
+      { returning: true }
+    );
 
-    const room = `user_${recipient_id}`;
+    // ✅ 2. Socket emit (only for online users)
+    await Promise.all(
+      recipient_ids.map(async (recipient_id, index) => {
+        const room = `user_${recipient_id}`;
+        const sockets = await io.in(room).fetchSockets();
 
-    /**
-     * 2️⃣ Check if user is online
-     */
-    const sockets = await io.in(room).fetchSockets();
-    const isOnline = sockets.length > 0;
+        if (sockets.length > 0) {
+          io.to(room).emit(event, {
+            action,
+            payload: {
+              id: notifications[index].id,
+              recipient_id,
+              sender_id,
+              chat_id,
+              message_id,
+              type,
+              title,
+              body
+            }
+          });
+        }
+      })
+    );
 
-    /**
-     * 3️⃣ If user online → realtime
-     */
-    if (isOnline) {
-
-      io.to(room).emit(event, {
-        notification_id: notification.id,
-        recipient_id,
-        sender_id,
-        chat_id,
-        message_id,
-        type,
-        title,
-        body
-      });
-
-      return notification;
-    }
-
-    /**
-     * 4️⃣ Fetch user devices
-     */
+    // ✅ 3. Fetch all device tokens at once
     const devices = await UserDevice.findAll({
       where: {
-        user_id: recipient_id,
+        user_id: recipient_ids,
         is_active: true
       }
     });
 
-    const tokens = devices
-      .map(d => d.fcm_token)
-      .filter(Boolean);
+    const tokens = devices.map(d => d.fcm_token).filter(Boolean);
 
-    if (!tokens.length) return notification;
-
-    /**
-     * 5️⃣ Send FCM push
-     */
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title,
-        body
-      },
-      data: {
-        chat_id: String(chat_id),
-        message_id: message_id ? String(message_id) : "",
-        type: type
-      }
-    });
-
-    /**
-     * 6️⃣ Remove invalid tokens
-     */
-    const invalidTokens = [];
-
-    response.responses.forEach((res, idx) => {
-      if (!res.success) {
-        invalidTokens.push(tokens[idx]);
-      }
-    });
-
-    if (invalidTokens.length) {
-
-      await UserDevice.update(
-        { is_active: false },
-        {
-          where: {
-            fcm_token: invalidTokens
-          }
+    if (tokens.length) {
+      await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: {
+          chat_id: String(chat_id),
+          message_id: message_id ? String(message_id) : "",
+          type,
+          action,
+          event
         }
-      );
-
+      });
     }
 
-    return notification;
+    return notifications;
 
   } catch (err) {
-
     console.error("notifyUser error:", err);
     return null;
-
   }
 }
 

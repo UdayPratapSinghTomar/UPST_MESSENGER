@@ -193,22 +193,37 @@ exports.sendMessage = async (req, res) => {
     });
 
     // ✅ Notifications (optimized)
-    await Promise.all(
-      memberIds
-        .filter(id => id !== sender_id)
-        .map(id =>
-          notifyUser(io, {
-            recipient_id: id,
-            sender_id,
-            chat_id,
-            message_id: message.id,
-            type: "message",
-            event: EVENTS.NEW_MESSAGE,
-            title: chat.type === "private" ? sender.full_name : chat.group_name,
-            body: content || "Attachment"
-          })
-        )
-    );
+    // await Promise.all(
+    //   memberIds
+    //     .filter(id => id !== sender_id)
+    //     .map(id =>
+    //       notifyUser(io, {
+    //         recipient_id: id,
+    //         sender_id,
+    //         chat_id,
+    //         message_id: message.id,
+    //         type: "message",
+    //         action: 'new_message',
+    //         title: chat.type === "private" ? sender.full_name : chat.group_name,
+    //         body: content || "Attachment"
+    //       })
+    //     )
+    // );
+
+    const recipients = memberIds.filter(id => id !== sender_id);
+
+    if (recipients.length) {
+      await notifyUser(io, {
+        recipient_ids: recipients, // ✅ ARRAY
+        sender_id,
+        chat_id,
+        message_id: message.id,
+        type: "message",
+        action: 'new_message',
+        title: chat.type === "private" ? sender.full_name : chat.group_name,
+        body: content || "Attachment"
+      });
+    }
 
     return sendResponse(res, HttpsStatus.CREATED, true, "Message sent", payload);
 
@@ -1158,7 +1173,6 @@ exports.forwardMessage = async (req, res) => {
     }
 
     const forwardedMessages = [];
-    const notificationQueue = [];
     /**
      * 2️⃣ Loop target chats
      */
@@ -1212,7 +1226,7 @@ exports.forwardMessage = async (req, res) => {
         forwarded_from_user_id: originalMessage.sender_id,
         forwarded_from_chat_id: originalMessage.chat_id
       }, { transaction: t });
-
+      // console.log("message======================================================",message)
       /**
        * 4️⃣ Copy files (FIXED)
        */
@@ -1285,7 +1299,7 @@ exports.forwardMessage = async (req, res) => {
       /**
        * 6️⃣ Emit chat message
        */
-      io.to(`chat_${chat_id}`).emit(EVENTS.NEW_MESSAGE, {
+      io.to(`chat_${chat_id}`).emit(EVENTS.FORWARDED_MESSAGE, {
         ...payload,
         statuses
       });
@@ -1295,34 +1309,12 @@ exports.forwardMessage = async (req, res) => {
        */
       memberIds.forEach(member_id => {
         io.to(`user_${member_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
-          action: "new_message",
+          action: "forwarded_message",
           data: payload
         });
       });
 
-      /**
-       * 8️⃣ Notifications
-       */
-      await Promise.all(
-        memberIds
-          .filter(id => id !== senderId)
-          .map(id =>
-            notifyUser(io, {
-              recipient_id: id,
-              sender_id: senderId,
-              chat_id,
-              message_id: message.id,
-              type: "message",
-              event: EVENTS.NEW_MESSAGE,
-              title: chat.type === "private"
-                ? sender.full_name
-                : chat.group_name,
-              body: message.content || "Attachment"
-            })
-          )
-      );
-
-      forwardedMessages.push(payload);
+      forwardedMessages.push({ payload, memberIds, chat_type: chat.type, chat_name: chat.type === "private" ? sender.full_name : chat.group_name });
     }
 
     if (!forwardedMessages.length) {
@@ -1335,7 +1327,28 @@ exports.forwardMessage = async (req, res) => {
       );
     }
 
+    
     await t.commit();
+
+    // const recipients = memberIds.filter(id => id !== senderId);
+
+    for (const fm of forwardedMessages) {
+      const { payload, memberIds, chat_type, chat_name } = fm;
+      const recipients = memberIds.filter(id => id !== senderId);
+
+      if (recipients.length) {
+        await notifyUser(io, {
+          recipient_ids: recipients, // ✅ Array
+          sender_id: senderId,
+          chat_id: payload.chat_id,
+          message_id: payload.message_id,
+          type: "message",
+          action: "forwarded_message",
+          title: chat_name,
+          body: payload.content || "Attachment"
+        });
+      }
+    }
 
     return sendResponse(
       res,

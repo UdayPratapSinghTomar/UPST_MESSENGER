@@ -53,6 +53,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,      // e.g. "group_added", "message_received" etc
             allowNull: false
         },
+        action: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
         title: {
             type: DataTypes.STRING
         },

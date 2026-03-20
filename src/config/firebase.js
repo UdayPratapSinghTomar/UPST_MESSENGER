@@ -1,34 +1,20 @@
 require('dotenv').config();
 const admin = require('firebase-admin');
-// const serviceAccount = process.env.FIREBASE;
-const serviceAccount = require('../../bossplan-messenger-1e4dd-firebase-adminsdk-fbsvc-1d17338796.json');
-
+ 
+if (!process.env.FIREBASE) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT missing in env');
+}
+ 
+const serviceAccount = JSON.parse(process.env.FIREBASE);
+// Fix multiline private key
+serviceAccount.private_key =
+  serviceAccount.private_key.replace(/\\n/g, '\n');
+ 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
   });
+  console.log('Firebase initialized');
 }
-
-async function sendPush({ token, title, body, data = {} }) {
-  if (!token){
-    return;
-  } 
-
-  try {
-    const message = {
-      token,
-      notification: { title, body },
-      data: Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, String(v)])
-      )
-    };
-
-    await admin.messaging().send(message);
-    return 'Push notification sent';
-  } catch (err) {
-    console.error('FCM error:', err);
-    throw err;
-  }
-}
-
-module.exports = { sendPush };
+ 
+module.exports = admin;

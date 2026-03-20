@@ -4,7 +4,7 @@ const { sendResponse, HttpsStatus } = require('../../utils/response');
 const { getOnlineUsers } = require('../../utils/onlineUsersRedis');
 const { Op } = require('sequelize');
 const EVENTS = require('../../utils/socketEvents');
-const { notifyUser } = require('../../utils/notificationService');
+const { notifyUser }  = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
 
@@ -1778,19 +1778,17 @@ exports.createPrivateChat = async (req, res) => {
         action: 'new_chat',
         data: chatPayload
       });
-
-      if (uid === currentUserId) continue;
-
-      await notifyUser(io, {
-        recipient_id: uid,
-        sender_id: currentUserId,
-        chat_id: chat.id,
-        type: 'chat',
-        event: EVENTS.NOTIFICATION,
-        title: 'New Chat Created',
-        body: 'A private chat has been created with you'
-      });
     }
+
+    await notifyUser(io, {
+      recipient_ids: [user_id],
+      sender_id: currentUserId,
+      chat_id: chat.id,
+      type: 'chat',
+      action: 'created',
+      title: targetUser.full_name,
+      body: 'A chat has been created with you'
+    });
 
     return sendResponse(
       res,
@@ -1935,20 +1933,17 @@ exports.createGroup = async (req, res) => {
         action: 'new_chat',
         data: payload
       });
-
-      if (uid === currentUserId) continue;
-
-      await notifyUser(io, {
-        recipient_id: uid,
-        sender_id: currentUserId,
-        chat_id: chat.id,
-        type: 'group',
-        event: EVENTS.NOTIFICATION,
-        title: 'Added to Group',
-        body: `You were added to ${group_name}`
-      });
     }
 
+    await notifyUser(io, {
+      recipient_ids: group_members,
+      sender_id: currentUserId,
+      chat_id: chat.id,
+      type: 'group',
+      action: 'created',
+      title: group_name,
+      body: `You were added to ${group_name}`
+    });
     return sendResponse(
       res,
       HttpsStatus.CREATED,
@@ -2285,6 +2280,45 @@ exports.addGroupMember = async (req, res) => {
       role: 'member'
     });
 
+    const io = req.app.get('io');
+
+    // get all members AFTER adding new user
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+      attributes: ['user_id']
+    });
+
+    const allMembers = members.map(m => m.user_id);
+    // const allReceipents = [...new Set([...allMembers, user_id])]
+
+    const payload = {
+      chat_id,
+      user_id, // added user
+      added_by: currentUserId
+    };
+
+    // 🔥 1. Notify ALL members (UI update)
+    for (const uid of allMembers) {
+
+      io.to(`user_${uid}`).emit(EVENTS.CHAT_MEMBER_ADDED, payload);
+
+      io.to(`user_${uid}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+        action: 'member_added',
+        data: payload
+      });
+    }
+
+    // 🔥 2. Notify ONLY added user (notification)
+    await notifyUser(io, {
+      recipient_ids: [user_id],
+      sender_id: currentUserId,
+      chat_id,
+      type: 'group',
+      action: 'member_added',
+      title: chat.group_name,
+      body: 'You were added to a group'
+    });
+
     return sendResponse(res, HttpsStatus.CREATED, true, 'User added!', member);
 
   } catch (err) {
@@ -2346,6 +2380,52 @@ exports.removeGroupMember = async (req, res) => {
       where: { chat_id, user_id }
     });
 
+    const io = req.app.get('io');
+
+    // remaining members
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+      attributes: ['user_id']
+    });
+
+    const remainingMembers = members.map(m => m.user_id);
+    // const allMembers = [...new Set([...remainingMembers, user_id])]
+
+    const payload = {
+      chat_id,
+      user_id, // removed user
+      removed_by: currentUserId
+    };
+
+    // 🔥 1. Update remaining users
+    for (const uid of remainingMembers) {
+
+      io.to(`user_${uid}`).emit(EVENTS.CHAT_MEMBER_REMOVED, payload);
+
+      io.to(`user_${uid}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+        action: 'member_removed',
+        data: payload
+      });
+    }
+
+    // 🔥 2. Notify removed user separately
+    // io.to(`user_${user_id}`).emit(EVENTS.CHAT_MEMBER_REMOVED, payload);
+
+    // io.to(`user_${user_id}`).emit(EVENTS.CHAT_LIST_UPDATE, {
+    //   action: 'member_removed',
+    //   data: payload
+    // });
+
+    // 🔥 3. Push notification to removed user
+    await notifyUser(io, {
+      recipient_ids: [user_id],
+      sender_id: currentUserId,
+      chat_id,
+      type: 'group',
+      action: 'member_removed',
+      title: chat.group_name,
+      body: 'You were removed from a group'
+    });
     return sendResponse(res, HttpsStatus.OK, true, 'User removed!');
 
   } catch (err) {
