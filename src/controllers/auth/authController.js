@@ -254,8 +254,21 @@ exports.login = async (req, res) => {
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
         }
 
-        const user = await User.findOne({ where: { email, is_deleted: false }});
+        const user = await User.findOne({
+            where: { 
+                email, 
+                is_deleted: false 
+            },
+            include: [{
+                model: SharedFile,
+                as: 'uploadedFiles',
+                attributes: ['file_url', 'chat_id', 'message_id'],
+                required: false,
+                where: { chat_id: null, message_id: null }
+            }]
+        });
 
+        console.log(user);
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Invalid credentials!'});
         }
@@ -381,7 +394,25 @@ exports.login = async (req, res) => {
         });
         // await t.commit();
             
-        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(), organizations } });
+        // const BASE_URL = process.env.BASE_URL;
+
+        const formattedUser = {
+            id: user.id,
+            full_name: user.full_name,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            designation: user.designation,
+
+            // ✅ profile image with full URL
+            profile_url: user.uploadedFiles?.[0]?.file_url,
+            bio: user.bio,
+            status: user.status,
+            organizations
+        };
+
+        // return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(), profile_image,organizations } });
+        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: formattedUser });
         // }catch(err){
         //     await t.rollback();
         //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });

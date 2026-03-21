@@ -5,6 +5,7 @@ const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { userBelongsToOrg } = require("../../utils/organizationFilter");
 const { Op } = require("sequelize");
 const { sequelize, User, SharedFile } = require("../../models");
+const sharedFiles = require("../../models/sharedFiles");
 
 
 exports.usersByOrgId = async (req, res) => {
@@ -309,7 +310,7 @@ exports.activeUsers = async (req, res) => {
   }
 };
 
-exports.updateProfile = async (req, res) => {
+exports.updateProfile = async (req, res) => { 
 
   const t = await sequelize.transaction();
 
@@ -324,11 +325,23 @@ exports.updateProfile = async (req, res) => {
       return sendResponse(res, 400, false, "Nothing to update!");
     }
 
+    await SharedFile.destroy({
+      where: {
+        user_id: userId,
+        [Op.and]: [
+          {
+            message_id: null,
+            chat_id: null
+          }
+        ]
+      }
+    });
+
     const user = await User.findOne({
       where: { id: userId, is_deleted: false },
       transaction: t
     });
-    console.log('user')
+    // console.log('user')
     if (!user) {
       await t.rollback();
       return sendResponse(res, 400, false, "User not found!");
@@ -347,7 +360,7 @@ exports.updateProfile = async (req, res) => {
       await SharedFile.create({
         user_id: userId,
         file_name: file.originalname,
-        file_url: `/uploads/${file.filename}`, // 🔥 FIXED
+        file_url: `uploads/${file.filename}`, // 🔥 FIXED
         file_type: file.mimetype.startsWith("image") ? "image" : null,
         file_size: file.size,
         mime_type: file.mimetype

@@ -71,7 +71,8 @@ app.use('/project', projectRoutes);
 app.use('/priorities', prioritiesRoutes);
 app.use('/assignee', assigneeRoutes);
 
-app.use('/uploads', express.static(path.join(__dirname,  'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname,  'uploads')))
+app.use('/uploads', express.static(path.join(__dirname, 'src/uploads')));;
 app.use(express.static(path.join(__dirname, 'src', 'public')));
 
 server.listen(PORT, () => {
