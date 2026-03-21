@@ -393,6 +393,7 @@ exports.searchAll = async (req, res) => {
         {
           model: ChatMember,
           as: "memberships",
+          required: true,
           where: { user_id },
           include: [{
             model: User,
@@ -412,18 +413,18 @@ exports.searchAll = async (req, res) => {
     });
 
     const groups = groupsRaw
-      .map(g => {
-        const validUsers = g.memberships?.map(m => m.user).filter(Boolean);
-        if (!validUsers || validUsers.length < 2) return null; // 🔥 block invalid
+      .map(g => ({
+        // const validUsers = g.memberships?.map(m => m.user).filter(Boolean);
+        // if (!validUsers || validUsers.length < 2) return null; // 🔥 block invalid
 
-        return {
+        // return {
           group_id: g.id,
           group_name: g.group_name,
           group_image: g.files?.[0]?.file_url ?? null,
           chat_id: g.id,
           chat_type: "group"
-        };
-      })
+        // };
+      }))
       .filter(Boolean);
 
     /**

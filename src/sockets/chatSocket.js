@@ -220,9 +220,24 @@ module.exports = (io) => {
     //   }
     // });
 
-    socket.on(EVENTS.MESSAGE_READ, async ({ chat_id }) => {
+    socket.on(EVENTS.MESSAGE_READ, async ({ chat_id, message_ids = [] }) => {
 
       try {
+        if (!chat_id || !message_ids.length) {
+          socket.emit(EVENTS.SOCKET_ERROR, {
+            message: "chat and message id is required"
+          });
+        };
+
+        const isMember = await ChatMember.findOne({
+          where: { chat_id, user_id: userId }
+        });
+
+        if (!isMember) {
+          socket.emit(EVENTS.SOCKET_ERROR, {
+            message: "Not a chat member"
+          });
+        };
 
         const [count, rows] = await MessageStatus.update(
           {
@@ -232,6 +247,7 @@ module.exports = (io) => {
           {
             where: {
               chat_id,
+              message_id: message_ids,
               user_id: userId,
               status: { [Op.in]: ["sent", "delivered"] }
             },
@@ -239,18 +255,21 @@ module.exports = (io) => {
           }
         );
 
-        rows.forEach(row => {
+        if (!count) return;
 
-          io.to(`chat_${chat_id}`).emit(
-            EVENTS.MESSAGE_STATUS_UPDATE,
-            {
-              message_id: row.message_id,
-              user_id: userId,
-              status: "read"
-            }
-          );
+        // rows.forEach(row => {
 
-        });
+        io.to(`chat_${chat_id}`).emit(
+          EVENTS.MESSAGE_STATUS_UPDATE,
+          {
+            chat_id,
+            user_id: userId,
+            message_id: rows.map(r => r.message_id),
+            status: "read"
+          }
+        );
+
+        // });
 
       } catch (err) {
 
