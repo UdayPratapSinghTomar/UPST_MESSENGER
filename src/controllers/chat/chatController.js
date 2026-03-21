@@ -1824,32 +1824,43 @@ exports.createGroup = async (req, res) => {
     const org_id = req.org_id;
     const io = req.app.get('io');
 
-    const errors = {};
+    // const errors = {};
 
     // ✅ Basic validations
-    if (!group_name) errors.group_name = 'Group name is required';
-
+    if (!group_name) {
+      // errors.group_name = 'Group name is required';
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Group name is required');
+    }
     if (!Array.isArray(group_members)) {
-      errors.group_members = 'Group members must be array';
+      // errors.group_members = 'Group members must be array';
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Group members must be array');
     } else {
 
       if (group_members.length < 2) {
-        errors.group_members = 'At least 2 members required';
+        // errors.group_members = 'At least 2 members required';
+        await t.rollback();
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'At least 2 members required');
       }
 
       if (new Set(group_members).size !== group_members.length) {
-        errors.group_members = 'Duplicate users not allowed';
+        // errors.group_members = 'Duplicate users not allowed';
+        await t.rollback();
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Duplicate users not allowed');
       }
 
       if (group_members.includes(currentUserId)) {
-        errors.group_members = 'Do not include yourself in group_members';
+        // errors.group_members = 'Do not include yourself in group_members';
+        await t.rollback();
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Do not include yourself in group_members');
       }
     }
 
-    if (Object.keys(errors).length > 0) {
-      await t.rollback();
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
-    }
+    // if (Object.keys(errors).length > 0) {
+    //   await t.rollback();
+    //   return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
+    // }
 
     // ✅ ORGANIZATION VALIDATION (INLINE - NO HELPER)
     const allUserIds = [...group_members, currentUserId];
