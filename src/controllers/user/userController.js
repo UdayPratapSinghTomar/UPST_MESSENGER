@@ -6,7 +6,7 @@ const { userBelongsToOrg } = require("../../utils/organizationFilter");
 const { Op } = require("sequelize");
 const { sequelize, User, SharedFile } = require("../../models");
 const sharedFiles = require("../../models/sharedFiles");
-
+const BASE_URL = process.env.BASE_URL;
 
 exports.usersByOrgId = async (req, res) => {
   try {
@@ -34,7 +34,8 @@ exports.usersByOrgId = async (req, res) => {
           model: SharedFile,
           as: "uploadedFiles",
           attributes: ["file_url"],
-          where: { file_type: "image" },
+          // where: { file_type: "image" },
+          where: { chat_id: null, message_id: null, user_id: { [Op.ne]: null } },
           required: false,
           separate: true,
           limit: 1,
@@ -49,7 +50,7 @@ exports.usersByOrgId = async (req, res) => {
       designation: user.designation,
       is_online: user.is_online,
       last_seen: user.last_seen,
-      profile_url: user.uploadedFiles?.[0]?.file_url || null
+      profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null
     }));
 
     return sendResponse(res, 200, true, "Users fetched", formattedUsers);
@@ -269,7 +270,8 @@ exports.activeUsers = async (req, res) => {
           model: SharedFile,
           as: "uploadedFiles",
           attributes: ["file_url"],
-          where: { file_type: "image" }, // ✅ only profile images
+          // where: { file_type: "image" }, // ✅ only profile images
+          where: { chat_id: null, message_id: null, user_id: { [Op.ne]: null } }, // ✅ only profile images
           required: false,
           separate: true,                // ✅ avoids duplication
           limit: 1,                      // ✅ only latest
@@ -285,7 +287,7 @@ exports.activeUsers = async (req, res) => {
       designation: user.designation,
       is_online: user.is_online,
       last_seen: user.last_seen,
-      profile_url: user.uploadedFiles?.[0]?.file_url || null
+      profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null
     }));
 
     return sendResponse(

@@ -7,6 +7,7 @@ const EVENTS = require('../../utils/socketEvents');
 const { notifyUser }  = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
+const BASE_URL = process.env.BASE_URL;
 
 // exports.createPrivateChat = async (req, res) => {
 
@@ -2007,7 +2008,6 @@ exports.groupDetails = async (req, res) => {
       attributes: [
         "id",
         "group_name",
-        "group_image",
         "created_by",
         ["created_at", "createdAt"]
       ],
@@ -2055,6 +2055,7 @@ exports.groupDetails = async (req, res) => {
                 {
                   model: SharedFile,
                   as: "uploadedFiles",
+                  where: {message_id: null, chat_id: null, user_id: { [Op.ne]: null}},
                   attributes: ["file_url"],
                   required: false
                 }
@@ -2066,6 +2067,11 @@ exports.groupDetails = async (req, res) => {
         {
           model: SharedFile,
           as: "files",
+          where: {
+            message_id: null,
+            user_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }
+          },
           attributes: [
             "id",
             "file_name",
@@ -2104,6 +2110,7 @@ exports.groupDetails = async (req, res) => {
                 {
                   model: SharedFile,
                   as: "uploadedFiles",
+                  where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
                   attributes: ["file_url"],
                   required: false
                 }
@@ -2152,7 +2159,6 @@ exports.groupDetails = async (req, res) => {
     const response = {
       group_id: group.id,
       group_name: group.group_name,
-      group_image: group.group_image,
       created_at: group.createdAt,
       created_by: group.created_by,
       total_members: memberships.length,
@@ -2164,7 +2170,7 @@ exports.groupDetails = async (req, res) => {
           name: m.user?.full_name,
           designation: m.user?.designation,
           position: m.user?.position,
-          profile_url: m.user?.uploadedFiles?.[0]?.file_url || null,
+          profile_url: m.user?.uploadedFiles?.[0]?.file_url ? BASE_URL+m.user?.uploadedFiles?.[0]?.file_url: null,
           role: m.role,
           joined_at: m.joined_at,
           muted: m.muted,
@@ -2172,10 +2178,10 @@ exports.groupDetails = async (req, res) => {
           last_seen: m.user?.last_seen
         })),
 
-      profile_image: sharedFiles.map(f => ({
+      group_image: sharedFiles.map(f => ({
         id: f.id,
         file_name: f.file_name,
-        file_url: f.file_url,
+        group_image: `${f.file_url ? BASE_URL+f.file_url : null}`,
         file_type: f.file_type,
         created_at: f.created_at,
 
@@ -2183,7 +2189,7 @@ exports.groupDetails = async (req, res) => {
           id: f.uploader?.id,
           name: f.uploader?.full_name,
           profile_url:
-            f.uploader?.uploadedFiles?.[0]?.file_url || null
+            f.uploader?.uploadedFiles?.[0]?.file_url ? BASE_URL+f.uploader?.uploadedFiles?.[0]?.file_url : null
         }
       }))
     };
@@ -2452,7 +2458,7 @@ exports.openChat = async (req, res) => {
     const { chat_id } = req.params;
     const user_id = req.user.id;
     const org_id = req.org_id;
-
+    
     if (!chat_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Chat id required!');
     }
@@ -2583,6 +2589,7 @@ exports.openChat = async (req, res) => {
             {
               model: SharedFile,
               as: 'uploadedFiles',
+              where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
               attributes: ['file_url'],
               required: false
             }
@@ -2591,6 +2598,11 @@ exports.openChat = async (req, res) => {
 
         {
           model: SharedFile,
+          where : {
+            user_id: { [Op.ne]: null },
+            message_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }
+          },
           as: 'files',
           required: false
         },
@@ -2640,7 +2652,7 @@ exports.openChat = async (req, res) => {
         sender: {
           id: msg.sender?.id,
           full_name: msg.sender?.full_name,
-          profile_url: msg.sender?.uploadedFiles?.[0]?.file_url || null
+          profile_url: msg.sender?.uploadedFiles?.[0]?.file_url ? BASE_URL+msg.sender?.uploadedFiles?.[0]?.file_url : null
         },
 
         status: msg.statuses?.[0]?.status || 'sent',
@@ -2650,7 +2662,7 @@ exports.openChat = async (req, res) => {
         files: msg.files?.map(file => ({
           id: file.id,
           file_name: file.file_name,
-          file_url: file.file_url,
+          file_url: file.file_url ? BASE_URL+file.file_url : null,
           file_type: file.file_type,
           mime_type: file.mime_type,
           file_size: file.file_size,
@@ -2742,12 +2754,20 @@ exports.chatList = async (req, res) => {
                     {
                       model: SharedFile,
                       as: 'uploadedFiles',
+                      where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
                       attributes: ['file_url'],
                       required: false
                     }
                   ]
                 }
               ]
+            },
+            {
+              model: SharedFile,
+              as: 'files',
+              where: { message_id: null, user_id: { [Op.ne]: null }, chat_id: { [Op.ne]: null } }, // group images
+              attributes: ['file_url', 'created_at'],
+              required: false
             }
           ]
         }
@@ -2801,8 +2821,17 @@ exports.chatList = async (req, res) => {
               { org_10: org_id }
             ]
           },
-          required: false,
-          attributes: ['id', 'full_name']
+          required: true,
+          attributes: ['id', 'full_name'],
+          // include: [
+          //   {
+          //     model: SharedFile,
+          //     as: 'uploadedFiles',
+          //     where: {chat_id: null, message_id: null},
+          //     attributes: ['file_url'],
+          //     required: false
+          //   }
+          // ]
         }
       ],
 
@@ -3015,12 +3044,19 @@ exports.chatList = async (req, res) => {
           const otherUser = validMembers.find(u => u.id !== user_id);
 
           name = otherUser?.full_name || "Unknown User";
-          profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+          profile_url = otherUser?.uploadedFiles?.[0]?.file_url ? BASE_URL+otherUser?.uploadedFiles?.[0]?.file_url : null;
           is_online = otherUser?.is_online || false;
 
         } else {
           if (validMembers.length < 2) return null;
           name = chat.group_name || "Unnamed Group";
+          const groupImage = chat.files?.[0]?.file_url;
+
+          profile_url = groupImage
+          ? BASE_URL + groupImage
+          : null;
+
+          is_online = false;
         }
 
         const lastMessage = lastMessageMap[chat.id] || null;
@@ -3042,6 +3078,7 @@ exports.chatList = async (req, res) => {
               lastMessage.sender_id === user_id
                 ? 'You'
                 : lastMessage.sender?.full_name || null,
+            // profile_url: lastMessage?.uploadedFiles?.[0]?.file_url ? lastMessage?.uploadedFiles?.[0]?.file_url : null,
             is_edited: !!lastMessage.edited_at,
             is_forwarded: !!lastMessage.formattedMessages,
             is_mentioned: isMentioned,
@@ -3123,7 +3160,7 @@ exports.allPrivateChats = async (req, res) => {
             organization_id: org_id,
             is_deleted: false
           },
-          attributes: ['id', 'type', 'group_name', 'created_at'],
+          attributes: ['id', 'type', 'created_at'],
 
           include: [
             {
@@ -3160,6 +3197,7 @@ exports.allPrivateChats = async (req, res) => {
                     {
                       model: SharedFile,
                       as: 'uploadedFiles',
+                      where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
                       attributes: ['file_url'],
                       required: false
                     }
@@ -3350,7 +3388,7 @@ exports.allPrivateChats = async (req, res) => {
           chat_id: chat.id,
           type: chat.type,
           name: otherUser?.full_name || null,
-          profile_url: otherUser?.uploadedFiles?.[0]?.file_url || null,
+          profile_url: otherUser?.uploadedFiles?.[0]?.file_url ? BASE_URL+otherUser?.uploadedFiles?.[0]?.file_url : null,
           is_online: otherUser?.is_online || false,
 
           // last_message: lastMessage
@@ -3450,6 +3488,7 @@ exports.allGroupChats = async (req, res) => {
                     {
                       model: SharedFile,
                       as: 'uploadedFiles',
+                      where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
                       attributes: ['file_url'],
                       required: false
                     }
@@ -3461,6 +3500,12 @@ exports.allGroupChats = async (req, res) => {
             {
               model: SharedFile,
               as: 'files',
+              where: {
+                user_id: { [Op.ne]: null },
+                message_id: { [Op.ne]: null },
+                chat_id: { [Op.ne]: null }
+              },
+              where : {message_id: null},
               attributes: ['file_url'],
               required: false
             }
@@ -3642,7 +3687,7 @@ exports.allGroupChats = async (req, res) => {
         chat_id: chat.id,
         type: chat.type,
         name: chat.group_name,
-        profile_url: chat.files?.[0]?.file_url || null,
+        group_image: chat.files?.[0]?.file_url ? BASE_URL+chat.files?.[0]?.file_url : null,
         is_online: false,
 
         // last_message: lastMessage
@@ -3815,6 +3860,7 @@ exports.chatHistory = async (req, res) => {
             {
               model: SharedFile,
               as: "uploadedFiles",
+              where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
               attributes: ["file_url"],
               required: false
             }
@@ -3823,6 +3869,11 @@ exports.chatHistory = async (req, res) => {
 
         {
           model: SharedFile,
+          where: {
+            user_id: { [Op.ne]: null },
+            message_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }
+          },
           as: "files",
           required: false
         },
@@ -3876,7 +3927,7 @@ exports.chatHistory = async (req, res) => {
         sender: {
           id: msg.sender?.id,
           full_name: msg.sender?.full_name,
-          profile_url: msg.sender?.uploadedFiles?.[0]?.file_url || null
+          profile_url: msg.sender?.uploadedFiles?.[0]?.file_url ? BASE_URL+msg.sender?.uploadedFiles?.[0]?.file_url : null
         },
 
         status: msg.statuses?.[0]?.status || "sent",
@@ -3886,7 +3937,7 @@ exports.chatHistory = async (req, res) => {
         files: msg.files?.map(file => ({
           id: file.id,
           file_name: file.file_name,
-          file_url: file.file_url,
+          file_url: file.file_url ? file.file_url : null,
           file_type: file.file_type,
           mime_type: file.mime_type,
           file_size: file.file_size,

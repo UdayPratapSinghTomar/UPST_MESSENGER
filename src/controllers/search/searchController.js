@@ -1,6 +1,7 @@
-const { sequelize, User, Chat, ChatMember, Message, SharedFile } = require('../../models');
+const { sequelize, User, Chat, ChatMember, Message,  MessageMention, SharedFile } = require('../../models');
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
+const BASE_URL = process.env.BASE_URL;
 
 // exports.searchAll = async (req, res) => {
 //   try {
@@ -314,6 +315,67 @@ exports.searchAll = async (req, res) => {
       ]
     };
 
+    const getLastMessage = async (chat_id, user_id) => {
+      const msg = await Message.findOne({
+        where: { chat_id, is_deleted: false },
+        order: [['created_at', 'DESC']],
+        attributes: [
+          'id',
+          'content',
+          'message_type',
+          'sender_id',
+          'created_at',
+          'edited_at',
+          'forwarded_from_message_id'
+        ],
+
+        include: [
+          {
+            model: SharedFile,
+            as: "files",
+            where: {
+              user_id: { [Op.ne]: null },
+              message_id: { [Op.ne]: null },
+              chat_id: { [Op.ne]: null }
+            },
+            attributes: ["file_name", "file_url"],
+            required: false
+          }
+        ]
+      });
+
+      if (!msg) return null;
+
+      /**
+       * 🔥 Handle content (text / file)
+       */
+      let content = msg.content;
+
+      if (!content && msg.files?.length) {
+        content = msg.files[0].file_name || "File";
+      }
+
+      return {
+        id: msg.id,
+        content,
+        message_type: msg.message_type,
+        sender_id: msg.sender_id,
+        created_at: msg.created_at,
+
+        // ✅ NEW FLAG
+        is_you: msg.sender_id === user_id,
+
+        // ✅ existing flags
+        is_edited: !!msg.edited_at,
+        is_forwarded: !!msg.forwarded_from_message_id,
+
+        // ✅ files
+        files: msg.files?.map(f => ({
+          file_name: f.file_name,
+          file_url: f.file_url
+        })) || []
+      };
+    };
     /**
      * 1️⃣ USERS
      */
@@ -335,6 +397,7 @@ exports.searchAll = async (req, res) => {
       include: [{
         model: SharedFile,
         as: "uploadedFiles",
+        where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
         attributes: ["file_url"],
         required: false
       }]
@@ -369,13 +432,14 @@ exports.searchAll = async (req, res) => {
         having: sequelize.literal(`COUNT(DISTINCT "memberships"."user_id") = 2`),
         subQuery: false
       });
-
+      const last_message = chat ? await getLastMessage(chat.id, user_id) : null;
       return {
         user_id: u.id,
-        name: u.full_name,
-        profile_image: u.uploadedFiles?.[0]?.file_url ?? null,
+        full_name: u.full_name,
+        profile_image: u.uploadedFiles?.[0]?.file_url ? BASE_URL+u.uploadedFiles?.[0]?.file_url : null,
         chat_id: chat?.id ?? null,
-        chat_type: "private"
+        chat_type: "private",
+        last_message
       };
     }));
 
@@ -406,39 +470,43 @@ exports.searchAll = async (req, res) => {
         {
           model: SharedFile,
           as: "files",
+          where: {message_id: null,
+            user_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }},
           attributes: ["file_url"],
           required: false
         }
       ]
     });
 
-    const groups = groupsRaw
-      .map(g => ({
-        // const validUsers = g.memberships?.map(m => m.user).filter(Boolean);
-        // if (!validUsers || validUsers.length < 2) return null; // 🔥 block invalid
+    const groups = await Promise.all(groupsRaw.map(async (g) => {
 
-        // return {
-          group_id: g.id,
-          group_name: g.group_name,
-          group_image: g.files?.[0]?.file_url ?? null,
-          chat_id: g.id,
-          chat_type: "group"
-        // };
-      }))
-      .filter(Boolean);
+      const last_message = await getLastMessage(g.id, user_id);
+
+      return {
+        group_id: g.id,
+        group_name: g.group_name,
+        group_image: g.files?.[0]?.file_url ? BASE_URL + g.files[0].file_url : null,
+        chat_id: g.id,
+        chat_type: g.type,
+        last_message
+      };
+    }));
 
     /**
      * 3️⃣ MESSAGES
      */
     const messagesRaw = await Message.findAll({
+      subQuery: false,
       where: {
         content: { [Op.iLike]: `%${q}%` },
-        is_deleted: false
+        is_deleted: false,
       },
       include: [
         {
           model: Chat,
           as: "chat",
+          required: true,
           where: {
             organization_id: org_id,
             is_deleted: false
@@ -446,8 +514,18 @@ exports.searchAll = async (req, res) => {
           include: [{
             model: ChatMember,
             as: "memberships",
-            where: { user_id },
-            attributes: []
+            attributes: ["user_id"],
+            required: false,
+            include: [{
+              model: User,
+              as: "user",
+              where: {
+                is_deleted: false,
+                ...orgCondition
+              },
+              attributes: ["id", "full_name"],
+              required: true
+            }]
           }]
         },
         {
@@ -461,25 +539,93 @@ exports.searchAll = async (req, res) => {
       order: [["created_at", "DESC"]]
     });
 
-    const messages = messagesRaw
-      .filter(m => m.sender && m.chat)
-      .map(m => ({
-        message_id: m.id,
-        chat_id: m.chat_id,
-        chat_type: m.chat?.type,
-        sender_id: m.sender_id,
-        sender_name: m.sender.full_name,
-        message: m.content,
-        message_type: m.message_type,
-        created_at: m.created_at
-      }));
+//     const messages = messagesRaw
+//       .filter(m => m.sender && m.chat)
+//       .map(m => {
 
+//         const chat = m.chat;
+//         let name = null;
+//         console.log('chat',chat)
+// console.log(chat.memberships)
+//         if(chat.type === "group"){
+//           name = chat.group_name || "Unnamed Group";
+//         }else{
+//           const members = chat.memberships
+//             ?.map(mem => mem.user)
+//             ?.filter(Boolean);
+
+//           const otherUser = members.find(u => u.id !== user_id);
+
+//           name = otherUser?.full_name || "Unknown User";
+//         }
+//         return {
+//           message_id: m.id,
+//           chat_id: m.chat_id,
+//           name,
+//           chat_type: m.chat?.type,
+//           sender_id: m.sender_id,
+//           sender_name: m.sender.full_name,
+//           message: m.content,
+//           message_type: m.message_type,
+//           created_at: m.created_at
+//         }
+//       });
+
+const messages = messagesRaw
+  .filter(m => {
+    const members = m.chat?.memberships || [];
+
+    // ✅ Ensure logged-in user is part of chat
+    return members.some(mem => mem.user_id === user_id);
+  })
+  .map(m => {
+
+    const chat = m.chat;
+    let name = null;
+
+    /**
+     * 🔹 GROUP
+     */
+    if (chat.type === "group") {
+
+      name = chat.group_name || "Unnamed Group";
+
+    /**
+     * 🔹 PRIVATE
+     */
+    } else {
+
+      const members = chat.memberships
+        ?.map(mem => mem.user)
+        ?.filter(Boolean);
+
+      const otherUser = members.find(u => u.id !== user_id);
+
+      name = otherUser?.full_name || "Unknown User";
+    }
+
+    return {
+      message_id: m.id,
+      chat_id: m.chat_id,
+      name,
+      chat_type: chat.type,
+      sender_id: m.sender_id,
+      sender_name: m.sender.full_name,
+      is_you: m.sender_id === user_id,
+      message: m.content,
+      message_type: m.message_type,
+      created_at: m.created_at
+    };
+  });
     /**
      * 4️⃣ FILES
      */
     const filesRaw = await SharedFile.findAll({
       where: {
-        file_name: { [Op.iLike]: `%${q}%` }
+        file_name: { [Op.iLike]: `%${q}%` },
+        user_id: { [Op.ne]: null },
+        message_id: { [Op.ne]: null },
+        chat_id: { [Op.ne]: null }
       },
       include: [
         {
@@ -506,16 +652,25 @@ exports.searchAll = async (req, res) => {
       ]
     });
 
-    const files = filesRaw.map(f => ({
-      message_id: f.message_id,
-      chat_id: f.chat_id,
-      chat_type: f.chat?.type,
-      file_name: f.file_name,
-      file_url: f.file_url,
-      file_type: f.file_type,
-      uploaded_by: f.user_id,
-      created_at: f.created_at
-    }));
+    const files = filesRaw.map(f => {
+      const chat = f.chat;
+
+      const name = chat.type === "group"
+        ? chat.group_name
+        : "Private Chat";
+      return {
+        message_id: f.message_id,
+        chat_id: f.chat_id,
+        name,
+        chat_type: f.chat?.type,
+        file_name: f.file_name,
+        file_url: f.file_url ? BASE_URL+f.file_url : null,
+        file_type: f.file_type,
+        uploaded_by: f.user_id,
+        is_you: f.user_id === user_id,
+        created_at: f.created_at
+      }
+    });
 
     return res.json({
       status: true,
@@ -732,12 +887,55 @@ exports.searchChatMessages = async (req, res) => {
       order: [["created_at", "DESC"]]
     });
 
+    // const mentions = await MessageMention.findAll({
+    //   where: { message_id: messages.map(m => m.id) }
+    // });
+
+    // const mentionMap = {};
+    // mentions.forEach(m => {
+    //   if (!mentionMap[m.message_id]) mentionMap[m.message_id] = [];
+    //   mentionMap[m.message_id].push(m.mentioned_user_id);
+    // });
+
+    const formattedMessages = messages.map(msg => {
+
+      // const mentionIds = mentionMap[msg.id] || [];
+      // const isMentioned = mentionIds.includes(user_id);
+
+      return {
+        id: msg.id,
+        chat_id: msg.chat_id,
+        sender_id: msg.sender_id,
+        message_type: msg.message_type,
+        content: msg.content,
+
+        // ✅ FLAGS
+        // is_edited: !!msg.edited_at,
+        // is_forwarded: !!msg.forwarded_from_message_id,
+        // is_mentioned: isMentioned,
+        // mentioned_user_ids: mentionIds,
+
+        // ✅ FILES
+        files: msg.files?.map(file => ({
+          file_name: file.file_name,
+          file_url: file.file_url ? BASE_URL + file.file_url : null
+        })) || [],
+
+        // ✅ SENDER
+        sender: {
+          id: msg.sender.id,
+          full_name: msg.sender.full_name
+        }
+      };
+
+    });
+
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
       "Chat messages retrieved!",
-      messages
+      formattedMessages
     );
 
   } catch (err) {
@@ -815,6 +1013,7 @@ exports.searchUsers = async (req, res) => {
         {
           model: SharedFile,
           as: "uploadedFiles",
+          where: {chat_id: null, message_id: null},
           attributes: ["file_url"],
           required: false
         }
@@ -830,7 +1029,7 @@ exports.searchUsers = async (req, res) => {
       phone: user.phone,
       role: user.role,
       designation: user.designation,
-      profile_url: user.uploadedFiles?.[0]?.file_url ?? null
+      profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null
     }));
 
     return sendResponse(
