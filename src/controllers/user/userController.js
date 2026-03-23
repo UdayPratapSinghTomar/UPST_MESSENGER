@@ -53,10 +53,10 @@ exports.usersByOrgId = async (req, res) => {
       profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null
     }));
 
-    return sendResponse(res, 200, true, "Users fetched", formattedUsers);
+    return sendResponse(res, HttpsStatus.OK, true, "Users fetched", formattedUsers);
 
   } catch (err) {
-    return sendResponse(res, 500, false, "Server error!", null, { server: err.message });
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
   }
 };
 
@@ -324,7 +324,7 @@ exports.updateProfile = async (req, res) => {
 
     if (!file && !bio) {
       await t.rollback();
-      return sendResponse(res, 400, false, "Nothing to update!");
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Nothing to update!");
     }
 
     await SharedFile.destroy({
@@ -346,7 +346,7 @@ exports.updateProfile = async (req, res) => {
     // console.log('user')
     if (!user) {
       await t.rollback();
-      return sendResponse(res, 400, false, "User not found!");
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User not found!");
     }
 
     // ✅ Bio update fix
@@ -377,6 +377,53 @@ exports.updateProfile = async (req, res) => {
 
     if (!t.finished) await t.rollback();
     console.log("errror",err)
-    return sendResponse(res, 500, false, "Server error!", null, { server: err.message });
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+  }
+};
+
+exports.fetchProfile = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const orgId = req.org_id;
+
+    const profile = await User.findOne({
+      where: {
+        id: currentUserId,
+        is_deleted: false,
+        ...userBelongsToOrg(orgId)
+      },
+      include: [{
+        model: SharedFile,
+        as: 'uploadedFiles',
+        attributes: ["file_url"],
+        where: {chat_id: null, message_id: null, user_id: {[Op.ne]: null}},
+        required: false,
+        separate: true,
+        limit: 1,
+        order:[["createdAt", "DESC"]]
+      }]
+    });
+
+    if (!profile) {
+      return sendResponse(
+        res,
+        HttpsStatus.NOT_FOUND,
+        false,
+        "User not found"
+      );
+    }
+    const formattedProfile = {
+      id: profile.id,
+      full_name: profile.full_name,
+      designation: profile.designation,
+      bio: profile.bio,
+      is_online: profile.is_online,
+      last_seen: profile.last_seen,
+      profile_url: profile.uploadedFiles?.[0]?.file_url ? BASE_URL+profile.uploadedFiles?.[0]?.file_url : null
+    };
+
+    return sendResponse(res, HttpsStatus.OK, true, "Profile fetched", formattedProfile);
+  } catch (err) {
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
   }
 };

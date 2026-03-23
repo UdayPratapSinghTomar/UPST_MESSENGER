@@ -7,4 +7,5 @@ const { uploadImage } = require('../utils/multer');
 router.get('/fetch-organization-users', auth, controller.usersByOrgId);
 router.get('/active-users', auth, controller.activeUsers);
 router.put('/update-profile', auth, uploadImage.single('file'), controller.updateProfile);
+router.get('/fetch-profile', auth, controller.fetchProfile);
 module.exports = router;
