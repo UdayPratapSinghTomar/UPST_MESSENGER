@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { userBelongsToOrg } = require("../../utils/organizationFilter");
 const { Op } = require("sequelize");
-const { sequelize, User, SharedFile } = require("../../models");
+const { sequelize, User, SharedFile, Chat, ChatMember } = require("../../models");
 const sharedFiles = require("../../models/sharedFiles");
 const BASE_URL = process.env.BASE_URL;
 
@@ -317,30 +317,19 @@ exports.updateProfile = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    console.log('inside')
+    // console.log('inside')
     const file = req.file;
     const { bio } = req.body;
     const userId = req.user.id;
+    const orgId = req.org_id;
 
     if (!file && !bio) {
       await t.rollback();
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Nothing to update!");
     }
 
-    await SharedFile.destroy({
-      where: {
-        user_id: userId,
-        [Op.and]: [
-          {
-            message_id: null,
-            chat_id: null
-          }
-        ]
-      }
-    });
-
     const user = await User.findOne({
-      where: { id: userId, is_deleted: false },
+      where: { id: userId, is_deleted: false, ...userBelongsToOrg(orgId) },
       transaction: t
     });
     // console.log('user')
@@ -349,21 +338,32 @@ exports.updateProfile = async (req, res) => {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User not found!");
     }
 
+    if(file){
+      await SharedFile.destroy({
+        where: {
+          user_id: userId,
+          message_id: null,
+          chat_id: null
+        }
+      });
+    }
+
     // ✅ Bio update fix
     if (bio) {
+      const updatedBio = bio.trim();
       await User.update(
-        { bio },
+        { updatedBio },
         { where: { id: userId }, transaction: t }
       );
     }
-    console.log(bio)
+    // console.log(bio)
     // ✅ File fix
     if (file) {
       await SharedFile.create({
         user_id: userId,
         file_name: file.originalname,
         file_url: `uploads/${file.filename}`, // 🔥 FIXED
-        file_type: file.mimetype.startsWith("image") ? "image" : null,
+        file_type: file.mimetype.startsWith("image") ? "image" : "file",
         file_size: file.size,
         mime_type: file.mimetype
       }, { transaction: t });
@@ -383,12 +383,16 @@ exports.updateProfile = async (req, res) => {
 
 exports.fetchProfile = async (req, res) => {
   try {
-    const currentUserId = req.user.id;
+    const { user_id } = req.params;
     const orgId = req.org_id;
+
+    if(!user_id){
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
+    }
 
     const profile = await User.findOne({
       where: {
-        id: currentUserId,
+        id: user_id,
         is_deleted: false,
         ...userBelongsToOrg(orgId)
       },
@@ -425,5 +429,221 @@ exports.fetchProfile = async (req, res) => {
     return sendResponse(res, HttpsStatus.OK, true, "Profile fetched", formattedProfile);
   } catch (err) {
     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+  }
+};
+
+exports.updateGroupProfile = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const currentUserId = req.user.id;
+    const { chat_id, group_name, group_description } = req.body;
+    const file = req.file;
+    const orgId = req.org_id;
+
+    if(!chat_id){
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Chat id is required!');
+    }
+
+    if(!file && !group_name && !group_description){
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Nothing to Update!');
+    }
+
+    const user = await User.findOne({
+      where: {
+        id: currentUserId,
+        is_deleted: false,
+        ...userBelongsToOrg(orgId)
+      },
+      transaction: t
+    });
+
+    if(!user){
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User not found!');
+    }
+
+    const chatMember = await ChatMember.findAll({
+      where: {
+        user_id: currentUserId,
+        chat_id
+      },
+      transaction: t
+    });
+
+    if(!chatMember){
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'User not belongs to chat!')
+    }
+
+    if(file){
+      await SharedFile.destroy({
+        where: {
+          user_id: currentUserId,
+          chat_id,
+          [Op.and]: [
+            {
+              message_id: null,
+            }
+          ]
+        },
+        transaction: t
+      });
+
+      await SharedFile.create({
+        user_id: currentUserId,
+        chat_id: chat_id,
+        file_name: file.originalname,
+        file_url: `uploads/${file.filename}`,
+        file_type: file.mimetype.startsWith("image") ? "image" : "file",
+        file_size: file.size,
+        mime_type: file.mimetype
+      }, { transaction: t})      ;
+    }
+
+    const updateData = {};
+    if (group_name) updateData.group_name = group_name;
+    if (group_description) updateData.group_description = group_description;
+
+    if (Object.keys(updateData).length > 0) {
+      await Chat.update(updateData, {
+        where: { id: chat_id },
+        transaction: t
+      });
+    }
+
+    await t.commit();
+
+    return sendResponse(res, HttpsStatus.OK, true, 'Group profile updated successfully');
+  } catch (err) {
+    if (!t.finished) await t.rollback();
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server errror!");
+  }
+}
+
+exports.fetchGroupProfile = async (req, res) => {
+  try {
+    const { chat_id } = req.params;
+    const currentUserId = req.user.id;
+    const orgId = req.org_id;
+
+    if (!chat_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Chat id is required!");
+    }
+
+    /**
+     * ✅ Validate chat (must be group)
+     */
+    const chat = await Chat.findOne({
+      where: {
+        id: chat_id,
+        type: "group",
+        organization_id: orgId,
+        is_deleted: false
+      },
+      include: [
+        {
+          model: ChatMember,
+          as: "memberships",
+          attributes: ["user_id"],
+          include: [
+            {
+              model: User,
+              as: "user",
+              where: {
+                is_deleted: false,
+                ...userBelongsToOrg(orgId)
+              },
+              attributes: ["id", "full_name"],
+              required: true
+            }
+          ]
+        },
+        {
+          model: SharedFile,
+          as: "files",
+          where: {
+            message_id: null,
+            chat_id: { [Op.ne]: null },
+            user_id: { [Op.ne]: null }
+          },
+          attributes: ["file_url", "user_id", "created_at"],
+          required: false,
+          separate: true,
+          limit: 1,
+          order: [["created_at", "DESC"]]
+        }
+      ]
+    });
+
+    if (!chat) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid group!");
+    }
+
+    /**
+     * ✅ Check membership
+     */
+    const isMember = chat.memberships.some(m => m.user_id === currentUserId);
+
+    if (!isMember) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized!");
+    }
+
+    /**
+     * ✅ Members (exclude current user)
+     */
+    const chat_members = chat.memberships
+      ?.map(m => m.user)
+      ?.filter(u => u && u.id !== currentUserId)
+      ?.map(u => ({
+        id: u.id,
+        full_name: u.full_name
+      })) || [];
+
+    /**
+     * ✅ Group Image (latest)
+     */
+    const file = chat.files?.[0] || null;
+
+    const group_image = file?.file_url
+      ? BASE_URL + file.file_url
+      : null;
+
+    /**
+     * ✅ Final response
+     */
+    const response = {
+      chat_id: chat.id,
+      group_name: chat.group_name,
+      group_description: chat.group_description || null,
+
+      group_image,
+
+      uploaded_by: file?.user_id || null,
+      is_you: file?.user_id === currentUserId,
+
+      chat_members
+    };
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Group profile fetched!",
+      response
+    );
+
+  } catch (error) {
+    console.error("fetchGroupProfile error:", error);
+
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: error.message }
+    );
   }
 };

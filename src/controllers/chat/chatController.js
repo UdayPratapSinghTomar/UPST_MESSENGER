@@ -7,6 +7,7 @@ const EVENTS = require('../../utils/socketEvents');
 const { notifyUser }  = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
+const { userBelongsToOrg } = require("../../utils/organizationFilter");
 const BASE_URL = process.env.BASE_URL;
 
 // exports.createPrivateChat = async (req, res) => {
@@ -2713,7 +2714,7 @@ exports.chatList = async (req, res) => {
             organization_id: org_id,
             is_deleted: false
           },
-          attributes: ['id', 'type', 'group_name', 'created_at'],
+          attributes: ['id', 'type', 'group_name', 'group_description', 'created_at'],
           include: [
             {
               model: ChatMember,
@@ -2728,18 +2729,7 @@ exports.chatList = async (req, res) => {
                   // ✅ FIX: multi-org + is_deleted
                   where: {
                     is_deleted: false,
-                    [Op.or]: [
-                      { organization_id: org_id },
-                      { org_2: org_id },
-                      { org_3: org_id },
-                      { org_4: org_id },
-                      { org_5: org_id },
-                      { org_6: org_id },
-                      { org_7: org_id },
-                      { org_8: org_id },
-                      { org_9: org_id },
-                      { org_10: org_id }
-                    ]
+                    ...userBelongsToOrg(org_id)
                   },
 
                   required: true,
@@ -2808,18 +2798,7 @@ exports.chatList = async (req, res) => {
           // ✅ FIX: sender validation
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
           required: true,
           attributes: ['id', 'full_name'],
@@ -2896,135 +2875,6 @@ exports.chatList = async (req, res) => {
       unreadIdsMap[chatId].push(msgId);
       }
     }
-    // console.log("unreadMap *****************",unreadMap);
-    // console.log("unreadIdsMap *****************",unreadIdsMap);
-    /**
-     * 4️⃣ Build final response
-     */
-    // const chatList = chatMembers.map(cm => {
-
-    //   const chat = cm.chat;
-    //   if (!chat) return null;
-
-    //   const lastMessage = lastMessageMap[chat.id] || null;
-
-    //   let name = null;
-    //   let profile_url = null;
-    //   let is_online = false;
-
-    //   if (chat.type === 'private') {
-
-    //     const otherUser = chat.memberships
-    //       ?.map(m => m.user)
-    //       ?.find(u => u && u.id !== user_id);
-
-    //     name = otherUser?.full_name || null;
-    //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
-    //     is_online = otherUser?.is_online || false;
-
-    //   } else {
-
-    //     name = chat.group_name;
-    //     profile_url = null;
-    //   }
-
-    //   const last_message = lastMessage
-    //     ? {
-    //         content: lastMessage.content,
-    //         message_type: lastMessage.message_type,
-    //         created_at: lastMessage.created_at,
-    //         sender_name:
-    //           lastMessage.sender_id === user_id
-    //             ? 'You'
-    //             : lastMessage.sender?.full_name || null
-    //       }
-    //     : null;
-
-    //   return {
-    //     chat_id: chat.id,
-    //     type: chat.type,
-    //     name,
-    //     profile_url,
-    //     is_online,
-    //     last_message,
-    //     unread_count: unreadMap[chat.id] || 0
-    //   };
-
-    // }).filter(Boolean); // ✅ remove nulls
-
-    // const chatList = chatMembers.map(cm => {
-
-    //   const chat = cm.chat;
-    //   if (!chat) return null;
-
-    //   // ❗ Ensure valid memberships exist
-    //   const validMembers = chat.memberships
-    //     ?.map(m => m.user)
-    //     ?.filter(u => u); // only valid users
-
-    //   // ❌ If no valid members → skip
-    //   // if (!validMembers || validMembers.length === 0) return null;
-
-    //   let name = null;
-    //   let profile_url = null;
-    //   let is_online = false;
-
-    //   if (chat.type === 'private') {
-
-    //     // ❗ Must have exactly 2 valid users in private chat
-    //     // if (validMembers.length < 2) return null;
-
-    //     const otherUser = validMembers.find(u => u.id !== user_id);
-
-    //     // ❌ If other user missing → skip chat completely
-    //     // if (!otherUser) return null;
-
-    //     name = otherUser?.full_name || "Unknown User";
-    //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
-    //     is_online = otherUser?.is_online || false;
-
-    //   } else {
-
-    //     // ❗ Optional: ensure at least 2 valid users in group
-    //     if (validMembers.length < 2) return null;
-
-    //     name = chat.group_name || "Unnamed Group";
-    //   }
-  
-    //   const lastMessage = lastMessageMap[chat.id] || null;
-    //   const last_message = lastMessage
-    //     ? {
-    //         content: lastMessage.content,
-    //         message_type: lastMessage.message_type,
-    //         created_at: lastMessage.dataValues.created_at,
-    //         sender_name:
-    //           lastMessage.sender_id === user_id
-    //             ? 'You'
-    //             : lastMessage.sender?.full_name || null
-    //       }
-    //     : null;
-    //   return {
-    //     chat_id: chat.id,
-    //     type: chat.type,
-    //     name,
-    //     profile_url,
-    //     is_online,
-    //     created_at: chat.created_at,
-    //     last_message,
-    //     unread_count: unreadMap[chat.id] || 0,
-    //     unread_message_id : unreadIdsMap[chat.id] || [] 
-    //   };
-
-    // }).filter(Boolean);
-    
-    /**
-     * 5️⃣ Sort by last message time
-     */
-    // chatList.sort((a, b) => {
-    //   const t1 = a.last_message?.created_at || 0;
-    //   const t2 = b.last_message?.created_at || 0;
-    //   return new Date(t2) - new Date(t1);
-    // });
 
     const chatList = await Promise.all(
       chatMembers.map(async (cm) => {
@@ -3035,6 +2885,15 @@ exports.chatList = async (req, res) => {
         const validMembers = chat.memberships
           ?.map(m => m.user)
           ?.filter(u => u);
+
+        if (!validMembers.length) return null;
+
+        const chat_members = validMembers
+          .filter(u => u.id !== user_id) // ❌ remove current user
+          .map(u => ({
+            id: u.id,
+            full_name: u.full_name
+          }));
 
         let name = null;
         let profile_url = null;
@@ -3090,9 +2949,11 @@ exports.chatList = async (req, res) => {
           chat_id: chat.id,
           type: chat.type,
           name,
+          group_description: chat.group_description ? chat.group_description : null,
           profile_url,
           is_online,
           created_at: chat.created_at,
+          chat_members,
           last_message,
           unread_count: unreadMap[chat.id] || 0,
           unread_message_id: unreadIdsMap[chat.id] || []
@@ -3135,6 +2996,448 @@ exports.chatList = async (req, res) => {
     );
   }
 };
+// exports.chatList = async (req, res) => {
+//   try {
+//     const user_id = req.user.id;
+//     const org_id = req.org_id;
+
+//     /**
+//      * 1️⃣ Get chats where user is member
+//      */
+//     const chatMembers = await ChatMember.findAll({
+//       where: { user_id },
+//       attributes: ['chat_id'],
+//       include: [
+//         {
+//           model: Chat,
+//           as: 'chat',
+//           where: {
+//             organization_id: org_id,
+//             is_deleted: false
+//           },
+//           attributes: ['id', 'type', 'group_name', 'group_description', 'created_at'],
+//           include: [
+//             {
+//               model: ChatMember,
+//               as: 'memberships',
+//               attributes: ['user_id'],
+
+//               include: [
+//                 {
+//                   model: User,
+//                   as: 'user',
+
+//                   // ✅ FIX: multi-org + is_deleted
+//                   where: {
+//                     is_deleted: false,
+//                     [Op.or]: [
+//                       { organization_id: org_id },
+//                       { org_2: org_id },
+//                       { org_3: org_id },
+//                       { org_4: org_id },
+//                       { org_5: org_id },
+//                       { org_6: org_id },
+//                       { org_7: org_id },
+//                       { org_8: org_id },
+//                       { org_9: org_id },
+//                       { org_10: org_id }
+//                     ]
+//                   },
+
+//                   required: true,
+
+//                   attributes: [
+//                     'id',
+//                     'full_name',
+//                     'is_online'
+//                   ],
+
+//                   include: [
+//                     {
+//                       model: SharedFile,
+//                       as: 'uploadedFiles',
+//                       where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
+//                       attributes: ['file_url'],
+//                       required: false
+//                     }
+//                   ]
+//                 }
+//               ]
+//             },
+//             {
+//               model: SharedFile,
+//               as: 'files',
+//               where: { message_id: null, user_id: { [Op.ne]: null }, chat_id: { [Op.ne]: null } }, // group images
+//               attributes: ['file_url', 'created_at'],
+//               required: false
+//             }
+//           ]
+//         }
+//       ]
+//     });
+
+//     if (!chatMembers.length) {
+//       return sendResponse(res, HttpsStatus.OK, true, 'Chat list retrieved!', []);
+//     }
+
+//     const chatIds = chatMembers.map(cm => cm.chat_id);
+
+//     /**
+//      * 2️⃣ Fetch last message per chat
+//      */
+//     const lastMessages = await Message.findAll({
+//       where: {
+//         chat_id: { [Op.in]: chatIds },
+//         is_deleted: false
+//       },
+
+//       attributes: [
+//         'id',
+//         'chat_id',
+//         'content',
+//         'message_type',
+//         'sender_id',
+//         'edited_at',
+//         'forwarded_from_message_id',
+//         'created_at'
+//       ],
+
+//       include: [
+//         {
+//           model: User,
+//           as: 'sender',
+
+//           // ✅ FIX: sender validation
+//           where: {
+//             is_deleted: false,
+//             [Op.or]: [
+//               { organization_id: org_id },
+//               { org_2: org_id },
+//               { org_3: org_id },
+//               { org_4: org_id },
+//               { org_5: org_id },
+//               { org_6: org_id },
+//               { org_7: org_id },
+//               { org_8: org_id },
+//               { org_9: org_id },
+//               { org_10: org_id }
+//             ]
+//           },
+//           required: true,
+//           attributes: ['id', 'full_name'],
+//           // include: [
+//           //   {
+//           //     model: SharedFile,
+//           //     as: 'uploadedFiles',
+//           //     where: {chat_id: null, message_id: null},
+//           //     attributes: ['file_url'],
+//           //     required: false
+//           //   }
+//           // ]
+//         }
+//       ],
+
+//       order: [['created_at', 'DESC']]
+//     });
+
+//     // console.log(lastMessages)
+//     // console.log("****************************************Last message ********************",lastMessages)
+//     // const lastMessageMap = {};
+//     // for (const msg of lastMessages) {
+//     //   if (!lastMessageMap[msg.chat_id]) {
+//     //     lastMessageMap[msg.chat_id] = msg;
+//     //   }
+//     // }
+
+//     const lastMessageMap = {};
+//     for (const msg of lastMessages) {
+//       if (
+//         !lastMessageMap[msg.chat_id] ||
+//         new Date(msg.created_at) > new Date(lastMessageMap[msg.chat_id].created_at)
+//       ) {
+//         lastMessageMap[msg.chat_id] = msg;
+//       }
+//     }
+
+//     /**
+//      * 3️⃣ Unread count per chat
+//      */
+//     const unreadCounts = await MessageStatus.findAll({
+//       where: {
+//         user_id,
+//         status: { [Op.ne]: 'read' },
+//         is_deleted: false // ✅ FIX
+//       },
+
+//       include: [
+//         {
+//           model: Message,
+//           as: 'message',
+//           attributes: ['id', 'chat_id'],
+
+//           where: {
+//             chat_id: { [Op.in]: chatIds },
+//             sender_id: { [Op.ne]: user_id },
+//             is_deleted: false
+//           }
+//         }
+//       ]
+//     });
+
+//     // console.log("unread counts ---------------",unreadCounts);
+//     const unreadMap = {};
+//     const unreadIdsMap = {};
+//     for (const row of unreadCounts) {
+//       // console.log(row.message)
+//       const chatId = row.message?.chat_id;
+//       const msgId = row.message?.id;
+//       if (chatId && msgId) {
+//         unreadMap[chatId] = (unreadMap[chatId] || 0) + 1;
+
+//       if (!unreadIdsMap[chatId]) unreadIdsMap[chatId] = [];
+//       unreadIdsMap[chatId].push(msgId);
+//       }
+//     }
+//     // console.log("unreadMap *****************",unreadMap);
+//     // console.log("unreadIdsMap *****************",unreadIdsMap);
+//     /**
+//      * 4️⃣ Build final response
+//      */
+//     // const chatList = chatMembers.map(cm => {
+
+//     //   const chat = cm.chat;
+//     //   if (!chat) return null;
+
+//     //   const lastMessage = lastMessageMap[chat.id] || null;
+
+//     //   let name = null;
+//     //   let profile_url = null;
+//     //   let is_online = false;
+
+//     //   if (chat.type === 'private') {
+
+//     //     const otherUser = chat.memberships
+//     //       ?.map(m => m.user)
+//     //       ?.find(u => u && u.id !== user_id);
+
+//     //     name = otherUser?.full_name || null;
+//     //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+//     //     is_online = otherUser?.is_online || false;
+
+//     //   } else {
+
+//     //     name = chat.group_name;
+//     //     profile_url = null;
+//     //   }
+
+//     //   const last_message = lastMessage
+//     //     ? {
+//     //         content: lastMessage.content,
+//     //         message_type: lastMessage.message_type,
+//     //         created_at: lastMessage.created_at,
+//     //         sender_name:
+//     //           lastMessage.sender_id === user_id
+//     //             ? 'You'
+//     //             : lastMessage.sender?.full_name || null
+//     //       }
+//     //     : null;
+
+//     //   return {
+//     //     chat_id: chat.id,
+//     //     type: chat.type,
+//     //     name,
+//     //     profile_url,
+//     //     is_online,
+//     //     last_message,
+//     //     unread_count: unreadMap[chat.id] || 0
+//     //   };
+
+//     // }).filter(Boolean); // ✅ remove nulls
+
+//     // const chatList = chatMembers.map(cm => {
+
+//     //   const chat = cm.chat;
+//     //   if (!chat) return null;
+
+//     //   // ❗ Ensure valid memberships exist
+//     //   const validMembers = chat.memberships
+//     //     ?.map(m => m.user)
+//     //     ?.filter(u => u); // only valid users
+
+//     //   // ❌ If no valid members → skip
+//     //   // if (!validMembers || validMembers.length === 0) return null;
+
+//     //   let name = null;
+//     //   let profile_url = null;
+//     //   let is_online = false;
+
+//     //   if (chat.type === 'private') {
+
+//     //     // ❗ Must have exactly 2 valid users in private chat
+//     //     // if (validMembers.length < 2) return null;
+
+//     //     const otherUser = validMembers.find(u => u.id !== user_id);
+
+//     //     // ❌ If other user missing → skip chat completely
+//     //     // if (!otherUser) return null;
+
+//     //     name = otherUser?.full_name || "Unknown User";
+//     //     profile_url = otherUser?.uploadedFiles?.[0]?.file_url || null;
+//     //     is_online = otherUser?.is_online || false;
+
+//     //   } else {
+
+//     //     // ❗ Optional: ensure at least 2 valid users in group
+//     //     if (validMembers.length < 2) return null;
+
+//     //     name = chat.group_name || "Unnamed Group";
+//     //   }
+  
+//     //   const lastMessage = lastMessageMap[chat.id] || null;
+//     //   const last_message = lastMessage
+//     //     ? {
+//     //         content: lastMessage.content,
+//     //         message_type: lastMessage.message_type,
+//     //         created_at: lastMessage.dataValues.created_at,
+//     //         sender_name:
+//     //           lastMessage.sender_id === user_id
+//     //             ? 'You'
+//     //             : lastMessage.sender?.full_name || null
+//     //       }
+//     //     : null;
+//     //   return {
+//     //     chat_id: chat.id,
+//     //     type: chat.type,
+//     //     name,
+//     //     profile_url,
+//     //     is_online,
+//     //     created_at: chat.created_at,
+//     //     last_message,
+//     //     unread_count: unreadMap[chat.id] || 0,
+//     //     unread_message_id : unreadIdsMap[chat.id] || [] 
+//     //   };
+
+//     // }).filter(Boolean);
+    
+//     /**
+//      * 5️⃣ Sort by last message time
+//      */
+//     // chatList.sort((a, b) => {
+//     //   const t1 = a.last_message?.created_at || 0;
+//     //   const t2 = b.last_message?.created_at || 0;
+//     //   return new Date(t2) - new Date(t1);
+//     // });
+
+//     const chatList = await Promise.all(
+//       chatMembers.map(async (cm) => {
+
+//         const chat = cm.chat;
+//         if (!chat) return null;
+
+//         const validMembers = chat.memberships
+//           ?.map(m => m.user)
+//           ?.filter(u => u);
+
+//         let name = null;
+//         let profile_url = null;
+//         let is_online = false;
+
+//         if (chat.type === 'private') {
+//           const otherUser = validMembers.find(u => u.id !== user_id);
+
+//           name = otherUser?.full_name || "Unknown User";
+//           profile_url = otherUser?.uploadedFiles?.[0]?.file_url ? BASE_URL+otherUser?.uploadedFiles?.[0]?.file_url : null;
+//           is_online = otherUser?.is_online || false;
+
+//         } else {
+//           if (validMembers.length < 2) return null;
+//           name = chat.group_name || "Unnamed Group";
+//           const groupImage = chat.files?.[0]?.file_url;
+
+//           profile_url = groupImage
+//           ? BASE_URL + groupImage
+//           : null;
+
+//           is_online = false;
+//         }
+
+//         const lastMessage = lastMessageMap[chat.id] || null;
+//         let last_message = null;
+
+//         if (lastMessage) {
+//           const mentions = await MessageMention.findAll({
+//             where: { message_id: lastMessage.id }
+//           });
+
+//           const mentionIds = mentions.map(m => m.mentioned_user_id);
+//           const isMentioned = mentionIds.includes(user_id);
+
+//           last_message = {
+//             content: lastMessage.content,
+//             message_type: lastMessage.message_type,
+//             created_at: lastMessage.dataValues.created_at,
+//             sender_name:
+//               lastMessage.sender_id === user_id
+//                 ? 'You'
+//                 : lastMessage.sender?.full_name || null,
+//             // profile_url: lastMessage?.uploadedFiles?.[0]?.file_url ? lastMessage?.uploadedFiles?.[0]?.file_url : null,
+//             is_edited: !!lastMessage.edited_at,
+//             is_forwarded: !!lastMessage.formattedMessages,
+//             is_mentioned: isMentioned,
+//             mentioned_user_ids: mentionIds
+//           };
+//         }
+
+//         return {
+//           chat_id: chat.id,
+//           type: chat.type,
+//           name,
+//           group_description: chat.group_description ? chat.group_description : null,
+//           profile_url,
+//           is_online,
+//           created_at: chat.created_at,
+//           last_message,
+//           unread_count: unreadMap[chat.id] || 0,
+//           unread_message_id: unreadIdsMap[chat.id] || []
+//         };
+
+//       })
+//     );
+
+//     const filteredChatList = chatList.filter(Boolean);
+//     filteredChatList.sort((a, b) => {
+//       const t1 = a.last_message?.created_at
+//         ? new Date(a.last_message.created_at).getTime()
+//         : new Date(a.created_at || 0).getTime();
+
+//       const t2 = b.last_message?.created_at
+//         ? new Date(b.last_message.created_at).getTime()
+//         : new Date(b.created_at || 0).getTime();
+
+//       return t2 - t1;
+//     });
+
+//     return sendResponse(
+//       res,
+//       HttpsStatus.OK,
+//       true,
+//       'Chat list retrieved!',
+//       filteredChatList
+//     );
+
+//   } catch (err) {
+//     console.error('fetchChatList error:', err);
+
+//     return sendResponse(
+//       res,
+//       HttpsStatus.INTERNAL_SERVER_ERROR,
+//       false,
+//       'Server error!',
+//       null,
+//       { server: err.message }
+//     );
+//   }
+// };
 
 exports.allPrivateChats = async (req, res) => {
   try {
@@ -3176,18 +3479,7 @@ exports.allPrivateChats = async (req, res) => {
                   // ✅ FIX
                   where: {
                     is_deleted: false,
-                    [Op.or]: [
-                      { organization_id: org_id },
-                      { org_2: org_id },
-                      { org_3: org_id },
-                      { org_4: org_id },
-                      { org_5: org_id },
-                      { org_6: org_id },
-                      { org_7: org_id },
-                      { org_8: org_id },
-                      { org_9: org_id },
-                      { org_10: org_id }
-                    ]
+                    ...userBelongsToOrg(org_id)
                   },
                   required: false,
 
@@ -3232,18 +3524,7 @@ exports.allPrivateChats = async (req, res) => {
           // ✅ FIX
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
           required: false,
 
@@ -3357,6 +3638,12 @@ exports.allPrivateChats = async (req, res) => {
           return null;
         }
 
+        const chat_members = validUsers
+        .filter(u => u.id !== user_id) // ❌ remove current user
+        .map(u => ({
+          id: u.id,
+          full_name: u.full_name
+        }));
         const lastMessage = lastMessageMap[chat.id] || null;
         let last_message = null;
 
@@ -3402,6 +3689,7 @@ exports.allPrivateChats = async (req, res) => {
           //           : lastMessage.sender?.full_name || null
           //     }
           //   : null,
+          chat_members,
           last_message,
 
           unread_count: unreadMap[chat.id] || 0,
@@ -3451,7 +3739,7 @@ exports.allGroupChats = async (req, res) => {
             organization_id: org_id,
             is_deleted: false
           },
-          attributes: ['id', 'type', 'group_name', 'created_at'],
+          attributes: ['id', 'type', 'group_name', 'group_description', 'created_at'],
 
           include: [
             {
@@ -3467,18 +3755,7 @@ exports.allGroupChats = async (req, res) => {
                   // ✅ FIX
                   where: {
                     is_deleted: false,
-                    [Op.or]: [
-                      { organization_id: org_id },
-                      { org_2: org_id },
-                      { org_3: org_id },
-                      { org_4: org_id },
-                      { org_5: org_id },
-                      { org_6: org_id },
-                      { org_7: org_id },
-                      { org_8: org_id },
-                      { org_9: org_id },
-                      { org_10: org_id }
-                    ]
+                    ...userBelongsToOrg(org_id)
                   },
                   required: false,
 
@@ -3536,18 +3813,7 @@ exports.allGroupChats = async (req, res) => {
           // ✅ FIX
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
           required: false,
 
@@ -3656,7 +3922,12 @@ exports.allGroupChats = async (req, res) => {
       if (!validUsers || validUsers.length < 2) {
         return null;
       }
-
+      const chat_members = validUsers
+      .filter(u => u.id !== user_id) // ❌ remove current user
+      .map(u => ({
+        id: u.id,
+        full_name: u.full_name
+      }));
       const lastMessage = lastMessageMap[chat.id] || null;
       let last_message = null;
 
@@ -3687,6 +3958,7 @@ exports.allGroupChats = async (req, res) => {
         chat_id: chat.id,
         type: chat.type,
         name: chat.group_name,
+        group_description: chat.group_description ? chat.group_description : null,
         group_image: chat.files?.[0]?.file_url ? BASE_URL+chat.files?.[0]?.file_url : null,
         is_online: false,
 
@@ -3701,6 +3973,7 @@ exports.allGroupChats = async (req, res) => {
         //           : lastMessage.sender?.full_name || null
         //     }
         //   : null,
+        chat_members,
         last_message,
         unread_count: unreadMap[chat.id] || 0,
         unread_message_id : unreadIdsMap[chat.id] || [] 
