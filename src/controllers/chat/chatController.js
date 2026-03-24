@@ -1689,19 +1689,7 @@ exports.createPrivateChat = async (req, res) => {
       where: {
         id: user_id,
         is_deleted: false,
-
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
-        ]
+        ...userBelongsToOrg(org_id)
       }
     });
 
@@ -1872,19 +1860,7 @@ exports.createGroup = async (req, res) => {
       where: {
         id: uniqueUserIds,
         is_deleted: false,
-
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
-        ]
+        ...userBelongsToOrg(org_id)
       },
       attributes: ['id']
     });
@@ -2027,18 +2003,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: multi-org + is_deleted validation
               where: {
                 is_deleted: false,
-                [Op.or]: [
-                  { organization_id: org_id },
-                  { org_2: org_id },
-                  { org_3: org_id },
-                  { org_4: org_id },
-                  { org_5: org_id },
-                  { org_6: org_id },
-                  { org_7: org_id },
-                  { org_8: org_id },
-                  { org_9: org_id },
-                  { org_10: org_id }
-                ]
+                ...userBelongsToOrg(org_id)
               },
 
               required: false, // important: don't break group if one user invalid
@@ -2089,18 +2054,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: uploader validation
               where: {
                 is_deleted: false,
-                [Op.or]: [
-                  { organization_id: org_id },
-                  { org_2: org_id },
-                  { org_3: org_id },
-                  { org_4: org_id },
-                  { org_5: org_id },
-                  { org_6: org_id },
-                  { org_7: org_id },
-                  { org_8: org_id },
-                  { org_9: org_id },
-                  { org_10: org_id }
-                ]
+                ...userBelongsToOrg(org_id)
               },
 
               required: false,
@@ -2257,19 +2211,7 @@ exports.addGroupMember = async (req, res) => {
       where: {
         id: user_id,
         is_deleted: false,
-
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
-        ]
+        ...userBelongsToOrg(org_id)
       }
     });
 
@@ -2500,18 +2442,7 @@ exports.openChat = async (req, res) => {
 
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
 
           required: false, // 🔥 IMPORTANT (we filter manually)
@@ -2568,18 +2499,7 @@ exports.openChat = async (req, res) => {
           // ✅ multi-org + is_deleted validation
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
 
           required: true,
@@ -4057,18 +3977,7 @@ exports.chatHistory = async (req, res) => {
           as: 'user',
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
           required: false,
           attributes: ['id']
@@ -4111,18 +4020,7 @@ exports.chatHistory = async (req, res) => {
           // ✅ FIX: multi-org + is_deleted
           where: {
             is_deleted: false,
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           },
 
           required: true,

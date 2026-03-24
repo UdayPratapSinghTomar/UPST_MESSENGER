@@ -419,6 +419,7 @@ const ORG_ID = "2";
 const EVENTS = {
   JOIN_CHAT: "join_chat",
   NEW_MESSAGE: "new_message",
+  NOTIFICATION: "notification",
   MESSAGE_STATUS_UPDATE: "message_status_update"
 };
 
@@ -468,6 +469,31 @@ function connectSocket() {
     if (String(data.chat_id) === String(activeChatId)) {
       addMessage(data);
     }
+
+  });
+
+  socket.on(EVENTS.NOTIFICATION, (data) => {
+
+    console.log("🔔 Notification:", data);
+
+    const { action, payload } = data;
+
+    // ✅ Show notification UI
+    showToast(payload.title, payload.body);
+
+    /**
+     * ✅ If user is NOT in that chat
+     * → update chat list (unread count etc.)
+     */
+    if (String(payload.chat_id) !== String(activeChatId)) {
+      loadChatList(); // refresh sidebar
+    }
+
+    /**
+     * ✅ If user IS in same chat
+     * → message already handled by NEW_MESSAGE event
+     * so no need to duplicate
+     */
 
   });
 
@@ -537,6 +563,24 @@ async function createPrivateChat() {
 }
 
 
+function showToast(title, body) {
+  console.log(`📢 ${title}: ${body}`);
+
+  // Simple alert (for testing)
+  // alert(title + " - " + body);
+
+  // OR custom UI
+  const el = document.createElement("div");
+  el.innerText = `${title}: ${body}`;
+  el.style.background = "#333";
+  el.style.color = "#fff";
+  el.style.padding = "10px";
+  el.style.margin = "5px";
+
+  document.body.appendChild(el);
+
+  setTimeout(() => el.remove(), 3000);
+}
 
 function joinExistingChat() {
 

@@ -53,18 +53,7 @@ exports.sendMessage = async (req, res) => {
       where: {
         id: sender_id,
         is_deleted: false,
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
-        ]
+        ...userBelongsToOrg(org_id)
       },
       transaction: t
     });
@@ -1229,18 +1218,7 @@ exports.forwardMessage = async (req, res) => {
       where: {
         id: senderId,
         is_deleted: false,
-        [Op.or]: [
-          { organization_id: org_id },
-          { org_2: org_id },
-          { org_3: org_id },
-          { org_4: org_id },
-          { org_5: org_id },
-          { org_6: org_id },
-          { org_7: org_id },
-          { org_8: org_id },
-          { org_9: org_id },
-          { org_10: org_id }
-        ]
+        ...userBelongsToOrg(org_id)
       },
       attributes: ["id", "full_name"],
       transaction: t

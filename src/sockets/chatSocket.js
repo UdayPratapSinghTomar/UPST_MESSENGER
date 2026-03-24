@@ -81,7 +81,7 @@ module.exports = (io) => {
     //   attributes: ["file_url"]
     // });
     const activeUsers = await getActiveUsers(userId, orgId);
-    console.log("connected active users listing - ",activeUsers);
+    // console.log("connected active users listing - ",activeUsers);
     /**
      * Broadcast user online
      */

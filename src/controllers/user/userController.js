@@ -233,28 +233,12 @@ exports.activeUsers = async (req, res) => {
       );
     }
 
-    // ✅ Reusable org condition
-    const orgCondition = {
-      [Op.or]: [
-        { organization_id: org_id },
-        { org_2: org_id },
-        { org_3: org_id },
-        { org_4: org_id },
-        { org_5: org_id },
-        { org_6: org_id },
-        { org_7: org_id },
-        { org_8: org_id },
-        { org_9: org_id },
-        { org_10: org_id }
-      ]
-    };
-
     const users = await User.findAll({
       where: {
         is_deleted: false,
         is_online: true,
         id: { [Op.ne]: currentUserId },
-        ...orgCondition
+        ...userBelongsToOrg(org_id)
       },
 
       attributes: [

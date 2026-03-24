@@ -2,6 +2,7 @@ const { sequelize, User, Chat, ChatMember, Message,  MessageMention, SharedFile 
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const BASE_URL = process.env.BASE_URL;
+const { userBelongsToOrg } = require("../../utils/organizationFilter")
 
 // exports.searchAll = async (req, res) => {
 //   try {
@@ -45,7 +46,7 @@ const BASE_URL = process.env.BASE_URL;
 //             // organization must match
 //             [Op.or]: [
 //               { organization_id: org_id },
-//               { org_2: org_id },
+//               utils/multer,
 //               { org_3: org_id },
 //               { org_4: org_id },
 //               { org_5: org_id },
@@ -299,22 +300,6 @@ exports.searchAll = async (req, res) => {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search bar is empty!", { users: [], groups: [], messages: [], files: [] });
     }
 
-    // 🔥 helper
-    const orgCondition = {
-      [Op.or]: [
-        { organization_id: org_id },
-        { org_2: org_id },
-        { org_3: org_id },
-        { org_4: org_id },
-        { org_5: org_id },
-        { org_6: org_id },
-        { org_7: org_id },
-        { org_8: org_id },
-        { org_9: org_id },
-        { org_10: org_id }
-      ]
-    };
-
     const getLastMessage = async (chat_id, user_id) => {
       const msg = await Message.findOne({
         where: { chat_id, is_deleted: false },
@@ -390,7 +375,7 @@ exports.searchAll = async (req, res) => {
               { email: { [Op.iLike]: `%${q}%` } }
             ]
           },
-          orgCondition
+          ...userBelongsToOrg(org_id)
         ]
       },
       attributes: ["id", "full_name"],
@@ -418,7 +403,7 @@ exports.searchAll = async (req, res) => {
             include: [{
               model: User,
               as: "user",
-              where: { is_deleted: false, ...orgCondition },
+              where: { is_deleted: false, ...userBelongsToOrg(org_id) },
               required: true,
               attributes: []
             }],
@@ -462,7 +447,7 @@ exports.searchAll = async (req, res) => {
           include: [{
             model: User,
             as: "user",
-            where: { is_deleted: false, ...orgCondition },
+            where: { is_deleted: false, ...userBelongsToOrg(org_id) },
             required: false,
             attributes: ["id"]
           }]
@@ -521,7 +506,7 @@ exports.searchAll = async (req, res) => {
               as: "user",
               where: {
                 is_deleted: false,
-                ...orgCondition
+                ...userBelongsToOrg(org_id)
               },
               attributes: ["id", "full_name"],
               required: true
@@ -531,7 +516,7 @@ exports.searchAll = async (req, res) => {
         {
           model: User,
           as: "sender",
-          where: { is_deleted: false, ...orgCondition },
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
           required: true,
           attributes: ["id", "full_name"]
         }
@@ -645,7 +630,7 @@ const messages = messagesRaw
         {
           model: User,
           as: "uploader",
-          where: { is_deleted: false, ...orgCondition },
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
           required: true,
           attributes: ["id"]
         }
@@ -800,21 +785,6 @@ exports.searchChatMessages = async (req, res) => {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
     }
 
-    const orgCondition = {
-      [Op.or]: [
-        { organization_id: org_id },
-        { org_2: org_id },
-        { org_3: org_id },
-        { org_4: org_id },
-        { org_5: org_id },
-        { org_6: org_id },
-        { org_7: org_id },
-        { org_8: org_id },
-        { org_9: org_id },
-        { org_10: org_id }
-      ]
-    };
-
     // ✅ Chat validation
     const chat = await Chat.findOne({
       where: {
@@ -843,7 +813,7 @@ exports.searchChatMessages = async (req, res) => {
       include: [{
         model: User,
         as: "user",
-        where: { is_deleted: false, ...orgCondition },
+        where: { is_deleted: false, ...userBelongsToOrg(org_id) },
         required: false,
         attributes: ["id"]
       }]
@@ -879,7 +849,7 @@ exports.searchChatMessages = async (req, res) => {
         {
           model: User,
           as: "sender",
-          where: { is_deleted: false, ...orgCondition },
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
           required: true,
           attributes: ["id", "full_name"]
         }
@@ -984,18 +954,7 @@ exports.searchUsers = async (req, res) => {
 
           // 🏢 organization filter
           {
-            [Op.or]: [
-              { organization_id: org_id },
-              { org_2: org_id },
-              { org_3: org_id },
-              { org_4: org_id },
-              { org_5: org_id },
-              { org_6: org_id },
-              { org_7: org_id },
-              { org_8: org_id },
-              { org_9: org_id },
-              { org_10: org_id }
-            ]
+            ...userBelongsToOrg(org_id)
           }
 
         ]

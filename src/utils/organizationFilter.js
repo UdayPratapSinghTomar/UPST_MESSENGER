@@ -1,18 +1,20 @@
-function userBelongsToOrg(user, org_id) {
-  const userOrgs = [
-    user.organization_id,
-    user.org_2,
-    user.org_3,
-    user.org_4,
-    user.org_5,
-    user.org_6,
-    user.org_7,
-    user.org_8,
-    user.org_9,
-    user.org_10
-  ].filter(Boolean);
+const { Op } = require("sequelize");
 
-  return userOrgs.includes(org_id);
+function userBelongsToOrg(org_id) {
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
 }
 
 module.exports = { userBelongsToOrg };

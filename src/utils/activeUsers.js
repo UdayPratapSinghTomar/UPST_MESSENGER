@@ -1,5 +1,7 @@
 const { Op } = require("sequelize");
 const { User, SharedFile } = require("../models");
+const BASE_URL = process.env.BASE_URL;
+const { userBelongsToOrg } = require("./organizationFilter");
 
 const getActiveUsers = async (userId, orgId) => {
 
@@ -8,19 +10,7 @@ const getActiveUsers = async (userId, orgId) => {
       id: { [Op.ne]: userId },
       is_online: true,
       is_deleted: false,
-
-      [Op.or]: [
-        { organization_id: orgId },
-        { org_2: orgId },
-        { org_3: orgId },
-        { org_4: orgId },
-        { org_5: orgId },
-        { org_6: orgId },
-        { org_7: orgId },
-        { org_8: orgId },
-        { org_9: orgId },
-        { org_10: orgId }
-      ]
+      ...userBelongsToOrg(orgId)
     },
 
     attributes: ["id", "full_name", "designation", "last_seen"],
@@ -42,7 +32,7 @@ const getActiveUsers = async (userId, orgId) => {
     designation: user.designation,
     is_online: true,
     last_seen: user.last_seen,
-    profile_url: user.uploadedFiles?.[0]?.file_url || null,
+    profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null,
   }));
 };
 
