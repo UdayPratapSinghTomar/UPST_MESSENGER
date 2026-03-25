@@ -2,8 +2,7 @@ const { sequelize, User, Chat, ChatMember, Message,  MessageMention, SharedFile 
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const BASE_URL = process.env.BASE_URL;
-const { userBelongsToOrg } = require("../../utils/organizationFilter")
-
+const { userBelongsToOrg } = require("../../utils/organizationFilter");
 // exports.searchAll = async (req, res) => {
 //   try {
 
@@ -368,6 +367,8 @@ exports.searchAll = async (req, res) => {
       where: {
         id: { [Op.ne]: user_id },
         is_deleted: false,
+        
+        ...userBelongsToOrg(org_id),
         [Op.and]: [
           {
             [Op.or]: [
@@ -375,7 +376,6 @@ exports.searchAll = async (req, res) => {
               { email: { [Op.iLike]: `%${q}%` } }
             ]
           },
-          ...userBelongsToOrg(org_id)
         ]
       },
       attributes: ["id", "full_name"],
@@ -941,6 +941,8 @@ exports.searchUsers = async (req, res) => {
       where: {
         id: { [Op.ne]: currentUserId },
         is_deleted: false,
+        
+        ...userBelongsToOrg(org_id),
 
         [Op.and]: [
 
@@ -953,9 +955,9 @@ exports.searchUsers = async (req, res) => {
           },
 
           // 🏢 organization filter
-          {
-            ...userBelongsToOrg(org_id)
-          }
+          // {
+          //   ...userBelongsToOrg(org_id)
+          // }
 
         ]
       },
