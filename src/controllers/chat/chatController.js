@@ -1993,6 +1993,7 @@ exports.groupDetails = async (req, res) => {
         {
           model: ChatMember,
           as: "memberships",
+          required: false,
           attributes: ["role", "joined_at", "muted"],
 
           include: [
@@ -2033,6 +2034,7 @@ exports.groupDetails = async (req, res) => {
         {
           model: SharedFile,
           as: "files",
+          required: false,
           where: {
             message_id: null,
             user_id: { [Op.ne]: null },
