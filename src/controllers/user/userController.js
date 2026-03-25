@@ -312,6 +312,8 @@ exports.updateProfile = async (req, res) => {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Nothing to update!");
     }
 
+    console.log("bio 0---- ",bio)
+
     const user = await User.findOne({
       where: { id: userId, is_deleted: false, ...userBelongsToOrg(orgId) },
       transaction: t
@@ -335,10 +337,11 @@ exports.updateProfile = async (req, res) => {
     // ✅ Bio update fix
     if (bio) {
       const updatedBio = bio.trim();
-      await User.update(
-        { updatedBio },
+      const user = await User.update(
+        { bio: updatedBio },
         { where: { id: userId }, transaction: t }
       );
+      console.log('usersdfdsfafdfs',user)
     }
     // console.log(bio)
     // ✅ File fix
