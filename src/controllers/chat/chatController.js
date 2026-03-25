@@ -1985,6 +1985,7 @@ exports.groupDetails = async (req, res) => {
       attributes: [
         "id",
         "group_name",
+        "group_description",
         "created_by",
         ["created_at", "createdAt"]
       ],
@@ -2116,6 +2117,7 @@ exports.groupDetails = async (req, res) => {
     const response = {
       group_id: group.id,
       group_name: group.group_name,
+      group_description: group.group_description,
       created_at: group.createdAt,
       created_by: group.created_by,
       total_members: memberships.length,

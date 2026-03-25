@@ -461,19 +461,15 @@ exports.updateGroupProfile = async (req, res) => {
 
     if(!chatMember){
       await t.rollback();
-      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'User not belongs to chat!')
+      return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'User not part of this group!')
     }
 
     if(file){
       await SharedFile.destroy({
         where: {
-          user_id: currentUserId,
           chat_id,
-          [Op.and]: [
-            {
-              message_id: null,
-            }
-          ]
+          message_id: null,
+          user_id: { [Op.ne]: null }
         },
         transaction: t
       });
@@ -490,8 +486,8 @@ exports.updateGroupProfile = async (req, res) => {
     }
 
     const updateData = {};
-    if (group_name) updateData.group_name = group_name;
-    if (group_description) updateData.group_description = group_description;
+    if (group_name) updateData.group_name = group_name.trim();
+    if (group_description) updateData.group_description = group_description.trim();
 
     if (Object.keys(updateData).length > 0) {
       await Chat.update(updateData, {
