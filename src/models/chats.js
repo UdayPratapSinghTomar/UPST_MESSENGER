@@ -1,9 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
   const Chat = sequelize.define('Chat', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      autoIncrement: true
+      // autoIncrement: true
     },
     type: {
       type: DataTypes.ENUM('private', 'group', 'channel'),
@@ -19,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING
     },
     organization_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: 'organizations',
@@ -29,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE'
     },
     created_by: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: 'users',

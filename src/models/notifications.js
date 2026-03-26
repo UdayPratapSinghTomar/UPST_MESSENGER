@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
     const Notification = sequelize.define('Notification', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         recipient_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'users',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         sender_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'users',
@@ -26,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         chat_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'chats',
@@ -36,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'messages',

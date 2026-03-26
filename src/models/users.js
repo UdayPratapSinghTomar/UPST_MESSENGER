@@ -1,9 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define('User', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      autoIncrement: true
+      // autoIncrement: true
     },
     full_name: { 
       type: DataTypes.STRING, 
@@ -55,7 +56,7 @@ module.exports = (sequelize, DataTypes) => {
     //   type: DataTypes.TEXT
     // },
     organization_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true,
       references: {
           model: 'organizations',
@@ -97,31 +98,31 @@ module.exports = (sequelize, DataTypes) => {
     },
     // 🔴 add join org ids table here and remove from here
     org_2: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_3: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_4: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_5: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_6: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_7: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_8: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_9: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     org_10: { 
-      type: DataTypes.INTEGER
+      type: DataTypes.UUID
     },
     join_date: { 
       type: DataTypes.STRING

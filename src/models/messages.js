@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
     const Message = sequelize.define('Message', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         chat_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'chats',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         sender_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'users',
@@ -36,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
         //     type: DataTypes.TEXT
         // },
         replied_to_message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'messages',
@@ -46,7 +47,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         forwarded_from_message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'messages',
@@ -56,7 +57,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         forwarded_from_user_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'users',
@@ -66,7 +67,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         forwarded_from_chat_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: true,
             references: {
                 model: 'chats',

@@ -200,7 +200,7 @@ CREATE TABLE mention_messages (
 //     "User",
 //     {
 //       id: {
-//         type: DataTypes.INTEGER,
+//         type: DataTypes.UUID,
 //         primaryKey: true,
 //         autoIncrement: true,
 //         allowNull: false,
@@ -213,7 +213,7 @@ CREATE TABLE mention_messages (
 //       message_status: { type: DataTypes.STRING, allowNull: true },
 //       is_online: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 //       last_seen: { type: DataTypes.DATE, allowNull: true },
-//       organization_id: { type: DataTypes.INTEGER, allowNull: true },
+//       organization_id: { type: DataTypes.UUID, allowNull: true },
 //       designation: { type: DataTypes.STRING(255), allowNull: true },
 //       location: { type: DataTypes.STRING(255), allowNull: true },
 //       position: { type: DataTypes.STRING(255), allowNull: true },
@@ -273,7 +273,7 @@ CREATE TABLE mention_messages (
 //   const Organization = sequelize.define(
 //     "Organization",
 //     {
-//       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, allowNull: false },
+//       id: { type: DataTypes.UUID, primaryKey: true, autoIncrement: true, allowNull: false },
 //       name: { type: DataTypes.STRING, allowNull: false },
 //       employee_size: { type: DataTypes.STRING, allowNull: true },
 //       website: { type: DataTypes.STRING, allowNull: true },
@@ -301,8 +301,8 @@ CREATE TABLE mention_messages (
 //   const RefreshToken = sequelize.define(
 //     "RefreshToken",
 //     {
-//       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-//       user_id: { type: DataTypes.INTEGER, allowNull: false },
+//       id: { type: DataTypes.UUID, primaryKey: true, autoIncrement: true },
+//       user_id: { type: DataTypes.UUID, allowNull: false },
 //       token: { type: DataTypes.STRING, allowNull: true },
 //       expires_at: { type: DataTypes.DATE, allowNull: false },
 //     },

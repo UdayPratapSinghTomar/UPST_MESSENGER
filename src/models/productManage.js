@@ -1,9 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
     const ProductManage = sequelize.define('ProductManage', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         title: {
             type: DataTypes.STRING,
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING
         },
         org_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'organizations',
@@ -26,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         display_order: {
-            type: DataTypes.INTEGER
+            type: DataTypes.UUID
         },
         deadline: {
             type: DataTypes.DATE

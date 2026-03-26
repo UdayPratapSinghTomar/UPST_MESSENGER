@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
     const MessageStatus = sequelize.define('MessageStatus', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'messages',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         user_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'users',
@@ -26,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         chat_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'chats',

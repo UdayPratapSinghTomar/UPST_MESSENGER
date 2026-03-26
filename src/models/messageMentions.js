@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
     const MessageMention = sequelize.define('MessageMention', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'messages',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         mentioned_user_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'users',

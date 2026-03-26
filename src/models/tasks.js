@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
   const Task = sequelize.define('Task', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      autoIncrement: true
+      // autoIncrement: true
     },
     created_by: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
           model: 'users',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE'
     },
     assigned_to: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
           model: 'users',

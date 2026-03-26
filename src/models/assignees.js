@@ -1,9 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
     const Assignees = sequelize.define('Assignees', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         full_name: {
             type: DataTypes.STRING
@@ -24,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT
         },
         org_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'organizations',

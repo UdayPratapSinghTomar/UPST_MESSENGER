@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
   const SharedFile = sequelize.define('SharedFile', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      autoIncrement: true
+      // autoIncrement: true
     },
     message_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       references: {
           model: 'messages',
           key: 'id'
@@ -15,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE'
     },
     chat_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       references: {
           model: 'chats',
           key: 'id'
@@ -24,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE'
     },
     user_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       references: {
           model: 'users',
           key: 'id'
@@ -53,7 +54,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     duration: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
     },
     thumbnail_url: {
       type: DataTypes.TEXT,

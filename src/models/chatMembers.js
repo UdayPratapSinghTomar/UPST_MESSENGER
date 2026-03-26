@@ -1,12 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
     const ChatMember = sequelize.define('ChatMember', {
         id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
+            // autoIncrement: true
         },
         chat_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'chats',
@@ -16,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         },
         user_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             allowNull: false,
             references: {
                 model: 'users',
@@ -38,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false
         },
         last_read_message_id: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
         },
         last_read_at: {
             type: DataTypes.DATE
