@@ -70,7 +70,7 @@ module.exports = async (req, res, next) => {
       user.org_10
     ].filter(Boolean);
 
-    if (!orgIds.includes(parseInt(org_id))) {
+    if (!orgIds.includes(org_id)) {
       return sendResponse(
         res,
         HttpsStatus.FORBIDDEN,
@@ -80,7 +80,7 @@ module.exports = async (req, res, next) => {
     }
     req.user = payload;
     req.device_id = device_id;
-    req.org_id = parseInt(org_id);
+    req.org_id = org_id;
     next();
     // jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, payload) => {
     //   if (err) {
