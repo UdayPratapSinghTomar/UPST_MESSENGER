@@ -25,6 +25,7 @@ const Priorities = require('./priorities')(sequelize, DataTypes);
 const Assignee = require('./assignees')(sequelize, DataTypes);
 const Notification = require('./notifications')(sequelize, DataTypes);
 const UserDevice = require('./userDevices')(sequelize, DataTypes);
+const IndividualTask = require('./individualTasks')(sequelize, DataTypes);
 
 /**
  * ==============================
@@ -404,6 +405,18 @@ UserDevice.belongsTo(User, {
   as: 'user'
 });
 
+
+// individual tasks -
+User.hasMany(IndividualTask, {
+  foreignKey: 'user_id',
+  as: 'individualUserTasks'
+})
+IndividualTask.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'individualTask'
+})
+
+
 /**
  * ============================
  * EXPORT
@@ -429,5 +442,6 @@ module.exports = {
   Priorities,
   Assignee,
   Notification,
-  UserDevice
+  UserDevice,
+  IndividualTask
 }

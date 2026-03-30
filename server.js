@@ -59,6 +59,7 @@ const searchRoutes = require('./src/routes/searchRoutes');
 const projectRoutes = require('./src/routes/projectRoutes');
 const prioritiesRoutes = require('./src/routes/prioritiesRoutes');
 const assigneeRoutes = require('./src/routes/assigneeRoutes');
+const individualTaskRoutes = require('./src/routes/individualTaskRoutes');
 
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
@@ -70,6 +71,7 @@ app.use('/search', searchRoutes);
 app.use('/project', projectRoutes);
 app.use('/priorities', prioritiesRoutes);
 app.use('/assignee', assigneeRoutes);
+app.use('/individual-task', individualTaskRoutes);
 
 // app.use('/uploads', express.static(path.join(__dirname,  'uploads')))
 app.use('/uploads', express.static(path.join(__dirname, 'src/uploads')));;
