@@ -1,0 +1,134 @@
+module.exports = (sequelize, DataTypes) => {
+  const Task = sequelize.define('Task', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      // autoIncrement: true
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+          model: 'users',
+          key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    assigned_user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    created_by_user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    project_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'projects',
+        key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    status: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    icon: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    category: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    position: {
+      type: DataTypes.INTEGER,
+    },
+    priority: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    due_date: {
+      type: DataTypes.DATE
+    },
+    attachment_url: {
+      type: DataTypes.TEXT
+    },
+    attachment_name: {
+      type: DataTypes.TEXT
+    },
+    description: {
+      type: DataTypes.TEXT
+    },
+    subcategory: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    deleted_at: {
+      type: DataTypes.DATE
+    },
+    completed_at: {
+      type: DataTypes.DATE
+    },
+    is_recurring: {
+      type: DataTypes.BOOLEAN
+    },
+    is_draft: {
+      type: DataTypes.BOOLEAN
+    },
+    assignment_status: {
+      type: DataTypes.TEXT,
+      allowNull: false
+    },
+    achived_at: {
+      type: DataTypes.DATE
+    },
+    decline_reason: {
+      type: DataTypes.TEXT
+    },
+    last_reminder_sent_at: {
+      type: DataTypes.DATE
+    },
+    reassignment_reason: {
+      type: DataTypes.TEXT
+    }
+  },
+  {
+    tableName: 'tasks',
+    timestamps: true,
+    underscored: true,
+  }
+);
+return Task; 
+};
