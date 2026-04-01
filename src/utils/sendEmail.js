@@ -12,7 +12,8 @@ const sendEmail = async ({ to, subject, text }) => {
             pass: process.env.EMAIL_PASSWORD,
         },
     });
-
+    console.log('transporter----', transporter);
+    
     const mailOptions = {
         from: `${process.env.EMAIL_FROM}`,
         to,
@@ -20,7 +21,6 @@ const sendEmail = async ({ to, subject, text }) => {
         text,
     };
 
-    console.log('mailoptions----', mailOptions);
 
     try {
         await transporter.verify();
