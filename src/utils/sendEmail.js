@@ -26,11 +26,12 @@ const sendEmail = async ({ to, subject, text }) => {
         // html: '<b>Hello!</b> this is an HTML body.' // Optional
     };
 
+    console.log('mailoptions----',mailOptions);
     transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-        return console.log('Error:', error);
-    }
-    console.log('Email sent: ' + info.response);
+        if (error) {
+            return console.log('Error:', error);
+        }
+        console.log('Email sent: ' + info.response);
     });
     console.log('transporter----',transporter)
 }; 

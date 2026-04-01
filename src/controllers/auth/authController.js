@@ -644,10 +644,7 @@ exports.requestPasswordOtp = async (req, res) => {
         if(!user){
             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Mail not found!');
         }
-        console.log('email----',email);
-        console.log('user ---',user);
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('OTP ---',otp);
         const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
         const expiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -663,13 +660,6 @@ exports.requestPasswordOtp = async (req, res) => {
             text: `Your OTP for password reset is ${otp}. It expires in 10 minutes.`,
             html: `<p>Your OTP for password reset is <b>${otp}</b>. It expires in 10 minutes.</p>`
         });
-
-        console.log("check-----",await sendEmail({
-            to: user.email,
-            subject: "Your Password Reset OTP",
-            text: `Your OTP for password reset is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your OTP for password reset is <b>${otp}</b>. It expires in 10 minutes.</p>`
-        }));
 
         return sendResponse(res, HttpsStatus.OK, true, 'Please check your mail for the OTP!');
     } catch (err) {
