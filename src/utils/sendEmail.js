@@ -11,13 +11,28 @@ const sendEmail = async ({ to, subject, text }) => {
             pass: process.env.EMAIL_PASSWORD,
         },
     });
-    console.log('transporter----',transporter)
-    await transporter.sendMail({
-        from:   `Bosplan.ai ${process.env.EMAIL_FROM}`,
+    // await transporter.sendMail({
+    //     from:   `Bosplan.ai ${process.env.EMAIL_FROM}`,
+    //     to,
+    //     subject,
+    //     text
+    // });
+
+    const mailOptions = {
+        from: `Bosplan.ai ${process.env.EMAIL_FROM}`,
         to,
         subject,
-        text
+        text,
+        // html: '<b>Hello!</b> this is an HTML body.' // Optional
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+        return console.log('Error:', error);
+    }
+    console.log('Email sent: ' + info.response);
     });
+    console.log('transporter----',transporter)
 }; 
 
 module.exports = sendEmail;
