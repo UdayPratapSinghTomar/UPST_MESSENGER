@@ -11,7 +11,7 @@ const sendEmail = async ({ to, subject, text }) => {
             pass: process.env.EMAIL_PASSWORD,
         },
     });
-
+    console.log('transporter----',transporter)
     await transporter.sendMail({
         from:   `Bosplan.ai ${process.env.EMAIL_FROM}`,
         to,

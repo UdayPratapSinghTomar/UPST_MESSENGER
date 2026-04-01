@@ -664,13 +664,13 @@ exports.requestPasswordOtp = async (req, res) => {
             html: `<p>Your OTP for password reset is <b>${otp}</b>. It expires in 10 minutes.</p>`
         });
 
-        console.log(await sendEmail({
+        console.log("check-----",await sendEmail({
             to: user.email,
             subject: "Your Password Reset OTP",
             text: `Your OTP for password reset is ${otp}. It expires in 10 minutes.`,
             html: `<p>Your OTP for password reset is <b>${otp}</b>. It expires in 10 minutes.</p>`
         }));
-        
+
         return sendResponse(res, HttpsStatus.OK, true, 'Please check your mail for the OTP!');
     } catch (err) {
         console.log('errr --- ',err);
