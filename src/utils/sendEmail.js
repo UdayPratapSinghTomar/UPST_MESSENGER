@@ -14,7 +14,7 @@ const sendEmail = async ({ to, subject, text }) => {
     });
 
     const mailOptions = {
-        from: `Bosplan.ai ${process.env.EMAIL_FROM}`,
+        from: `${process.env.EMAIL_FROM}`,
         to,
         subject,
         text,
