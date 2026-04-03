@@ -20,8 +20,8 @@ exports.sendMessage = async (req, res) => {
 
   try {
     const sender_id = req.user.id;
-    const { chat_id, content = "", mentioned_user_ids = [] } = req.body;
-    const org_id = req.org_id;
+    const { chat_id, content = "", mentioned_user_ids = [], org_id } = req.body;
+    // const org_id = req.org_id;
     const io = req.app.get("io");
 
     if (!chat_id) {
@@ -53,7 +53,7 @@ exports.sendMessage = async (req, res) => {
       where: {
         id: sender_id,
         is_deleted: false,
-        ...userBelongsToOrg(org_id)
+        // ...userBelongsToOrg(org_id)
       },
       transaction: t
     });
@@ -69,14 +69,15 @@ exports.sendMessage = async (req, res) => {
       transaction: t
     });
 
-    const invalidUsers = users.filter(u => !userBelongsToOrg(u, org_id));
+    // const invalidUsers = users.filter(u => !userBelongsToOrg(u, org_id));
 
-    if (chat.type === "private" && invalidUsers.length > 0) {
+    if (chat.type === "private" && memberIds.length < 1) {
       await t.rollback();
       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid private chat");
     }
 
-    if (chat.type === "group" && (memberIds.length - invalidUsers.length) < 2) {
+    // if (chat.type === "group" && (memberIds.length - invalidUsers.length) < 2) {
+    if (chat.type === "group" && memberIds.length < 2) {
       await t.rollback();
       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid group chat");
     }
@@ -245,7 +246,8 @@ exports.sendMessage = async (req, res) => {
     //   });
     // }
 
-    return sendResponse(res, HttpsStatus.CREATED, true, "Message sent", payload);
+    return sendResponse(res, HttpsStatus.CREATED, true, "Message sent!");
+    // return sendResponse(res, HttpsStatus.CREATED, true, "Message sent", payload);
 
   } catch (err) {
     if (!t.finished) await t.rollback();
@@ -763,10 +765,10 @@ exports.editMessage = async (req, res) => {
   try {
 
     const { message_id } = req.params;
-    const { content, removed_file_ids = [], mentioned_user_ids = [], removed_mentioned_user_ids = [] } = req.body;
+    const { content, removed_file_ids = [], mentioned_user_ids = [], removed_mentioned_user_ids = [], org_id } = req.body;
 
     const userId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
 
     const io = req.app.get("io");
 
@@ -1029,12 +1031,18 @@ exports.editMessage = async (req, res) => {
     //   data: payload
     // });
 
+    // return sendResponse(
+    //   res,
+    //   HttpsStatus.OK,
+    //   true,
+    //   "Message updated successfully",
+    //   payload
+    // );
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
       "Message updated successfully",
-      payload
     );
 
   } catch (err) {
@@ -1063,7 +1071,7 @@ exports.deleteMessage = async (req, res) => {
 
     const { message_id } = req.params;
     const userId = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     const io = req.app.get("io");
 
@@ -1174,12 +1182,18 @@ exports.deleteMessage = async (req, res) => {
     //   data: payload
     // });
   
+    // return sendResponse(
+    //   res,
+    //   HttpsStatus.OK,
+    //   true,
+    //   "Message deleted successfully!",
+    //   payload
+    // );
     return sendResponse(
       res,
       HttpsStatus.OK,
       true,
       "Message deleted successfully!",
-      payload
     );
 
   } catch (err) {
@@ -1203,9 +1217,9 @@ exports.forwardMessage = async (req, res) => {
 
   try {
 
-    const { message_id, forwarded_chat_ids } = req.body;
+    const { message_id, forwarded_chat_ids, org_id } = req.body;
     const senderId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
     const io = req.app.get("io");
 
     if (!message_id || !Array.isArray(forwarded_chat_ids) || !forwarded_chat_ids.length) {
@@ -1218,7 +1232,7 @@ exports.forwardMessage = async (req, res) => {
       where: {
         id: senderId,
         is_deleted: false,
-        ...userBelongsToOrg(org_id)
+        // ...userBelongsToOrg(org_id)
       },
       attributes: ["id", "full_name"],
       transaction: t
@@ -1288,11 +1302,12 @@ exports.forwardMessage = async (req, res) => {
         transaction: t
       });
 
-      const invalidUsers = users.filter(u => !userBelongsToOrg(u, org_id));
+      // const invalidUsers = users.filter(u => !userBelongsToOrg(u, org_id));
 
-      if (chat.type === "private" && invalidUsers.length > 0) continue;
+      if (chat.type === "private" && memberIds.length < 1) continue;
 
-      if (chat.type === "group" && (memberIds.length - invalidUsers.length) < 2) continue;
+      // if (chat.type === "group" && (memberIds.length - invalidUsers.length) < 2) continue;
+      if (chat.type === "group" && memberIds.length < 2) continue;
 
       /**
        * 3️⃣ Create forwarded message
@@ -1430,12 +1445,18 @@ exports.forwardMessage = async (req, res) => {
       }
     }
 
+    // return sendResponse(
+    //   res,
+    //   HttpsStatus.CREATED,
+    //   true,
+    //   "Message forwarded successfully!",
+    //   forwardedMessages
+    // );
     return sendResponse(
       res,
       HttpsStatus.CREATED,
       true,
       "Message forwarded successfully!",
-      forwardedMessages
     );
 
   } catch (err) {
