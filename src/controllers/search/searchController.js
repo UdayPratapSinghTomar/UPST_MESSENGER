@@ -292,8 +292,17 @@ exports.searchAll = async (req, res) => {
   try {
 
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body
     const q = req.query.search?.trim();
+
+
+    const chatOrgFilter = (org_id) => {
+      if (org_id === "null") org_id = null;
+
+      return org_id === null
+        ? { organization_id: { [Op.is]: null } }
+        : { organization_id: org_id };
+    };
 
     if (!q) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search bar is empty!", { users: [], groups: [], messages: [], files: [] });
@@ -364,18 +373,33 @@ exports.searchAll = async (req, res) => {
      * 1️⃣ USERS
      */
     const usersRaw = await User.findAll({
-      where: {
-        id: { [Op.ne]: user_id },
-        is_deleted: false,
+      // where: {
+      //   id: { [Op.ne]: user_id },
+      //   is_deleted: false,
         
-        ...userBelongsToOrg(org_id),
+      //   ...userBelongsToOrg(org_id),
+      //   [Op.and]: [
+      //     {
+      //       [Op.or]: [
+      //         { full_name: { [Op.iLike]: `%${q}%` } },
+      //         { email: { [Op.iLike]: `%${q}%` } }
+      //       ]
+      //     },
+      //   ]
+      // },
+      where: {
         [Op.and]: [
+          { id: { [Op.ne]: user_id } },
+          { is_deleted: false },
+
+          userBelongsToOrg(org_id),
+
           {
             [Op.or]: [
               { full_name: { [Op.iLike]: `%${q}%` } },
               { email: { [Op.iLike]: `%${q}%` } }
             ]
-          },
+          }
         ]
       },
       attributes: ["id", "full_name"],
@@ -391,10 +415,17 @@ exports.searchAll = async (req, res) => {
     const users = await Promise.all(usersRaw.map(async (u) => {
 
       const chat = await Chat.findOne({
+        // where: {
+        //   type: "private",
+        //   organization_id: org_id,
+        //   is_deleted: false
+        // },
         where: {
-          type: "private",
-          organization_id: org_id,
-          is_deleted: false
+          [Op.and]: [
+            { type: "private" },
+            { is_deleted: false },
+            chatOrgFilter(org_id)
+          ]
         },
         include: [
           {
@@ -403,7 +434,13 @@ exports.searchAll = async (req, res) => {
             include: [{
               model: User,
               as: "user",
-              where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+              // where: { is_deleted: false, ...userBelongsToOrg(org_id) }
+              where: {
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
+              },
               required: true,
               attributes: []
             }],
@@ -432,11 +469,20 @@ exports.searchAll = async (req, res) => {
      * 2️⃣ GROUPS
      */
     const groupsRaw = await Chat.findAll({
+      // where: {
+      //   type: "group",
+      //   organization_id: org_id,
+      //   group_name: { [Op.iLike]: `%${q}%` },
+      //   is_deleted: false
+      // },
       where: {
-        type: "group",
-        organization_id: org_id,
-        group_name: { [Op.iLike]: `%${q}%` },
-        is_deleted: false
+        [Op.and]: [
+          { type: "group" },
+          { is_deleted: false },
+          chatOrgFilter(org_id),
+
+          { group_name: { [Op.iLike]: `%${q}%` } }
+        ]
       },
       include: [
         {
@@ -447,7 +493,13 @@ exports.searchAll = async (req, res) => {
           include: [{
             model: User,
             as: "user",
-            where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+            // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+            where: {
+              [Op.and]: [
+                { is_deleted: false },
+                userBelongsToOrg(org_id)
+              ]
+            },
             required: false,
             attributes: ["id"]
           }]
@@ -492,9 +544,15 @@ exports.searchAll = async (req, res) => {
           model: Chat,
           as: "chat",
           required: true,
+          // where: {
+          //   organization_id: org_id,
+          //   is_deleted: false
+          // },
           where: {
-            organization_id: org_id,
-            is_deleted: false
+            [Op.and]: [
+              { is_deleted: false },
+              chatOrgFilter(org_id)
+            ]
           },
           include: [{
             model: ChatMember,
@@ -504,9 +562,15 @@ exports.searchAll = async (req, res) => {
             include: [{
               model: User,
               as: "user",
+              // where: {
+              //   is_deleted: false,
+              //   ...userBelongsToOrg(org_id)
+              // },
               where: {
-                is_deleted: false,
-                ...userBelongsToOrg(org_id)
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
               },
               attributes: ["id", "full_name"],
               required: true
@@ -516,7 +580,13 @@ exports.searchAll = async (req, res) => {
         {
           model: User,
           as: "sender",
-          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
           required: true,
           attributes: ["id", "full_name"]
         }
@@ -616,9 +686,15 @@ const messages = messagesRaw
         {
           model: Chat,
           as: "chat",
+          // where: {
+          //   organization_id: org_id,
+          //   is_deleted: false
+          // },
           where: {
-            organization_id: org_id,
-            is_deleted: false
+            [Op.and]: [
+              { is_deleted: false },
+              chatOrgFilter(org_id)
+            ]
           },
           include: [{
             model: ChatMember,
@@ -630,7 +706,13 @@ const messages = messagesRaw
         {
           model: User,
           as: "uploader",
-          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
           required: true,
           attributes: ["id"]
         }
@@ -779,7 +861,7 @@ exports.searchChatMessages = async (req, res) => {
     const { chat_id } = req.params;
     const q = req.query.search?.trim();
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body
 
     if (!q) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
@@ -788,9 +870,11 @@ exports.searchChatMessages = async (req, res) => {
     // ✅ Chat validation
     const chat = await Chat.findOne({
       where: {
-        id: chat_id,
-        organization_id: org_id,
-        is_deleted: false
+        [Op.and]: [
+          { id: chat_id },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]        
       }
     });
 
@@ -813,7 +897,12 @@ exports.searchChatMessages = async (req, res) => {
       include: [{
         model: User,
         as: "user",
-        where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+        where: {
+        [Op.and]: [
+            { is_deleted: false },
+            userBelongsToOrg(org_id)
+          ]
+        },
         required: false,
         attributes: ["id"]
       }]
@@ -849,7 +938,12 @@ exports.searchChatMessages = async (req, res) => {
         {
           model: User,
           as: "sender",
-          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
           required: true,
           attributes: ["id", "full_name"]
         }
@@ -909,6 +1003,7 @@ exports.searchChatMessages = async (req, res) => {
     );
 
   } catch (err) {
+    console.log(err)
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
@@ -925,7 +1020,7 @@ exports.searchUsers = async (req, res) => {
 
     const { search } = req.query;
     const q = search.trim();
-    const org_id = req.org_id;
+    const { org_id } = req.body
     const currentUserId = req.user.id;
     if (!q) {
       return sendResponse(
@@ -939,12 +1034,10 @@ exports.searchUsers = async (req, res) => {
 
     const users = await User.findAll({
       where: {
-        id: { [Op.ne]: currentUserId },
-        is_deleted: false,
-        
-        ...userBelongsToOrg(org_id),
-
         [Op.and]: [
+          { id: { [Op.ne]: currentUserId } },
+          { is_deleted: false },
+          userBelongsToOrg(org_id),
 
           // 🔎 search by name or email
           {
