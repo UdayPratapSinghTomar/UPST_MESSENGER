@@ -6,7 +6,7 @@ module.exports = async (req, res, next) => {
   try{
     const authHeader = req.headers.authorization;
     const device_id = req.headers['device_id'];
-    const org_id = req.headers['organization_id'];
+    // const org_id = req.headers['organization_id'];
 
     const errors = {};
 
@@ -18,9 +18,9 @@ module.exports = async (req, res, next) => {
       errors.device_id = 'Device id missing';
     }
 
-    if(!org_id){
-      errors.org_id = 'Organization id missing!';
-    }
+    // if(!org_id){
+    //   errors.org_id = 'Organization id missing!';
+    // }
     // if (!authHeader) {
     //   return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'Authorization header missing!');
     // }
@@ -57,30 +57,30 @@ module.exports = async (req, res, next) => {
       return sendResponse(res, HttpsStatus.UNAUTHORIZED, false, 'User not found!');
     }
 
-    const orgIds = [
-      user.organization_id,
-      user.org_2,
-      user.org_3,
-      user.org_4,
-      user.org_5,
-      user.org_6,
-      user.org_7,
-      user.org_8,
-      user.org_9,
-      user.org_10
-    ].filter(Boolean);
+    // const orgIds = [
+    //   user.organization_id,
+    //   user.org_2,
+    //   user.org_3,
+    //   user.org_4,
+    //   user.org_5,
+    //   user.org_6,
+    //   user.org_7,
+    //   user.org_8,
+    //   user.org_9,
+    //   user.org_10
+    // ].filter(Boolean);
 
-    if (!orgIds.includes(org_id)) {
-      return sendResponse(
-        res,
-        HttpsStatus.FORBIDDEN,
-        false,
-        'User does not belong to this organization!'
-      );
-    }
+    // if (!orgIds.includes(org_id)) {
+    //   return sendResponse(
+    //     res,
+    //     HttpsStatus.FORBIDDEN,
+    //     false,
+    //     'User does not belong to this organization!'
+    //   );
+    // }
     req.user = payload;
     req.device_id = device_id;
-    req.org_id = org_id;
+    // req.org_id = org_id;
     next();
     // jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, payload) => {
     //   if (err) {

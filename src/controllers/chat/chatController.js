@@ -1667,9 +1667,9 @@ exports.createPrivateChat = async (req, res) => {
 
   try {
 
-    const { user_id } = req.body;
+    const { user_id, org_id } = req.body;
     const currentUserId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
     const io = req.app.get('io');
 
     if (!user_id) {
@@ -1688,14 +1688,14 @@ exports.createPrivateChat = async (req, res) => {
     const targetUser = await User.findOne({
       where: {
         id: user_id,
-        is_deleted: false,
-        ...userBelongsToOrg(org_id)
+        is_deleted: false
+        // ...userBelongsToOrg(org_id)
       }
     });
 
     if (!targetUser) {
       await t.rollback();
-      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'User not found in your organization!');
+      return sendResponse(res, HttpsStatus.NOT_FOUND, false, 'User not found!');
     }
 
     /**
@@ -1785,13 +1785,12 @@ exports.createPrivateChat = async (req, res) => {
       HttpsStatus.CREATED,
       true,
       'Private chat created successfully!',
-      chatPayload
     );
 
   } catch (err) {
 
     if (!t.finished) await t.rollback();
-
+    console.log(err)
     return sendResponse(
       res,
       HttpsStatus.INTERNAL_SERVER_ERROR,
@@ -1809,9 +1808,9 @@ exports.createGroup = async (req, res) => {
 
   try {
 
-    const { group_name, group_members } = req.body;
+    const { group_name, group_members, org_id } = req.body;
     const currentUserId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
     const io = req.app.get('io');
 
     // const errors = {};
@@ -1828,10 +1827,10 @@ exports.createGroup = async (req, res) => {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Group members must be array');
     } else {
 
-      if (group_members.length < 2) {
+      if (group_members.length < 1) {
         // errors.group_members = 'At least 2 members required';
         await t.rollback();
-        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'At least 2 members required');
+        return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'At least 1 members required');
       }
 
       if (new Set(group_members).size !== group_members.length) {
@@ -1860,7 +1859,7 @@ exports.createGroup = async (req, res) => {
       where: {
         id: uniqueUserIds,
         is_deleted: false,
-        ...userBelongsToOrg(org_id)
+        // ...userBelongsToOrg(org_id)
       },
       attributes: ['id']
     });
@@ -1872,7 +1871,7 @@ exports.createGroup = async (req, res) => {
         res,
         HttpsStatus.BAD_REQUEST,
         false,
-        'Some users are not in your organization or are deleted!'
+        'Some users are not found or are deleted!'
       );
     }
 
@@ -1937,8 +1936,8 @@ exports.createGroup = async (req, res) => {
       res,
       HttpsStatus.CREATED,
       true,
-      'Group chat created successfully!',
-      payload
+      'Group created successfully!'
+      // payload
     );
 
   } catch (err) {
@@ -1960,7 +1959,7 @@ exports.groupDetails = async (req, res) => {
   try {
     const { chat_id } = req.params;
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     if (!chat_id) {
       return sendResponse(
@@ -2005,7 +2004,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: multi-org + is_deleted validation
               where: {
                 is_deleted: false,
-                ...userBelongsToOrg(org_id)
+                // ...userBelongsToOrg(org_id)
               },
 
               required: false, // important: don't break group if one user invalid
@@ -2057,7 +2056,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: uploader validation
               where: {
                 is_deleted: false,
-                ...userBelongsToOrg(org_id)
+                // ...userBelongsToOrg(org_id)
               },
 
               required: false,
@@ -2180,9 +2179,9 @@ exports.addGroupMember = async (req, res) => {
 
   try {
 
-    const { chat_id, user_id } = req.body;
+    const { chat_id, user_id, org_id } = req.body;
     const currentUserId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
 
     if (!chat_id || !user_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'chat_id and user_id required');
@@ -2215,7 +2214,7 @@ exports.addGroupMember = async (req, res) => {
       where: {
         id: user_id,
         is_deleted: false,
-        ...userBelongsToOrg(org_id)
+        // ...userBelongsToOrg(org_id)
       }
     });
 
@@ -2283,7 +2282,7 @@ exports.addGroupMember = async (req, res) => {
       body: 'You were added to a group'
     });
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'User added!', member);
+    return sendResponse(res, HttpsStatus.CREATED, true, 'User added successfully in group!');
 
   } catch (err) {
 
@@ -2295,9 +2294,9 @@ exports.removeGroupMember = async (req, res) => {
 
   try {
 
-    const { chat_id, user_id } = req.body;
+    const { chat_id, user_id, org_id } = req.body;
     const currentUserId = req.user.id;
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
 
     if (!chat_id || !user_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'chat_id and user_id required');
@@ -2390,7 +2389,7 @@ exports.removeGroupMember = async (req, res) => {
       title: chat.group_name,
       body: 'You were removed from a group'
     });
-    return sendResponse(res, HttpsStatus.OK, true, 'User removed!');
+    return sendResponse(res, HttpsStatus.OK, true, 'User removed successfully from group!');
 
   } catch (err) {
 
@@ -2404,7 +2403,7 @@ exports.openChat = async (req, res) => {
 
     const { chat_id } = req.params;
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
     
     if (!chat_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Chat id required!');
@@ -2446,7 +2445,7 @@ exports.openChat = async (req, res) => {
 
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
 
           required: false, // 🔥 IMPORTANT (we filter manually)
@@ -2503,7 +2502,7 @@ exports.openChat = async (req, res) => {
           // ✅ multi-org + is_deleted validation
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
 
           required: true,
@@ -2622,7 +2621,7 @@ exports.openChat = async (req, res) => {
 exports.chatList = async (req, res) => {
   try {
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     /**
      * 1️⃣ Get chats where user is member
@@ -2653,7 +2652,7 @@ exports.chatList = async (req, res) => {
                   // ✅ FIX: multi-org + is_deleted
                   where: {
                     is_deleted: false,
-                    ...userBelongsToOrg(org_id)
+                    // ...userBelongsToOrg(org_id)
                   },
 
                   required: true,
@@ -2722,7 +2721,7 @@ exports.chatList = async (req, res) => {
           // ✅ FIX: sender validation
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
           required: true,
           attributes: ['id', 'full_name'],
@@ -3367,7 +3366,7 @@ exports.allPrivateChats = async (req, res) => {
   try {
 
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     if (!user_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
@@ -3403,7 +3402,7 @@ exports.allPrivateChats = async (req, res) => {
                   // ✅ FIX
                   where: {
                     is_deleted: false,
-                    ...userBelongsToOrg(org_id)
+                    // ...userBelongsToOrg(org_id)
                   },
                   required: false,
 
@@ -3448,7 +3447,7 @@ exports.allPrivateChats = async (req, res) => {
           // ✅ FIX
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
           required: false,
 
@@ -3643,7 +3642,7 @@ exports.allGroupChats = async (req, res) => {
   try {
 
     const user_id = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     if (!user_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
@@ -3679,7 +3678,7 @@ exports.allGroupChats = async (req, res) => {
                   // ✅ FIX
                   where: {
                     is_deleted: false,
-                    ...userBelongsToOrg(org_id)
+                    // ...userBelongsToOrg(org_id)
                   },
                   required: false,
 
@@ -3737,7 +3736,7 @@ exports.allGroupChats = async (req, res) => {
           // ✅ FIX
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
           required: false,
 
@@ -3927,7 +3926,7 @@ exports.chatHistory = async (req, res) => {
 
     const { chat_id } = req.params;
     const currentUserId = req.user.id;
-    const org_id = req.org_id;
+    const { org_id } = req.body;
 
     /**
      * 1️⃣ Validate chat belongs to organization
@@ -3981,7 +3980,7 @@ exports.chatHistory = async (req, res) => {
           as: 'user',
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
           required: false,
           attributes: ['id']
@@ -4024,7 +4023,7 @@ exports.chatHistory = async (req, res) => {
           // ✅ FIX: multi-org + is_deleted
           where: {
             is_deleted: false,
-            ...userBelongsToOrg(org_id)
+            // ...userBelongsToOrg(org_id)
           },
 
           required: true,

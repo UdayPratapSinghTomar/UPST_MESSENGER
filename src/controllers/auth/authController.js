@@ -310,7 +310,7 @@ exports.userRegister = async (req,res) => {
             phone,
             role,
             designation,
-            organization_id
+            // organization_id
         } = req.body;
 
         const errors = {};
@@ -348,13 +348,13 @@ exports.userRegister = async (req,res) => {
                                         phone,
                                         role : role ? role : 'member',
                                         'password': hashedPassword,
-                                        'organization_id': organization_id,
+                                        // 'organization_id': organization_id,
                                         designation
                                     }, 
                                     { transaction: t});
             
             await t.commit();
-            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!',user); 
+            return sendResponse(res, HttpsStatus.CREATED, true, 'User created successfully!'); 
         }catch(err){
             await t.rollback();
             return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
