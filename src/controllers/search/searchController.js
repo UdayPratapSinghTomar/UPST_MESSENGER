@@ -863,6 +863,14 @@ exports.searchChatMessages = async (req, res) => {
     const user_id = req.user.id;
     const { org_id } = req.body
 
+    const chatOrgFilter = (org_id) => {
+      if (org_id === "null") org_id = null;
+
+      return org_id === null
+        ? { organization_id: { [Op.is]: null } }
+        : { organization_id: org_id };
+    };
+    
     if (!q) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
     }

@@ -1,0 +1,2686 @@
+Error
+    at Query.run (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async PostgresQueryInterface.insert (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-interface.js:308:21)
+    at async model.save (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\model.js:2490:35)
+    at async Chat.create (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\model.js:1362:12)
+    at async exports.createPrivateChat (G:\BOSSPLAN_MESSENGER\src\controllers\chat\chatController.js:1735:18) {
+  name: 'SequelizeDatabaseError',
+  parent: error: null value in column "organization_id" of relation "chats" violates not-null constraint
+      at Parser.parseErrorMessage (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:285:98)
+      at Parser.handlePacket (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:122:29)
+      at Parser.parse (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:35:38)
+      at Socket.<anonymous> (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\index.js:11:42)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+    length: 372,
+    severity: 'ERROR',
+    code: '23502',
+    detail: 'Failing row contains (bc7f41b1-c694-4038-accd-8504ee7655e1, private, null, null, null, null, f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2, f, 2026-04-03 06:09:48.38+00, 2026-04-03 06:09:48.38+00).',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'public',
+    table: 'chats',
+    column: 'organization_id',
+    dataType: undefined,
+    constraint: undefined,
+    file: 'execMain.c',
+    line: '2028',
+    routine: 'ExecConstraints',
+    sql: 'INSERT INTO "chats" ("id","type","organization_id","created_by","is_deleted","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id","type","group_name","group_image","group_description","organization_id","created_by","is_deleted","created_at","updated_at";',
+    parameters: [
+      'bc7f41b1-c694-4038-accd-8504ee7655e1',
+      'private',
+      null,
+      'f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2',
+      false,
+      '2026-04-03 06:09:48.380 +00:00',
+      '2026-04-03 06:09:48.380 +00:00'
+    ]
+  },
+  original: error: null value in column "organization_id" of relation "chats" violates not-null constraint
+      at Parser.parseErrorMessage (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:285:98)
+      at Parser.handlePacket (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:122:29)
+      at Parser.parse (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\parser.js:35:38)
+      at Socket.<anonymous> (G:\BOSSPLAN_MESSENGER\node_modules\pg-protocol\dist\index.js:11:42)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+    length: 372,
+    severity: 'ERROR',
+    code: '23502',
+    detail: 'Failing row contains (bc7f41b1-c694-4038-accd-8504ee7655e1, private, null, null, null, null, f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2, f, 2026-04-03 06:09:48.38+00, 2026-04-03 06:09:48.38+00).',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'public',
+    table: 'chats',
+    column: 'organization_id',
+    dataType: undefined,
+    constraint: undefined,
+    file: 'execMain.c',
+    line: '2028',
+    routine: 'ExecConstraints',
+    sql: 'INSERT INTO "chats" ("id","type","organization_id","created_by","is_deleted","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id","type","group_name","group_image","group_description","organization_id","created_by","is_deleted","created_at","updated_at";',
+    parameters: [
+      'bc7f41b1-c694-4038-accd-8504ee7655e1',
+      'private',
+      null,
+      'f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2',
+      false,
+      '2026-04-03 06:09:48.380 +00:00',
+      '2026-04-03 06:09:48.380 +00:00'
+    ]
+  },
+  sql: 'INSERT INTO "chats" ("id","type","organization_id","created_by","is_deleted","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id","type","group_name","group_image","group_description","organization_id","created_by","is_deleted","created_at","updated_at";',
+  parameters: [
+    'bc7f41b1-c694-4038-accd-8504ee7655e1',
+    'private',
+    null,
+    'f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2',
+    false,
+    '2026-04-03 06:09:48.380 +00:00',
+    '2026-04-03 06:09:48.380 +00:00'
+  ]
+} '
+
+This error is very clear once you strip the stack trace noise:
+
+null value in column "organization_id" violates not-null constraint
+
+🔍 What’s happening
+
+Your query is trying to insert this:
+
+organization_id = null
+
+But in your PostgreSQL table (chats), the column organization_id is defined as:
+
+organization_id NOT NULL
+
+So PostgreSQL rejects the insert → Sequelize throws SequelizeDatabaseError.
+
+💥 Root Cause
+
+From your log:
+
+parameters: [
+  'bc7f41b1-c694-4038-accd-8504ee7655e1',
+  'private',
+  null,   // ❌ THIS is the problem
+  'f3cb1a38-6acf-4321-8ba8-a2b1bdd62fa2',
+  false,
+  ...
+]
+
+So when you're doing:
+
+await Chat.create({
+  type: 'private',
+  organization_id: null, // ❌ or undefined
+  created_by: userId
+});
+✅ Fix Options (Choose ONE based on your logic)
+✔️ Option 1: Pass organization_id properly (Recommended)
+
+If every chat must belong to an organization, fix your controller:
+
+await Chat.create({
+  type: 'private',
+  organization_id: orgId, // ✅ ensure this exists
+  created_by: userId
+});
+
+👉 Debug tip:
+
+console.log("orgId:", orgId);
+✔️ Option 2: Allow NULL in DB (only if valid)
+
+If private chats don’t need an organization:
+
+Run migration:
+ALTER TABLE chats
+ALTER COLUMN organization_id DROP NOT NULL;
+
+Or Sequelize migration:
+
+await queryInterface.changeColumn('chats', 'organization_id', {
+  type: Sequelize.UUID,
+  allowNull: true
+});
+✔️ Option 3: Set a default organization
+
+If your system has a default org:
+
+organization_id: orgId || DEFAULT_ORG_ID
+⚠️ Important Design Question
+
+You should clarify:
+
+👉 Should private chats belong to an organization or not?
+
+Case	What to do
+YES (multi-tenant app)	Always pass organization_id
+NO (user-to-user chats)	Allow NULL in DB
+SOMETIMES	Make column nullable + validate in code
+🧠 Best Practice
+
+If you're building something like Slack/Teams:
+
+Keep organization_id NOT NULL
+Always derive it from logged-in user:
+const orgId = req.user.organization_id;
+🚀 Quick Debug Checklist
+ Is orgId coming from request/user/session?
+ Is it undefined before Chat.create()?
+ Are you forgetting to include it in payload?
+ Does your frontend send it?
+
+If you want, paste your createPrivateChat function (line ~1735), and I’ll pinpoint exactly where it’s breaking.
+
+before this is not null but now we can add null values
+
+Got it — that change explains everything.
+
+You’re saying:
+
+Earlier organization_id was always present, but now you want to allow NULL (e.g., for private chats).
+
+But your database schema hasn’t been updated yet, so Postgres is still enforcing:
+
+organization_id NOT NULL ❌
+✅ What you need to do
+
+If your new logic allows chats without an organization, you must update the DB column.
+
+🔧 Fix (Database level)
+
+Run this SQL:
+
+ALTER TABLE chats
+ALTER COLUMN organization_id DROP NOT NULL;
+🔧 Sequelize Migration (Recommended way)
+
+If you're using migrations:
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.changeColumn('chats', 'organization_id', {
+      type: Sequelize.UUID,
+      allowNull: true, // ✅ allow null now
+    });
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.changeColumn('chats', 'organization_id', {
+      type: Sequelize.UUID,
+      allowNull: false, // rollback
+    });
+  }
+};
+⚠️ Also check your Model
+
+Make sure your Sequelize model matches:
+
+organization_id: {
+  type: DataTypes.UUID,
+  allowNull: true, // ✅ must match DB
+}
+❗ Important Gotcha
+
+Even after DB change, if your model still has:
+
+allowNull: false
+
+Sequelize may still block inserts before hitting DB.
+
+🧠 Design Tip
+
+Now that you're allowing NULL:
+
+You should clearly define logic like:
+
+if (type === 'private') {
+  organization_id = null;
+} else {
+  organization_id = orgId;
+}
+✅ Summary
+Layer	Action
+Database	DROP NOT NULL ✅
+Sequelize Model	allowNull: true ✅
+Controller Logic	Handle null intentionally ✅
+
+If you want, I can help you design a clean schema for private vs group chats so this doesn’t cause future bugs.
+
+...userBelongsToOrg(orgId) 
+if i send null org_id it is working or not -
+const { Op } = require("sequelize");
+
+function userBelongsToOrg(org_id) {
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
+}
+
+module.exports = { userBelongsToOrg };
+
+Short answer: ❌ No, it will NOT work correctly with null (at least not the way you expect).
+
+🔍 Why it fails with null
+
+If you call:
+
+userBelongsToOrg(null)
+
+It generates this condition:
+
+{
+  [Op.or]: [
+    { organization_id: null },
+    { org_2: null },
+    { org_3: null },
+    ...
+  ]
+}
+⚠️ Problem
+
+In SQL:
+
+column = NULL   ❌ (this is ALWAYS false)
+
+So Sequelize will generate something like:
+
+organization_id = NULL
+
+Which never matches any rows.
+
+✅ Correct way to handle NULL
+
+In SQL, you must use:
+
+column IS NULL ✅
+
+In Sequelize, that means using Op.is:
+
+💡 Fix your function
+✔️ Handle null explicitly
+const { Op } = require("sequelize");
+
+function userBelongsToOrg(org_id) {
+  if (org_id === null) {
+    return {
+      [Op.or]: [
+        { organization_id: { [Op.is]: null } },
+        { org_2: { [Op.is]: null } },
+        { org_3: { [Op.is]: null } },
+        { org_4: { [Op.is]: null } },
+        { org_5: { [Op.is]: null } },
+        { org_6: { [Op.is]: null } },
+        { org_7: { [Op.is]: null } },
+        { org_8: { [Op.is]: null } },
+        { org_9: { [Op.is]: null } },
+        { org_10: { [Op.is]: null } }
+      ]
+    };
+  }
+
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
+}
+⚠️ But think carefully (important)
+
+Ask yourself:
+
+Do you really want to match users where org is NULL?
+
+Because this will return:
+
+Users with no organization at all
+
+That might not be what you want.
+
+🧠 Better design (recommended)
+
+Usually:
+
+null org → skip org filtering
+not → apply filter
+Cleaner version:
+function userBelongsToOrg(org_id) {
+  if (!org_id) return {}; // ✅ no filter
+
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
+}
+✅ Summary
+Case	Behavior
+org_id = value	✅ Works
+org_id = null (your current code)	❌ Matches nothing
+Op.is: null	✅ Matches NULL rows
+Skip filter when null	✅ Usually best
+
+If you tell me your exact use case (private chat vs org chat), I can suggest a cleaner schema than org_2…org_10, because that pattern will become painful later.
+
+no i have to update this api -
+exports.updateProfile = async (req, res) => { 
+
+  const t = await sequelize.transaction();
+
+  try {
+    // console.log('inside')
+    const file = req.file;
+    const { bio } = req.body;
+    const userId = req.user.id;
+    const orgId = req.org_id;
+
+    if (!file && !bio) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Nothing to update!");
+    }
+
+    console.log("bio 0---- ",bio)
+
+    const user = await User.findOne({
+      where: { 
+        id: userId, 
+        is_deleted: false, 
+        
+        // ...userBelongsToOrg(orgId) 
+      },
+      transaction: t
+    });
+    // console.log('user')
+    if (!user) {
+      await t.rollback();
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "User not found!");
+    }
+
+    if(file){
+      await SharedFile.destroy({
+        where: {
+          user_id: userId,
+          message_id: null,
+          chat_id: null
+        }
+      });
+    }
+
+    // ✅ Bio update fix
+    if (bio) {
+      const updatedBio = bio.trim();
+      const user = await User.update(
+        { bio: updatedBio },
+        { where: { id: userId }, transaction: t }
+      );
+      console.log('usersdfdsfafdfs',user)
+    }
+    // console.log(bio)
+    // ✅ File fix
+    if (file) {
+      await SharedFile.create({
+        user_id: userId,
+        file_name: file.originalname,
+        file_url: uploads/${file.filename}, // 🔥 FIXED
+        file_type: file.mimetype.startsWith("image") ? "image" : "file",
+        file_size: file.size,
+        mime_type: file.mimetype
+      }, { transaction: t });
+    }
+
+    await t.commit();
+
+    return sendResponse(res, HttpsStatus.OK, true, "Profile updated successfully!");
+
+  } catch (err) {
+
+    if (!t.finished) await t.rollback();
+    console.log("errror",err)
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+  }
+};
+
+exports.searchUsers = async (req, res) => {
+  try {
+
+    const { search } = req.query;
+    const q = search.trim();
+    const { org_id } = req.body;
+    const currentUserId = req.user.id;
+    if (!q) {
+      return sendResponse(
+        res,
+        HttpsStatus.BAD_REQUEST,
+        false,
+        "Search query is empty!",
+        { users: [] }
+      );
+    }
+
+    const users = await User.findAll({
+      where: {
+        id: { [Op.ne]: currentUserId },
+        is_deleted: false,
+        organization_id: org_id,
+        // ...userBelongsToOrg(org_id),
+
+        [Op.and]: [
+
+          // 🔎 search by name or email
+          {
+            [Op.or]: [
+              { full_name: { [Op.iLike]: %${q}% } },
+              { email: { [Op.iLike]: %${q}% } }
+            ]
+          },
+
+          // 🏢 organization filter
+          // {
+          //   ...userBelongsToOrg(org_id)
+          // }
+
+        ]
+      },
+
+      attributes: [
+        "id",
+        "full_name",
+        "email",
+        "phone",
+        "role",
+        "designation",
+      ],
+      include: [
+        {
+          model: SharedFile,
+          as: "uploadedFiles",
+          where: {chat_id: null, message_id: null},
+          attributes: ["file_url"],
+          required: false
+        }
+      ],
+      distinct: true
+
+    });
+
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      designation: user.designation,
+      profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null
+    }));
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Users retrieved successfully!",
+      formattedUsers
+    );
+
+  } catch (err) {
+
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+
+  }
+};
+
+
+
+
+in my apis previously i am working that only get the org id data if not it gives error in my middlware org id req but now i have modified the functionality frontend send org_id null || value if have value so it have se send the data if org_id is present it send the data of that org_id  users if org_is null it sends the all users data which have org_id is null
+
+
+
+and this is my user model that's why i have check the multiple columns in org here i only check in second api organization_id: org_id and i have to check in all columns -
+module.exports = (sequelize, DataTypes) => {
+  const User = sequelize.define('User', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      // autoIncrement: true
+    },
+    full_name: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: { isEmail: true },
+    },
+    phone: { 
+      type: DataTypes.STRING
+    },
+    password: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    // login_type: {
+    //   type: DataTypes.ENUM('email', 'phone', 'oauth'),
+    //   allowNull: false,
+    //   defaultValue: 'email',
+    // },
+    // is_email_verified: {
+    //   type: DataTypes.BOOLEAN,
+    //   defaultValue: false,
+    // },
+    // is_phone_verified: {
+    //   type: DataTypes.BOOLEAN,
+    //   defaultValue: false,
+    // },
+    role: {
+      type: DataTypes.STRING,
+    },
+    profile_url: { 
+      type: DataTypes.TEXT
+    },
+    bio: {
+      type: DataTypes.STRING
+    },
+    is_online: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    last_seen: { 
+      type: DataTypes.DATE
+    },
+    // fcmToken: {
+    //   type: DataTypes.TEXT
+    // },
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+          model: 'organizations',
+          key: 'id'
+      },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE'
+    },
+    two_fa_enabled: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    reset_password_otp: { 
+      type: DataTypes.STRING
+    },
+    reset_password_expiry: { 
+      type: DataTypes.DATE
+    },
+    status: {
+      type: DataTypes.ENUM('active', 'blocked', 'suspended'),
+      defaultValue: 'active',
+    },
+    subscription: {
+      type: DataTypes.STRING,
+      defaultValue: 'free',
+    },
+    is_deleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    designation: { 
+      type: DataTypes.STRING
+    },
+    location: { 
+      type: DataTypes.STRING
+    },
+    position: { 
+      type: DataTypes.STRING
+    },
+    // 🔴 add join org ids table here and remove from here
+    org_2: { 
+      type: DataTypes.UUID
+    },
+    org_3: { 
+      type: DataTypes.UUID
+    },
+    org_4: { 
+      type: DataTypes.UUID
+    },
+    org_5: { 
+      type: DataTypes.UUID
+    },
+    org_6: { 
+      type: DataTypes.UUID
+    },
+    org_7: { 
+      type: DataTypes.UUID
+    },
+    org_8: { 
+      type: DataTypes.UUID
+    },
+    org_9: { 
+      type: DataTypes.UUID
+    },
+    org_10: { 
+      type: DataTypes.UUID
+    },
+    join_date: { 
+      type: DataTypes.STRING
+    },
+    // 🔴 ADD LATER:
+    // login_type (email | phone | oauth)
+    // is_email_verified
+    // is_phone_verified
+    // device_type
+    // device_last_seen_at
+    // last_active_ip
+  },
+  {
+    tableName: 'users',
+    timestamps: true,
+    underscored: true,
+  }
+);
+
+User.findUserByEmail = async function(email) {
+  return await User.findOne({ where: { email } });
+};
+
+return User;
+};
+
+Alright — now your requirement is very clear, and your current code needs a small but important structural fix.
+
+🎯 Your Requirement (cleanly defined)
+org_id from frontend	Expected result
+✅ org_id = value	Return users belonging to ANY org column
+✅ org_id = null	Return users where ALL org columns are NULL
+❌ Problem in your current code
+
+Right now you are doing:
+
+organization_id: org_id
+
+This:
+
+❌ only checks one column
+❌ fails for null (because = NULL doesn't work in SQL)
+❌ ignores org_2 ... org_10
+✅ Correct Solution
+
+You already built userBelongsToOrg — just upgrade it properly.
+
+🔥 FINAL FIX (this is what you need)
+✅ Updated helper
+const { Op } = require("sequelize");
+
+function userBelongsToOrg(org_id) {
+
+  // ✅ CASE 1: org_id is NULL → return users with NO org at all
+  if (org_id === null) {
+    return {
+      [Op.and]: [
+        { organization_id: { [Op.is]: null } },
+        { org_2: { [Op.is]: null } },
+        { org_3: { [Op.is]: null } },
+        { org_4: { [Op.is]: null } },
+        { org_5: { [Op.is]: null } },
+        { org_6: { [Op.is]: null } },
+        { org_7: { [Op.is]: null } },
+        { org_8: { [Op.is]: null } },
+        { org_9: { [Op.is]: null } },
+        { org_10: { [Op.is]: null } }
+      ]
+    };
+  }
+
+  // ✅ CASE 2: org_id has value → match ANY column
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
+}
+🔧 Update your searchUsers API
+❌ REMOVE this:
+organization_id: org_id,
+✅ REPLACE with:
+where: {
+  id: { [Op.ne]: currentUserId },
+  is_deleted: false,
+
+  ...userBelongsToOrg(org_id), // ✅ THIS is the fix
+
+  [Op.and]: [
+    {
+      [Op.or]: [
+        { full_name: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } }
+      ]
+    }
+  ]
+}
+⚠️ Important Behavior (Now Correct)
+👉 If org_id = "abc"
+
+Query becomes:
+
+organization_id = 'abc'
+OR org_2 = 'abc'
+OR org_3 = 'abc'
+...
+👉 If org_id = null
+
+Query becomes:
+
+organization_id IS NULL
+AND org_2 IS NULL
+AND org_3 IS NULL
+...
+
+✔️ This ensures:
+
+Only users with no organization at all
+
+🧠 One More Improvement (Optional but smart)
+
+Instead of checking 10 columns every time 😅
+
+👉 Long-term better design:
+
+user_organizations table
+------------------------
+user_id
+organization_id
+
+Then query becomes:
+
+include: [{
+  model: UserOrganization,
+  where: { organization_id: org_id }
+}]
+
+Much cleaner + scalable.
+
+✅ Final Summary
+❌ organization_id: org_id → wrong
+❌ = null → doesn't work in SQL
+✅ Use Op.is for null
+✅ Use Op.or for multi-column match
+✅ Use Op.and for "all null" case
+
+If you want, next step I can:
+👉 Refactor your whole org system (remove org_2...org_10) into a proper relational design — it’ll save you a LOT of headaches later.
+
+it quite failing it goes inside the if condition where org_id is null but it also send the organizations user data when i search user-
+if (org_id === null) {
+    console.log('inside null')
+    return {
+      [Op.and]: [
+        { organization_id: { [Op.is]: null } },
+        { org_2: { [Op.is]: null } },
+        { org_3: { [Op.is]: null } },
+        { org_4: { [Op.is]: null } },
+        { org_5: { [Op.is]: null } },
+        { org_6: { [Op.is]: null } },
+        { org_7: { [Op.is]: null } },
+        { org_8: { [Op.is]: null } },
+        { org_9: { [Op.is]: null } },
+        { org_10: { [Op.is]: null } }
+      ]
+    };
+  }
+
+Alright — if it’s entering the org_id === null block but still returning users with organizations, then the issue is not the helper logic itself, it’s how Sequelize is merging your where conditions.
+
+Let’s fix it properly 👇
+
+🔍 Root Cause
+
+Your current where looks like this:
+
+where: {
+  id: { [Op.ne]: currentUserId },
+  is_deleted: false,
+
+  ...userBelongsToOrg(org_id),
+
+  [Op.and]: [
+    {
+      [Op.or]: [
+        { full_name: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } }
+      ]
+    }
+  ]
+}
+❗ Problem:
+
+You now have multiple [Op.and] / [Op.or] at the same level, and Sequelize merges them in a way you don’t expect.
+
+So your NULL filter is getting loosely combined, not strictly enforced.
+
+✅ Correct Fix (VERY IMPORTANT)
+
+You must wrap everything inside ONE [Op.and]
+
+🔥 Final Working Query
+where: {
+  [Op.and]: [
+    { id: { [Op.ne]: currentUserId } },
+    { is_deleted: false },
+
+    // ✅ org filter (strictly applied)
+    userBelongsToOrg(org_id),
+
+    // ✅ search filter
+    {
+      [Op.or]: [
+        { full_name: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } }
+      ]
+    }
+  ]
+}
+🧠 Why this works
+
+Now SQL becomes:
+
+WHERE
+  id != currentUser
+  AND is_deleted = false
+  AND (
+    organization_id IS NULL
+    AND org_2 IS NULL
+    AND ...
+  )
+  AND (
+    full_name ILIKE '%q%'
+    OR email ILIKE '%q%'
+  )
+
+👉 Everything is strictly ANDed together
+👉 No accidental OR leakage
+
+⚠️ Extra Debug (VERY useful)
+
+Add this before query:
+
+console.log("org_id:", org_id, typeof org_id);
+🚨 Common hidden bug:
+
+Frontend may send:
+
+org_id = "null"  // ❌ string, not actual null
+
+So your condition:
+
+if (org_id === null)
+
+👉 WILL FAIL silently
+
+✅ Safer check
+if (org_id === null || org_id === "null" || org_id === undefined)
+🧪 Quick Test Cases
+Input	Expected
+org_id = null	Only users with ALL org columns null
+org_id = "abc"	Users matching ANY org column
+org_id = "null" (string)	Should behave like null
+💥 Final Advice (Important)
+
+Your logic is correct now, BUT:
+
+👉 This schema (org_2 ... org_10) is fragile
+👉 Queries will keep getting complex and buggy
+
+If this is production-level:
+
+You really should move to a join table (user_organizations)
+
+✅ Summary
+Your helper is fine ✅
+Your query structure was wrong ❌
+Fix = wrap everything in one [Op.and] ✅
+Also check "null" vs null ⚠️
+
+If it's still failing after this, paste the generated SQL (logging: console.log), and I’ll pinpoint the exact issue.
+
+fix this -
+exports.searchChatMessages = async (req, res) => {
+  try {
+
+    const { chat_id } = req.params;
+    const q = req.query.search?.trim();
+    const user_id = req.user.id;
+    const { org_id } = req.body
+
+    if (!q) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
+    }
+
+    // ✅ Chat validation
+    const chat = await Chat.findOne({
+      where: {
+        id: chat_id,
+        organization_id: org_id,
+        is_deleted: false
+      }
+    });
+
+    if (!chat) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid chat");
+    }
+
+    // ✅ Membership
+    const membership = await ChatMember.findOne({
+      where: { chat_id, user_id }
+    });
+
+    if (!membership) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized");
+    }
+
+    // ✅ Member validation
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+      include: [{
+        model: User,
+        as: "user",
+        where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+        required: false,
+        attributes: ["id"]
+      }]
+    });
+
+    const validMembers = members.map(m => m.user).filter(Boolean);
+
+    if (chat.type === "private" && validMembers.length !== 2) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid private chat");
+    }
+
+    if (chat.type === "group" && validMembers.length < 2) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid group chat");
+    }
+
+    // ✅ SEARCH MESSAGES
+    const messages = await Message.findAll({
+      where: {
+        chat_id,
+        is_deleted: false,
+        [Op.or]: [
+          { content: { [Op.iLike]: %${q}% } },
+          { "$files.file_name$": { [Op.iLike]: %${q}% } }
+        ]
+      },
+      include: [
+        {
+          model: SharedFile,
+          as: "files",
+          attributes: ["file_name", "file_url"],
+          required: false
+        },
+        {
+          model: User,
+          as: "sender",
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          required: true,
+          attributes: ["id", "full_name"]
+        }
+      ],
+      order: [["created_at", "DESC"]]
+    });
+
+    // const mentions = await MessageMention.findAll({
+    //   where: { message_id: messages.map(m => m.id) }
+    // });
+
+    // const mentionMap = {};
+    // mentions.forEach(m => {
+    //   if (!mentionMap[m.message_id]) mentionMap[m.message_id] = [];
+    //   mentionMap[m.message_id].push(m.mentioned_user_id);
+    // });
+
+    const formattedMessages = messages.map(msg => {
+
+      // const mentionIds = mentionMap[msg.id] || [];
+      // const isMentioned = mentionIds.includes(user_id);
+
+      return {
+        id: msg.id,
+        chat_id: msg.chat_id,
+        sender_id: msg.sender_id,
+        message_type: msg.message_type,
+        content: msg.content,
+
+        // ✅ FLAGS
+        // is_edited: !!msg.edited_at,
+        // is_forwarded: !!msg.forwarded_from_message_id,
+        // is_mentioned: isMentioned,
+        // mentioned_user_ids: mentionIds,
+
+        // ✅ FILES
+        files: msg.files?.map(file => ({
+          file_name: file.file_name,
+          file_url: file.file_url ? BASE_URL + file.file_url : null
+        })) || [],
+
+        // ✅ SENDER
+        sender: {
+          id: msg.sender.id,
+          full_name: msg.sender.full_name
+        }
+      };
+
+    });
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Chat messages retrieved!",
+      formattedMessages
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+You’re very close — the same logic issue is repeating here 👇
+
+❌ Current Problems
+organization_id: org_id → breaks for null
+You’re not checking org across all columns
+Your userBelongsToOrg() is not wrapped properly, causing loose filtering
+Chat validation is wrong for null case
+✅ FIXED VERSION (clean + correct)
+🔥 1. Fix Chat Validation
+
+Replace this ❌:
+
+where: {
+  id: chat_id,
+  organization_id: org_id,
+  is_deleted: false
+}
+✅ With this:
+where: {
+  [Op.and]: [
+    { id: chat_id },
+    { is_deleted: false },
+
+    // ✅ org filter (handles null + multi columns)
+    ...(org_id === null || org_id === "null"
+      ? [{ organization_id: { [Op.is]: null } }]
+      : [{ organization_id: org_id }]
+    )
+  ]
+}
+
+👉 Chat table only has organization_id, so no need for org_2...org_10 here.
+
+🔥 2. Fix Member Validation (IMPORTANT)
+
+Replace this ❌:
+
+where: { is_deleted: false, ...userBelongsToOrg(org_id) }
+✅ With this:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+🔥 3. Fix Sender Filter (VERY IMPORTANT)
+
+Replace this ❌:
+
+where: { is_deleted: false, ...userBelongsToOrg(org_id) }
+✅ With this:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+🔥 4. Fix userBelongsToOrg (final safe version)
+
+Make sure you're using THIS:
+
+const { Op } = require("sequelize");
+
+function userBelongsToOrg(org_id) {
+
+  // normalize
+  if (org_id === "null") org_id = null;
+
+  if (org_id === null) {
+    return {
+      [Op.and]: [
+        { organization_id: { [Op.is]: null } },
+        { org_2: { [Op.is]: null } },
+        { org_3: { [Op.is]: null } },
+        { org_4: { [Op.is]: null } },
+        { org_5: { [Op.is]: null } },
+        { org_6: { [Op.is]: null } },
+        { org_7: { [Op.is]: null } },
+        { org_8: { [Op.is]: null } },
+        { org_9: { [Op.is]: null } },
+        { org_10: { [Op.is]: null } }
+      ]
+    };
+  }
+
+  return {
+    [Op.or]: [
+      { organization_id: org_id },
+      { org_2: org_id },
+      { org_3: org_id },
+      { org_4: org_id },
+      { org_5: org_id },
+      { org_6: org_id },
+      { org_7: org_id },
+      { org_8: org_id },
+      { org_9: org_id },
+      { org_10: org_id }
+    ]
+  };
+}
+🧠 Why your old version failed
+Sequelize was generating something like:
+WHERE is_deleted = false
+AND (organization_id IS NULL AND org_2 IS NULL ...)
+OR (name ILIKE '%q%')
+
+👉 That OR leaks results (returns org users too)
+
+✅ Final Behavior (Correct Now)
+Case	Result
+org_id = "abc"	Only users in that org
+org_id = null	Only users with NO org
+search	Properly filtered
+chat validation	Works correctly
+🚀 Bonus Debug Tip
+
+Enable SQL logging once:
+
+sequelize.options.logging = console.log;
+
+Then check:
+
+👉 If you see = NULL → ❌ wrong
+👉 If you see IS NULL → ✅ correct
+
+⚠️ Final Advice (Important)
+
+You're doing a lot of heavy filtering because of:
+
+organization_id + org_2 ... org_10
+
+This will:
+
+Slow queries ⚠️
+Create bugs ⚠️
+Be hard to maintain ⚠️
+
+👉 Strong recommendation:
+Move to UserOrganizations table (many-to-many)
+
+If you want, I can refactor this whole API into a clean, scalable version (much simpler than this).
+
+Error: Invalid value { organization_id: { Symbol(is): null } }
+    at Object.escape (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\sql-string.js:54:11)
+    at PostgresQueryGenerator.escape (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:766:22)
+    at PostgresQueryGenerator._whereParseSingleValueObject (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:2060:41)
+    at PostgresQueryGenerator.whereItemQuery (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:1818:19)
+    at G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:1737:25
+    at Array.forEach (<anonymous>)
+    at PostgresQueryGenerator.whereItemsQuery (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:1735:35)
+    at G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:1843:30
+    at Array.map (<anonymous>)
+    at PostgresQueryGenerator._whereGroupBind (G:\BOSSPLAN_MESSENGER\node_modules\sequelize\lib\dialects\abstract\query-generator.js:1842:21)
+
+exports.searchChatMessages = async (req, res) => {
+  try {
+
+    const { chat_id } = req.params;
+    const q = req.query.search?.trim();
+    const user_id = req.user.id;
+    const { org_id } = req.body
+
+    if (!q) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
+    }
+
+    // ✅ Chat validation
+    const chat = await Chat.findOne({
+      where: {
+        [Op.and]: [
+          { id: chat_id },
+          { is_deleted: false },
+          { ...(org_id === null || org_id === "null"
+              ? [{ organization_id: { [Op.is]: null } }]
+              : [{ organization_id: org_id }]
+            ) 
+          },
+        ]        
+      }
+    });
+
+    if (!chat) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid chat");
+    }
+
+    // ✅ Membership
+    const membership = await ChatMember.findOne({
+      where: { chat_id, user_id }
+    });
+
+    if (!membership) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Not authorized");
+    }
+
+    // ✅ Member validation
+    const members = await ChatMember.findAll({
+      where: { chat_id },
+      include: [{
+        model: User,
+        as: "user",
+        where: {
+        [Op.and]: [
+            { is_deleted: false },
+            { ...userBelongsToOrg(org_id) }
+          ]
+        },
+        required: false,
+        attributes: ["id"]
+      }]
+    });
+
+    const validMembers = members.map(m => m.user).filter(Boolean);
+
+    if (chat.type === "private" && validMembers.length !== 2) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid private chat");
+    }
+
+    if (chat.type === "group" && validMembers.length < 2) {
+      return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid group chat");
+    }
+
+    // ✅ SEARCH MESSAGES
+    const messages = await Message.findAll({
+      where: {
+        chat_id,
+        is_deleted: false,
+        [Op.or]: [
+          { content: { [Op.iLike]: %${q}% } },
+          { "$files.file_name$": { [Op.iLike]: %${q}% } }
+        ]
+      },
+      include: [
+        {
+          model: SharedFile,
+          as: "files",
+          attributes: ["file_name", "file_url"],
+          required: false
+        },
+        {
+          model: User,
+          as: "sender",
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              {...userBelongsToOrg(org_id)}
+            ]
+          },
+          required: true,
+          attributes: ["id", "full_name"]
+        }
+      ],
+      order: [["created_at", "DESC"]]
+    });
+
+    // const mentions = await MessageMention.findAll({
+    //   where: { message_id: messages.map(m => m.id) }
+    // });
+
+    // const mentionMap = {};
+    // mentions.forEach(m => {
+    //   if (!mentionMap[m.message_id]) mentionMap[m.message_id] = [];
+    //   mentionMap[m.message_id].push(m.mentioned_user_id);
+    // });
+
+    const formattedMessages = messages.map(msg => {
+
+      // const mentionIds = mentionMap[msg.id] || [];
+      // const isMentioned = mentionIds.includes(user_id);
+
+      return {
+        id: msg.id,
+        chat_id: msg.chat_id,
+        sender_id: msg.sender_id,
+        message_type: msg.message_type,
+        content: msg.content,
+
+        // ✅ FLAGS
+        // is_edited: !!msg.edited_at,
+        // is_forwarded: !!msg.forwarded_from_message_id,
+        // is_mentioned: isMentioned,
+        // mentioned_user_ids: mentionIds,
+
+        // ✅ FILES
+        files: msg.files?.map(file => ({
+          file_name: file.file_name,
+          file_url: file.file_url ? BASE_URL + file.file_url : null
+        })) || [],
+
+        // ✅ SENDER
+        sender: {
+          id: msg.sender.id,
+          full_name: msg.sender.full_name
+        }
+      };
+
+    });
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Chat messages retrieved!",
+      formattedMessages
+    );
+
+  } catch (err) {
+    console.log(err)
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Server error!",
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+Good — now we have the exact error and code, so I can pinpoint it precisely.
+
+❌ Root Cause
+
+This line is the problem:
+
+{ ...(org_id === null || org_id === "null"
+    ? [{ organization_id: { [Op.is]: null } }]
+    : [{ organization_id: org_id }]
+  ) 
+},
+🚨 Why it breaks
+
+You are doing:
+
+... [ { organization_id: { [Op.is]: null } } ]
+
+👉 Spreading an array into an object → ❌ invalid structure
+👉 Sequelize receives something malformed → hence:
+
+Invalid value { organization_id: { Symbol(is): null } }
+✅ FIX (Simple and Correct)
+🔥 Replace this whole block:
+{ ...(org_id === null || org_id === "null"
+    ? [{ organization_id: { [Op.is]: null } }]
+    : [{ organization_id: org_id }]
+  ) 
+},
+✅ With THIS:
+(org_id === null || org_id === "null"
+  ? { organization_id: { [Op.is]: null } }
+  : { organization_id: org_id }
+)
+✅ Final Chat Query (Correct)
+const chat = await Chat.findOne({
+  where: {
+    [Op.and]: [
+      { id: chat_id },
+      { is_deleted: false },
+
+      // ✅ FIXED
+      (org_id === null || org_id === "null"
+        ? { organization_id: { [Op.is]: null } }
+        : { organization_id: org_id }
+      )
+    ]
+  }
+});
+⚠️ Same Mistake Here Too
+
+You also did this:
+
+{ ...userBelongsToOrg(org_id) }
+
+inside [Op.and]
+
+👉 That’s unnecessary and risky.
+
+✅ Fix it
+
+Replace:
+
+{ ...userBelongsToOrg(org_id) }
+✅ With:
+userBelongsToOrg(org_id)
+🔥 Apply Fix in 2 Places
+1. Member validation
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id) // ✅ no spread
+  ]
+}
+2. Sender filter
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id) // ✅ no spread
+  ]
+}
+🧠 Why this error happened
+Mistake	Result
+Spread array into object	❌ Invalid Sequelize query
+Nested wrong structure	❌ SQL generator crash
+{ ...userBelongsToOrg() }	⚠️ Can break operators
+✅ Final Checklist
+❌ No ...[] (array spread into object)
+❌ No unnecessary object spreading
+✅ Always return plain condition objects
+✅ Use Op.is only like { column: { [Op.is]: null } }
+🚀 After Fix
+
+Now:
+
+Case	Works?
+org_id = null	✅
+org_id = value	✅
+Chat validation	✅
+Member filtering	✅
+Sender filtering	✅
+
+If anything still behaves weird, turn on:
+
+sequelize.options.logging = console.log;
+
+and paste the SQL — I’ll debug it line-by-line.
+
+fix this api also -
+exports.searchAll = async (req, res) => {
+  try {
+
+    const user_id = req.user.id;
+    const { org_id } = req.body
+    const q = req.query.search?.trim();
+
+    if (!q) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search bar is empty!", { users: [], groups: [], messages: [], files: [] });
+    }
+
+    const getLastMessage = async (chat_id, user_id) => {
+      const msg = await Message.findOne({
+        where: { chat_id, is_deleted: false },
+        order: [['created_at', 'DESC']],
+        attributes: [
+          'id',
+          'content',
+          'message_type',
+          'sender_id',
+          'created_at',
+          'edited_at',
+          'forwarded_from_message_id'
+        ],
+
+        include: [
+          {
+            model: SharedFile,
+            as: "files",
+            where: {
+              user_id: { [Op.ne]: null },
+              message_id: { [Op.ne]: null },
+              chat_id: { [Op.ne]: null }
+            },
+            attributes: ["file_name", "file_url"],
+            required: false
+          }
+        ]
+      });
+
+      if (!msg) return null;
+
+      /**
+       * 🔥 Handle content (text / file)
+       */
+      let content = msg.content;
+
+      if (!content && msg.files?.length) {
+        content = msg.files[0].file_name || "File";
+      }
+
+      return {
+        id: msg.id,
+        content,
+        message_type: msg.message_type,
+        sender_id: msg.sender_id,
+        created_at: msg.created_at,
+
+        // ✅ NEW FLAG
+        is_you: msg.sender_id === user_id,
+
+        // ✅ existing flags
+        is_edited: !!msg.edited_at,
+        is_forwarded: !!msg.forwarded_from_message_id,
+
+        // ✅ files
+        files: msg.files?.map(f => ({
+          file_name: f.file_name,
+          file_url: f.file_url
+        })) || []
+      };
+    };
+    /**
+     * 1️⃣ USERS
+     */
+    const usersRaw = await User.findAll({
+      where: {
+        id: { [Op.ne]: user_id },
+        is_deleted: false,
+        
+        ...userBelongsToOrg(org_id),
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { full_name: { [Op.iLike]: %${q}% } },
+              { email: { [Op.iLike]: %${q}% } }
+            ]
+          },
+        ]
+      },
+      attributes: ["id", "full_name"],
+      include: [{
+        model: SharedFile,
+        as: "uploadedFiles",
+        where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
+        attributes: ["file_url"],
+        required: false
+      }]
+    });
+
+    const users = await Promise.all(usersRaw.map(async (u) => {
+
+      const chat = await Chat.findOne({
+        where: {
+          type: "private",
+          organization_id: org_id,
+          is_deleted: false
+        },
+        include: [
+          {
+            model: ChatMember,
+            as: "memberships",
+            include: [{
+              model: User,
+              as: "user",
+              where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+              required: true,
+              attributes: []
+            }],
+            where: {
+              user_id: { [Op.in]: [user_id, u.id] }
+            },
+            attributes: []
+          }
+        ],
+        group: ["Chat.id"],
+        having: sequelize.literal(COUNT(DISTINCT "memberships"."user_id") = 2),
+        subQuery: false
+      });
+      const last_message = chat ? await getLastMessage(chat.id, user_id) : null;
+      return {
+        user_id: u.id,
+        full_name: u.full_name,
+        profile_image: u.uploadedFiles?.[0]?.file_url ? BASE_URL+u.uploadedFiles?.[0]?.file_url : null,
+        chat_id: chat?.id ?? null,
+        chat_type: "private",
+        last_message
+      };
+    }));
+
+    /**
+     * 2️⃣ GROUPS
+     */
+    const groupsRaw = await Chat.findAll({
+      where: {
+        type: "group",
+        organization_id: org_id,
+        group_name: { [Op.iLike]: %${q}% },
+        is_deleted: false
+      },
+      include: [
+        {
+          model: ChatMember,
+          as: "memberships",
+          required: true,
+          where: { user_id },
+          include: [{
+            model: User,
+            as: "user",
+            where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+            required: false,
+            attributes: ["id"]
+          }]
+        },
+        {
+          model: SharedFile,
+          as: "files",
+          where: {message_id: null,
+            user_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }},
+          attributes: ["file_url"],
+          required: false
+        }
+      ]
+    });
+
+    const groups = await Promise.all(groupsRaw.map(async (g) => {
+
+      const last_message = await getLastMessage(g.id, user_id);
+
+      return {
+        group_id: g.id,
+        group_name: g.group_name,
+        group_image: g.files?.[0]?.file_url ? BASE_URL + g.files[0].file_url : null,
+        chat_id: g.id,
+        chat_type: g.type,
+        last_message
+      };
+    }));
+
+    /**
+     * 3️⃣ MESSAGES
+     */
+    const messagesRaw = await Message.findAll({
+      subQuery: false,
+      where: {
+        content: { [Op.iLike]: %${q}% },
+        is_deleted: false,
+      },
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          required: true,
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+          include: [{
+            model: ChatMember,
+            as: "memberships",
+            attributes: ["user_id"],
+            required: false,
+            include: [{
+              model: User,
+              as: "user",
+              where: {
+                is_deleted: false,
+                ...userBelongsToOrg(org_id)
+              },
+              attributes: ["id", "full_name"],
+              required: true
+            }]
+          }]
+        },
+        {
+          model: User,
+          as: "sender",
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          required: true,
+          attributes: ["id", "full_name"]
+        }
+      ],
+      order: [["created_at", "DESC"]]
+    });
+
+//     const messages = messagesRaw
+//       .filter(m => m.sender && m.chat)
+//       .map(m => {
+
+//         const chat = m.chat;
+//         let name = null;
+//         console.log('chat',chat)
+// console.log(chat.memberships)
+//         if(chat.type === "group"){
+//           name = chat.group_name || "Unnamed Group";
+//         }else{
+//           const members = chat.memberships
+//             ?.map(mem => mem.user)
+//             ?.filter(Boolean);
+
+//           const otherUser = members.find(u => u.id !== user_id);
+
+//           name = otherUser?.full_name || "Unknown User";
+//         }
+//         return {
+//           message_id: m.id,
+//           chat_id: m.chat_id,
+//           name,
+//           chat_type: m.chat?.type,
+//           sender_id: m.sender_id,
+//           sender_name: m.sender.full_name,
+//           message: m.content,
+//           message_type: m.message_type,
+//           created_at: m.created_at
+//         }
+//       });
+
+const messages = messagesRaw
+  .filter(m => {
+    const members = m.chat?.memberships || [];
+
+    // ✅ Ensure logged-in user is part of chat
+    return members.some(mem => mem.user_id === user_id);
+  })
+  .map(m => {
+
+    const chat = m.chat;
+    let name = null;
+
+    /**
+     * 🔹 GROUP
+     */
+    if (chat.type === "group") {
+
+      name = chat.group_name || "Unnamed Group";
+
+    /**
+     * 🔹 PRIVATE
+     */
+    } else {
+
+      const members = chat.memberships
+        ?.map(mem => mem.user)
+        ?.filter(Boolean);
+
+      const otherUser = members.find(u => u.id !== user_id);
+
+      name = otherUser?.full_name || "Unknown User";
+    }
+
+    return {
+      message_id: m.id,
+      chat_id: m.chat_id,
+      name,
+      chat_type: chat.type,
+      sender_id: m.sender_id,
+      sender_name: m.sender.full_name,
+      is_you: m.sender_id === user_id,
+      message: m.content,
+      message_type: m.message_type,
+      created_at: m.created_at
+    };
+  });
+    /**
+     * 4️⃣ FILES
+     */
+    const filesRaw = await SharedFile.findAll({
+      where: {
+        file_name: { [Op.iLike]: %${q}% },
+        user_id: { [Op.ne]: null },
+        message_id: { [Op.ne]: null },
+        chat_id: { [Op.ne]: null }
+      },
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+          include: [{
+            model: ChatMember,
+            as: "memberships",
+            where: { user_id },
+            attributes: []
+          }]
+        },
+        {
+          model: User,
+          as: "uploader",
+          where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          required: true,
+          attributes: ["id"]
+        }
+      ]
+    });
+
+    const files = filesRaw.map(f => {
+      const chat = f.chat;
+
+      const name = chat.type === "group"
+        ? chat.group_name
+        : "Private Chat";
+      return {
+        message_id: f.message_id,
+        chat_id: f.chat_id,
+        name,
+        chat_type: f.chat?.type,
+        file_name: f.file_name,
+        file_url: f.file_url ? BASE_URL+f.file_url : null,
+        file_type: f.file_type,
+        uploaded_by: f.user_id,
+        is_you: f.user_id === user_id,
+        created_at: f.created_at
+      }
+    });
+
+    return res.json({
+      status: true,
+      query: q,
+      data: { users, groups, messages, files }
+    });
+
+  } catch (err) {
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+  }
+};
+
+Yeah this API had the same 3 core issues repeated everywhere:
+
+❌ Problems
+...userBelongsToOrg(org_id) used incorrectly (not wrapped in [Op.and])
+organization_id: org_id → breaks for null
+Conditions not grouped → OR leakage (wrong data)
+✅ Clean Fix Strategy
+
+We’ll fix it once properly and apply everywhere:
+
+🔥 Rule:
+[Op.and]: [
+  base conditions,
+  org filter,
+  search filter
+]
+✅ 1. Create reusable org filter for Chat (IMPORTANT)
+const chatOrgFilter = (org_id) => {
+  if (org_id === "null") org_id = null;
+
+  return org_id === null
+    ? { organization_id: { [Op.is]: null } }
+    : { organization_id: org_id };
+};
+✅ 2. Fix USERS query
+❌ Old:
+...userBelongsToOrg(org_id),
+[Op.and]: [...]
+✅ New:
+where: {
+  [Op.and]: [
+    { id: { [Op.ne]: user_id } },
+    { is_deleted: false },
+
+    userBelongsToOrg(org_id),
+
+    {
+      [Op.or]: [
+        { full_name: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } }
+      ]
+    }
+  ]
+}
+✅ 3. Fix PRIVATE CHAT lookup
+❌ Old:
+organization_id: org_id
+✅ New:
+where: {
+  [Op.and]: [
+    { type: "private" },
+    { is_deleted: false },
+    chatOrgFilter(org_id)
+  ]
+}
+❌ Also fix this:
+where: { is_deleted: false, ...userBelongsToOrg(org_id) }
+✅ Replace:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+✅ 4. Fix GROUPS query
+where: {
+  [Op.and]: [
+    { type: "group" },
+    { is_deleted: false },
+    chatOrgFilter(org_id),
+
+    { group_name: { [Op.iLike]: `%${q}%` } }
+  ]
+}
+Fix inside include:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+✅ 5. Fix MESSAGES query (VERY IMPORTANT)
+❌ Old:
+where: {
+  organization_id: org_id
+}
+✅ New:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    chatOrgFilter(org_id)
+  ]
+}
+Fix sender:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+✅ 6. Fix FILES query
+Chat include fix:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    chatOrgFilter(org_id)
+  ]
+}
+Uploader fix:
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+    userBelongsToOrg(org_id)
+  ]
+}
+🚨 MOST IMPORTANT TAKEAWAYS
+❌ NEVER DO:
+...userBelongsToOrg(org_id)
+❌ NEVER DO:
+organization_id: null
+✅ ALWAYS DO:
+For users:
+[Op.and]: [
+  base,
+  userBelongsToOrg(org_id)
+]
+For chats:
+chatOrgFilter(org_id)
+🧠 Why your bug happened
+
+Because Sequelize was generating queries like:
+
+WHERE is_deleted = false
+AND org conditions
+OR search condition
+
+👉 That OR leaks data from other orgs
+
+✅ After Fix Behavior
+Case	Result
+org_id = value	Only that org data
+org_id = null	Only NULL org data
+search	No leakage
+chats/messages/files	Fully consistent
+🚀 Final Advice (serious)
+
+This API is already very heavy. With:
+
+org_2 ... org_10
+
+You are:
+
+Increasing query complexity ❌
+Risking bugs ❌
+Killing performance ❌
+
+👉 Strong recommendation:
+Move to:
+
+user_organizations (join table)
+
+If you want, next I can:
+👉 Refactor this entire API into 50% simpler + faster version (production-grade).
+
+dont make any base filter check and tell the error -
+exports.searchAll = async (req, res) => {
+  try {
+
+    const user_id = req.user.id;
+    const { org_id } = req.body
+    const q = req.query.search?.trim();
+
+    if (!q) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search bar is empty!", { users: [], groups: [], messages: [], files: [] });
+    }
+
+    const getLastMessage = async (chat_id, user_id) => {
+      const msg = await Message.findOne({
+        where: { chat_id, is_deleted: false },
+        order: [['created_at', 'DESC']],
+        attributes: [
+          'id',
+          'content',
+          'message_type',
+          'sender_id',
+          'created_at',
+          'edited_at',
+          'forwarded_from_message_id'
+        ],
+
+        include: [
+          {
+            model: SharedFile,
+            as: "files",
+            where: {
+              user_id: { [Op.ne]: null },
+              message_id: { [Op.ne]: null },
+              chat_id: { [Op.ne]: null }
+            },
+            attributes: ["file_name", "file_url"],
+            required: false
+          }
+        ]
+      });
+
+      if (!msg) return null;
+
+      /**
+       * 🔥 Handle content (text / file)
+       */
+      let content = msg.content;
+
+      if (!content && msg.files?.length) {
+        content = msg.files[0].file_name || "File";
+      }
+
+      return {
+        id: msg.id,
+        content,
+        message_type: msg.message_type,
+        sender_id: msg.sender_id,
+        created_at: msg.created_at,
+
+        // ✅ NEW FLAG
+        is_you: msg.sender_id === user_id,
+
+        // ✅ existing flags
+        is_edited: !!msg.edited_at,
+        is_forwarded: !!msg.forwarded_from_message_id,
+
+        // ✅ files
+        files: msg.files?.map(f => ({
+          file_name: f.file_name,
+          file_url: f.file_url
+        })) || []
+      };
+    };
+    /**
+     * 1️⃣ USERS
+     */
+    const usersRaw = await User.findAll({
+      // where: {
+      //   id: { [Op.ne]: user_id },
+      //   is_deleted: false,
+        
+      //   ...userBelongsToOrg(org_id),
+      //   [Op.and]: [
+      //     {
+      //       [Op.or]: [
+      //         { full_name: { [Op.iLike]: %${q}% } },
+      //         { email: { [Op.iLike]: %${q}% } }
+      //       ]
+      //     },
+      //   ]
+      // },
+      where: {
+        [Op.and]: [
+          { id: { [Op.ne]: user_id } },
+          { is_deleted: false },
+
+          userBelongsToOrg(org_id),
+
+          {
+            [Op.or]: [
+              { full_name: { [Op.iLike]: %${q}% } },
+              { email: { [Op.iLike]: %${q}% } }
+            ]
+          }
+        ]
+      },
+      attributes: ["id", "full_name"],
+      include: [{
+        model: SharedFile,
+        as: "uploadedFiles",
+        where: {chat_id: null, message_id: null, user_id: { [Op.ne]: null }},
+        attributes: ["file_url"],
+        required: false
+      }]
+    });
+
+    const users = await Promise.all(usersRaw.map(async (u) => {
+
+      const chat = await Chat.findOne({
+        // where: {
+        //   type: "private",
+        //   organization_id: org_id,
+        //   is_deleted: false
+        // },
+        where: {
+          [Op.and]: [
+            { type: "private" },
+            { is_deleted: false },
+            chatOrgFilter(org_id)
+          ]
+        },
+        include: [
+          {
+            model: ChatMember,
+            as: "memberships",
+            include: [{
+              model: User,
+              as: "user",
+              // where: { is_deleted: false, ...userBelongsToOrg(org_id) }
+              where: {
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
+              },
+              required: true,
+              attributes: []
+            }],
+            where: {
+              user_id: { [Op.in]: [user_id, u.id] }
+            },
+            attributes: []
+          }
+        ],
+        group: ["Chat.id"],
+        having: sequelize.literal(COUNT(DISTINCT "memberships"."user_id") = 2),
+        subQuery: false
+      });
+      const last_message = chat ? await getLastMessage(chat.id, user_id) : null;
+      return {
+        user_id: u.id,
+        full_name: u.full_name,
+        profile_image: u.uploadedFiles?.[0]?.file_url ? BASE_URL+u.uploadedFiles?.[0]?.file_url : null,
+        chat_id: chat?.id ?? null,
+        chat_type: "private",
+        last_message
+      };
+    }));
+
+    /**
+     * 2️⃣ GROUPS
+     */
+    const groupsRaw = await Chat.findAll({
+      // where: {
+      //   type: "group",
+      //   organization_id: org_id,
+      //   group_name: { [Op.iLike]: %${q}% },
+      //   is_deleted: false
+      // },
+      where: {
+        [Op.and]: [
+          { type: "group" },
+          { is_deleted: false },
+          chatOrgFilter(org_id),
+
+          { group_name: { [Op.iLike]: %${q}% } }
+        ]
+      },
+      include: [
+        {
+          model: ChatMember,
+          as: "memberships",
+          required: true,
+          where: { user_id },
+          include: [{
+            model: User,
+            as: "user",
+            // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+            where: {
+              [Op.and]: [
+                { is_deleted: false },
+                userBelongsToOrg(org_id)
+              ]
+            },
+            required: false,
+            attributes: ["id"]
+          }]
+        },
+        {
+          model: SharedFile,
+          as: "files",
+          where: {message_id: null,
+            user_id: { [Op.ne]: null },
+            chat_id: { [Op.ne]: null }},
+          attributes: ["file_url"],
+          required: false
+        }
+      ]
+    });
+
+    const groups = await Promise.all(groupsRaw.map(async (g) => {
+
+      const last_message = await getLastMessage(g.id, user_id);
+
+      return {
+        group_id: g.id,
+        group_name: g.group_name,
+        group_image: g.files?.[0]?.file_url ? BASE_URL + g.files[0].file_url : null,
+        chat_id: g.id,
+        chat_type: g.type,
+        last_message
+      };
+    }));
+
+    /**
+     * 3️⃣ MESSAGES
+     */
+    const messagesRaw = await Message.findAll({
+      subQuery: false,
+      where: {
+        content: { [Op.iLike]: %${q}% },
+        is_deleted: false,
+      },
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          required: true,
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+          include: [{
+            model: ChatMember,
+            as: "memberships",
+            attributes: ["user_id"],
+            required: false,
+            include: [{
+              model: User,
+              as: "user",
+              // where: {
+              //   is_deleted: false,
+              //   ...userBelongsToOrg(org_id)
+              // },
+              where: {
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
+              },
+              attributes: ["id", "full_name"],
+              required: true
+            }]
+          }]
+        },
+        {
+          model: User,
+          as: "sender",
+          // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
+          required: true,
+          attributes: ["id", "full_name"]
+        }
+      ],
+      order: [["created_at", "DESC"]]
+    });
+
+//     const messages = messagesRaw
+//       .filter(m => m.sender && m.chat)
+//       .map(m => {
+
+//         const chat = m.chat;
+//         let name = null;
+//         console.log('chat',chat)
+// console.log(chat.memberships)
+//         if(chat.type === "group"){
+//           name = chat.group_name || "Unnamed Group";
+//         }else{
+//           const members = chat.memberships
+//             ?.map(mem => mem.user)
+//             ?.filter(Boolean);
+
+//           const otherUser = members.find(u => u.id !== user_id);
+
+//           name = otherUser?.full_name || "Unknown User";
+//         }
+//         return {
+//           message_id: m.id,
+//           chat_id: m.chat_id,
+//           name,
+//           chat_type: m.chat?.type,
+//           sender_id: m.sender_id,
+//           sender_name: m.sender.full_name,
+//           message: m.content,
+//           message_type: m.message_type,
+//           created_at: m.created_at
+//         }
+//       });
+
+const messages = messagesRaw
+  .filter(m => {
+    const members = m.chat?.memberships || [];
+
+    // ✅ Ensure logged-in user is part of chat
+    return members.some(mem => mem.user_id === user_id);
+  })
+  .map(m => {
+
+    const chat = m.chat;
+    let name = null;
+
+    /**
+     * 🔹 GROUP
+     */
+    if (chat.type === "group") {
+
+      name = chat.group_name || "Unnamed Group";
+
+    /**
+     * 🔹 PRIVATE
+     */
+    } else {
+
+      const members = chat.memberships
+        ?.map(mem => mem.user)
+        ?.filter(Boolean);
+
+      const otherUser = members.find(u => u.id !== user_id);
+
+      name = otherUser?.full_name || "Unknown User";
+    }
+
+    return {
+      message_id: m.id,
+      chat_id: m.chat_id,
+      name,
+      chat_type: chat.type,
+      sender_id: m.sender_id,
+      sender_name: m.sender.full_name,
+      is_you: m.sender_id === user_id,
+      message: m.content,
+      message_type: m.message_type,
+      created_at: m.created_at
+    };
+  });
+    /**
+     * 4️⃣ FILES
+     */
+    const filesRaw = await SharedFile.findAll({
+      where: {
+        file_name: { [Op.iLike]: %${q}% },
+        user_id: { [Op.ne]: null },
+        message_id: { [Op.ne]: null },
+        chat_id: { [Op.ne]: null }
+      },
+      include: [
+        {
+          model: Chat,
+          as: "chat",
+          where: {
+            organization_id: org_id,
+            is_deleted: false
+          },
+          include: [{
+            model: ChatMember,
+            as: "memberships",
+            where: { user_id },
+            attributes: []
+          }]
+        },
+        {
+          model: User,
+          as: "uploader",
+          // where: { is_deleted: false, ...userBelongsToOrg(org_id) },
+          where: {
+            [Op.and]: [
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
+          required: true,
+          attributes: ["id"]
+        }
+      ]
+    });
+
+    const files = filesRaw.map(f => {
+      const chat = f.chat;
+
+      const name = chat.type === "group"
+        ? chat.group_name
+        : "Private Chat";
+      return {
+        message_id: f.message_id,
+        chat_id: f.chat_id,
+        name,
+        chat_type: f.chat?.type,
+        file_name: f.file_name,
+        file_url: f.file_url ? BASE_URL+f.file_url : null,
+        file_type: f.file_type,
+        uploaded_by: f.user_id,
+        is_you: f.user_id === user_id,
+        created_at: f.created_at
+      }
+    });
+
+    return res.json({
+      status: true,
+      query: q,
+      data: { users, groups, messages, files }
+    });
+
+  } catch (err) {
+    return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
+  }
+};
+
+Good — now we focus only on the actual error, not redesign.
+
+❌ The Real Bugs in Your Code
+🔴 1. This will BREAK for null
+
+You still have:
+
+where: {
+  organization_id: org_id,
+  is_deleted: false
+}
+👉 Problem
+
+If:
+
+org_id = null
+
+Sequelize generates:
+
+organization_id = NULL ❌
+
+👉 This is INVALID SQL logic (always false)
+
+🔴 2. Same bug repeated in 2 places
+❌ Here (MESSAGES)
+where: {
+  organization_id: org_id,
+  is_deleted: false
+}
+❌ And here (FILES)
+where: {
+  organization_id: org_id,
+  is_deleted: false
+}
+💥 What happens because of this?
+When org_id = null
+These queries return EMPTY chats
+Which breaks:
+messages
+files
+chat filtering
+
+👉 That’s why your results feel inconsistent
+
+✅ FIX (minimal, no redesign)
+
+Replace ONLY this pattern everywhere:
+
+❌ Remove:
+organization_id: org_id
+✅ Replace with:
+...(org_id === null || org_id === "null"
+  ? { organization_id: { [Op.is]: null } }
+  : { organization_id: org_id }
+)
+📍 Apply Fix Here
+1️⃣ Messages → Chat include
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+
+    (org_id === null || org_id === "null"
+      ? { organization_id: { [Op.is]: null } }
+      : { organization_id: org_id }
+    )
+  ]
+}
+2️⃣ Files → Chat include
+where: {
+  [Op.and]: [
+    { is_deleted: false },
+
+    (org_id === null || org_id === "null"
+      ? { organization_id: { [Op.is]: null } }
+      : { organization_id: org_id }
+    )
+  ]
+}
+⚠️ One More Hidden Bug
+🔴 This line:
+chatOrgFilter(org_id)
+
+👉 If this function internally uses:
+
+{ organization_id: { [Op.is]: null } }
+
+AND you spread it wrong somewhere, you’ll again get:
+
+Invalid value { organization_id: { Symbol(is): null } }
+
+So ensure:
+
+// ✅ correct usage
+[Op.and]: [
+  chatOrgFilter(org_id)
+]
+
+NOT:
+
+{ ...chatOrgFilter(org_id) } ❌
+🧠 Summary (actual issues only)
+Issue	Impact
+organization_id: null	❌ no data returned
+Missing Op.is	❌ wrong SQL
+Wrong spread usage	❌ Sequelize crash
+Inconsistent handling	❌ random results
+✅ After Fix
+org_id = value → works ✅
+org_id = null → works ✅
+No Sequelize error ✅
+No empty data bugs ✅
+
+If you're still getting wrong results after this, the next step is:
+
+👉 Log SQL:
+
+sequelize.options.logging = console.log;
+
+and paste it — I’ll pinpoint the exact failing condition.
