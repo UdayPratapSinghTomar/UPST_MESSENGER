@@ -2,7 +2,7 @@ const { sequelize, User, Chat, ChatMember, Message,  MessageMention, SharedFile 
 const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const BASE_URL = process.env.BASE_URL;
-const { userBelongsToOrg } = require("../../utils/organizationFilter");
+const { userBelongsToOrg, chatOrgFilter } = require("../../utils/organizationFilter");
 // exports.searchAll = async (req, res) => {
 //   try {
 
@@ -294,15 +294,6 @@ exports.searchAll = async (req, res) => {
     const user_id = req.user.id;
     const { org_id } = req.body
     const q = req.query.search?.trim();
-
-
-    const chatOrgFilter = (org_id) => {
-      if (org_id === "null") org_id = null;
-
-      return org_id === null
-        ? { organization_id: { [Op.is]: null } }
-        : { organization_id: org_id };
-    };
 
     if (!q) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search bar is empty!", { users: [], groups: [], messages: [], files: [] });
@@ -862,14 +853,6 @@ exports.searchChatMessages = async (req, res) => {
     const q = req.query.search?.trim();
     const user_id = req.user.id;
     const { org_id } = req.body
-
-    const chatOrgFilter = (org_id) => {
-      if (org_id === "null") org_id = null;
-
-      return org_id === null
-        ? { organization_id: { [Op.is]: null } }
-        : { organization_id: org_id };
-    };
     
     if (!q) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);

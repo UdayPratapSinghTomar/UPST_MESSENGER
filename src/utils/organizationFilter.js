@@ -55,4 +55,13 @@ console.log('outside null')
     ]
   };
 }
-module.exports = { userBelongsToOrg };
+
+const chatOrgFilter = (org_id) => {
+  if (org_id === "null") org_id = null;
+
+  return org_id === null
+    ? { organization_id: { [Op.is]: null } }
+    : { organization_id: org_id };
+};
+
+module.exports = { userBelongsToOrg, chatOrgFilter };

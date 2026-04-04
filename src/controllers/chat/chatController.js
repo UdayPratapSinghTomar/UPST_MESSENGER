@@ -7,7 +7,7 @@ const EVENTS = require('../../utils/socketEvents');
 const { notifyUser }  = require('../../utils/notificationService');
 const path = require('path');
 const fs = require('fs');
-const { userBelongsToOrg } = require("../../utils/organizationFilter");
+const { userBelongsToOrg, chatOrgFilter } = require("../../utils/organizationFilter");
 const BASE_URL = process.env.BASE_URL;
 
 // exports.createPrivateChat = async (req, res) => {
@@ -1686,11 +1686,19 @@ exports.createPrivateChat = async (req, res) => {
      * ✅ Validate user belongs to same organization (FIXED)
      */
     const targetUser = await User.findOne({
+      // where: {
+      //   id: user_id,
+      //   is_deleted: false
+      //   // ...userBelongsToOrg(org_id)
+      // }
       where: {
-        id: user_id,
-        is_deleted: false
-        // ...userBelongsToOrg(org_id)
-      }
+        [Op.and]: [
+          { id: user_id },
+          { is_deleted: false },
+
+          userBelongsToOrg(org_id),
+        ]
+      },
     });
 
     if (!targetUser) {
@@ -1702,12 +1710,18 @@ exports.createPrivateChat = async (req, res) => {
      * ✅ Check existing private chat
      */
     const existingChat = await Chat.findOne({
+      // where: {
+      //   type: 'private',
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // },
       where: {
-        type: 'private',
-        organization_id: org_id,
-        is_deleted: false
+        [Op.and]: [
+          { type: "private" },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
       },
-
       include: [
         {
           model: ChatMember,
@@ -1856,10 +1870,18 @@ exports.createGroup = async (req, res) => {
     const uniqueUserIds = [...new Set(allUserIds)];
 
     const users = await User.findAll({
+      // where: {
+      //   id: uniqueUserIds,
+      //   is_deleted: false,
+      //   // ...userBelongsToOrg(org_id)
+      // },
       where: {
-        id: uniqueUserIds,
-        is_deleted: false,
-        // ...userBelongsToOrg(org_id)
+        [Op.and]: [
+          { id: uniqueUserIds},
+          { is_deleted: false },
+
+          userBelongsToOrg(org_id),
+        ]
       },
       attributes: ['id']
     });
@@ -1974,11 +1996,19 @@ exports.groupDetails = async (req, res) => {
      * 1️⃣ Validate group belongs to organization
      */
     const group = await Chat.findOne({
+      // where: {
+      //   id: chat_id,
+      //   type: "group",
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // },
       where: {
-        id: chat_id,
-        type: "group",
-        organization_id: org_id,
-        is_deleted: false
+        [Op.and]: [
+          { id: chat_id},
+          { type: "group" },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
       },
 
       attributes: [
@@ -2002,9 +2032,15 @@ exports.groupDetails = async (req, res) => {
               as: "user",
 
               // ✅ FIX: multi-org + is_deleted validation
+              // where: {
+              //   is_deleted: false,
+              //   // ...userBelongsToOrg(org_id)
+              // },
               where: {
-                is_deleted: false,
-                // ...userBelongsToOrg(org_id)
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
               },
 
               required: false, // important: don't break group if one user invalid
@@ -2054,11 +2090,16 @@ exports.groupDetails = async (req, res) => {
               as: "uploader",
 
               // ✅ FIX: uploader validation
+              // where: {
+              //   is_deleted: false,
+              //   // ...userBelongsToOrg(org_id)
+              // },
               where: {
-                is_deleted: false,
-                // ...userBelongsToOrg(org_id)
+                [Op.and]: [
+                  { is_deleted: false},
+                  userBelongsToOrg(org_id)
+                ]
               },
-
               required: false,
 
               attributes: ["id", "full_name"],
@@ -2189,11 +2230,18 @@ exports.addGroupMember = async (req, res) => {
 
     // ✅ Validate chat
     const chat = await Chat.findOne({
+      // where: {
+      //   id: chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
       where: {
-        id: chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+        [Op.and]: [
+          { id: chat_id },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -2211,11 +2259,18 @@ exports.addGroupMember = async (req, res) => {
 
     // ✅ Validate user (multi-org + is_deleted)
     const user = await User.findOne({
+      // where: {
+      //   id: user_id,
+      //   is_deleted: false,
+      //   // ...userBelongsToOrg(org_id)
+      // }
       where: {
-        id: user_id,
-        is_deleted: false,
-        // ...userBelongsToOrg(org_id)
-      }
+        [Op.and]: [
+          { id: user_id },
+          { is_deleted: false },
+          userBelongsToOrg(org_id)
+        ]
+      },
     });
 
     if (!user) {
@@ -2304,11 +2359,18 @@ exports.removeGroupMember = async (req, res) => {
 
     // ✅ Validate chat
     const chat = await Chat.findOne({
-      where: {
-        id: chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+      // where: {
+      //   id: chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
+      where : {
+        [Op.and]: [
+          { id: chat_id},
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -2411,11 +2473,18 @@ exports.openChat = async (req, res) => {
 
     // ✅ Validate chat
     const chat = await Chat.findOne({
-      where: {
-        id: chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+      // where: {
+      //   id: chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
+      where : {
+        [Op.and]: [
+          { id: chat_id},
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -2443,9 +2512,15 @@ exports.openChat = async (req, res) => {
           model: User,
           as: 'user',
 
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
 
           required: false, // 🔥 IMPORTANT (we filter manually)
@@ -2500,9 +2575,15 @@ exports.openChat = async (req, res) => {
           as: 'sender',
 
           // ✅ multi-org + is_deleted validation
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
 
           required: true,
@@ -2633,9 +2714,15 @@ exports.chatList = async (req, res) => {
         {
           model: Chat,
           as: 'chat',
-          where: {
-            organization_id: org_id,
-            is_deleted: false
+          // where: {
+          //   organization_id: org_id,
+          //   is_deleted: false
+          // },
+          where : {
+            [Op.and]: [
+              { is_deleted: false },
+              chatOrgFilter(org_id)
+            ]
           },
           attributes: ['id', 'type', 'group_name', 'group_description', 'created_at'],
           include: [
@@ -2650,9 +2737,15 @@ exports.chatList = async (req, res) => {
                   as: 'user',
 
                   // ✅ FIX: multi-org + is_deleted
+                  // where: {
+                  //   is_deleted: false,
+                  //   // ...userBelongsToOrg(org_id)
+                  // },
                   where: {
-                    is_deleted: false,
-                    // ...userBelongsToOrg(org_id)
+                    [Op.and]: [
+                      { is_deleted: false },
+                      ...userBelongsToOrg(org_id)
+                    ]
                   },
 
                   required: true,
@@ -2719,9 +2812,15 @@ exports.chatList = async (req, res) => {
           as: 'sender',
 
           // ✅ FIX: sender validation
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
           required: true,
           attributes: ['id', 'full_name'],
@@ -3381,10 +3480,17 @@ exports.allPrivateChats = async (req, res) => {
         {
           model: Chat,
           as: 'chat',
-          where: {
-            type: 'private',
-            organization_id: org_id,
-            is_deleted: false
+          // where: {
+          //   type: 'private',
+          //   organization_id: org_id,
+          //   is_deleted: false
+          // },
+          where : {
+            [Op.and]: [
+              { type: 'private' },
+              { is_deleted: false },
+              chatOrgFilter(org_id)
+            ]
           },
           attributes: ['id', 'type', 'created_at'],
 
@@ -3400,9 +3506,15 @@ exports.allPrivateChats = async (req, res) => {
                   as: 'user',
 
                   // ✅ FIX
+                  // where: {
+                  //   is_deleted: false,
+                  //   // ...userBelongsToOrg(org_id)
+                  // },
                   where: {
-                    is_deleted: false,
-                    // ...userBelongsToOrg(org_id)
+                    [Op.and]: [
+                      { is_deleted: false },
+                      ...userBelongsToOrg(org_id)
+                    ]
                   },
                   required: false,
 
@@ -3445,9 +3557,15 @@ exports.allPrivateChats = async (req, res) => {
           as: 'sender',
 
           // ✅ FIX
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
           required: false,
 
@@ -3657,10 +3775,17 @@ exports.allGroupChats = async (req, res) => {
         {
           model: Chat,
           as: 'chat',
-          where: {
-            type: 'group',
-            organization_id: org_id,
-            is_deleted: false
+          // where: {
+          //   type: 'group',
+          //   organization_id: org_id,
+          //   is_deleted: false
+          // },
+          where : {
+            [Op.and]: [
+              { type: 'group' },
+              { is_deleted: false },
+              chatOrgFilter(org_id)
+            ]
           },
           attributes: ['id', 'type', 'group_name', 'group_description', 'created_at'],
 
@@ -3676,9 +3801,15 @@ exports.allGroupChats = async (req, res) => {
                   as: 'user',
 
                   // ✅ FIX
+                  // where: {
+                  //   is_deleted: false,
+                  //   // ...userBelongsToOrg(org_id)
+                  // },
                   where: {
-                    is_deleted: false,
-                    // ...userBelongsToOrg(org_id)
+                    [Op.and]: [
+                      { is_deleted: false },
+                      ...userBelongsToOrg(org_id)
+                    ]
                   },
                   required: false,
 
@@ -3734,9 +3865,15 @@ exports.allGroupChats = async (req, res) => {
           as: 'sender',
 
           // ✅ FIX
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
           required: false,
 
@@ -3932,11 +4069,18 @@ exports.chatHistory = async (req, res) => {
      * 1️⃣ Validate chat belongs to organization
      */
     const chat = await Chat.findOne({
-      where: {
-        id: chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+      // where: {
+      //   id: chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
+      where : {
+        [Op.and]: [
+          { id: chat_id},
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -3978,9 +4122,15 @@ exports.chatHistory = async (req, res) => {
         {
           model: User,
           as: 'user',
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
           required: false,
           attributes: ['id']
@@ -4021,11 +4171,16 @@ exports.chatHistory = async (req, res) => {
           as: "sender",
 
           // ✅ FIX: multi-org + is_deleted
+          // where: {
+          //   is_deleted: false,
+          //   // ...userBelongsToOrg(org_id)
+          // },
           where: {
-            is_deleted: false,
-            // ...userBelongsToOrg(org_id)
+            [Op.and]: [
+              { is_deleted: false },
+              ...userBelongsToOrg(org_id)
+            ]
           },
-
           required: true,
 
           attributes: ["id", "full_name"],

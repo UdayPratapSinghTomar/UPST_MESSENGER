@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendResponse, HttpsStatus } = require("../../utils/response");
-const { userBelongsToOrg } = require("../../utils/organizationFilter");
+const { userBelongsToOrg, chatOrgFilter } = require("../../utils/organizationFilter");
 const { Op } = require("sequelize");
 const { sequelize, User, SharedFile, Chat, ChatMember } = require("../../models");
 const sharedFiles = require("../../models/sharedFiles");
@@ -11,14 +11,21 @@ const BASE_URL = process.env.BASE_URL;
 exports.usersByOrgId = async (req, res) => {
   try {
 
-    const orgId = req.org_id;
+    const { org_id } = req.body;
     const currentUserId = req.user.id;
 
     const users = await User.findAll({
+      // where: {
+      //   is_deleted: false,
+      //   id: { [Op.ne]: currentUserId },
+      //   ...userBelongsToOrg(orgId)
+      // },
       where: {
-        is_deleted: false,
-        id: { [Op.ne]: currentUserId },
-        ...userBelongsToOrg(orgId)
+        [Op.and]: [
+          { is_deleted: false },
+          { id: { [Op.ne]: currentUserId } },
+          userBelongsToOrg(org_id)
+        ]
       },
 
       attributes: [
@@ -221,24 +228,33 @@ exports.usersByOrgId = async (req, res) => {
 exports.activeUsers = async (req, res) => {
   try {
 
-    const org_id = req.org_id;
+    // const org_id = req.org_id;
+    const { org_id } = req.body;
     const currentUserId = req.user.id;
 
-    if (!org_id) {
-      return sendResponse(
-        res,
-        HttpsStatus.BAD_REQUEST,
-        false,
-        "Organization id is missing!"
-      );
-    }
+    // if (!org_id) {
+    //   return sendResponse(
+    //     res,
+    //     HttpsStatus.BAD_REQUEST,
+    //     false,
+    //     "Organization id is missing!"
+    //   );
+    // }
 
     const users = await User.findAll({
+      // where: {
+      //   is_deleted: false,
+      //   is_online: true,
+      //   id: { [Op.ne]: currentUserId },
+      //   userBelongsToOrg(org_id)
+      // },
       where: {
-        is_deleted: false,
-        is_online: true,
-        id: { [Op.ne]: currentUserId },
-        ...userBelongsToOrg(org_id)
+        [Op.and]: [
+          { is_deleted: false },
+          { is_online: true },
+          { id: { [Op.ne]: currentUserId } },
+          userBelongsToOrg(org_id)
+        ]
       },
 
       attributes: [
@@ -303,9 +319,9 @@ exports.updateProfile = async (req, res) => {
   try {
     // console.log('inside')
     const file = req.file;
-    const { bio } = req.body;
+    const { bio, org_id } = req.body;
     const userId = req.user.id;
-    const orgId = req.org_id;
+    // const org_id = req.org_id;
 
     if (!file && !bio) {
       await t.rollback();
@@ -315,7 +331,14 @@ exports.updateProfile = async (req, res) => {
     console.log("bio 0---- ",bio)
 
     const user = await User.findOne({
-      where: { id: userId, is_deleted: false, ...userBelongsToOrg(orgId) },
+      // where: { id: userId, is_deleted: false, ...userBelongsToOrg(orgId) },
+      where: {
+        [Op.and]: [
+          { id: userId },
+          { is_deleted: false },
+          userBelongsToOrg(org_id)
+        ]
+      },
       transaction: t
     });
     // console.log('user')
@@ -339,7 +362,17 @@ exports.updateProfile = async (req, res) => {
       const updatedBio = bio.trim();
       const user = await User.update(
         { bio: updatedBio },
-        { where: { id: userId }, transaction: t }
+        { 
+          // where: { id: userId }, 
+          where: {
+            [Op.and]: [
+              { id: userId },
+              { is_deleted: false },
+              userBelongsToOrg(org_id)
+            ]
+          },
+          transaction: t 
+        }
       );
       console.log('usersdfdsfafdfs',user)
     }
@@ -371,17 +404,25 @@ exports.updateProfile = async (req, res) => {
 exports.fetchProfile = async (req, res) => {
   try {
     const { user_id } = req.params;
-    const orgId = req.org_id;
+    // const org_id = req.org_id;
+    const { org_id } = req.body;
 
     if(!user_id){
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'User id is required!');
     }
 
     const profile = await User.findOne({
+      // where: {
+      //   id: user_id,
+      //   is_deleted: false,
+      //   ...userBelongsToOrg(orgId)
+      // },
       where: {
-        id: user_id,
-        is_deleted: false,
-        ...userBelongsToOrg(orgId)
+        [Op.and]: [
+          { id: user_id },
+          { is_deleted: false },
+          userBelongsToOrg(org_id)
+        ]
       },
       include: [{
         model: SharedFile,
@@ -423,9 +464,9 @@ exports.updateGroupProfile = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const currentUserId = req.user.id;
-    const { chat_id, group_name, group_description } = req.body;
+    const { chat_id, group_name, group_description, org_id } = req.body;
     const file = req.file;
-    const orgId = req.org_id;
+    // const orgId = req.org_id;
 
     if(!chat_id){
       await t.rollback();
@@ -438,10 +479,17 @@ exports.updateGroupProfile = async (req, res) => {
     }
 
     const user = await User.findOne({
+      // where: {
+      //   id: currentUserId,
+      //   is_deleted: false,
+      //   ...userBelongsToOrg(orgId)
+      // },
       where: {
-        id: currentUserId,
-        is_deleted: false,
-        ...userBelongsToOrg(orgId)
+        [Op.and]: [
+          { id: currentUserId },
+          { is_deleted: false },
+          userBelongsToOrg(org_id)
+        ]
       },
       transaction: t
     });
@@ -491,7 +539,14 @@ exports.updateGroupProfile = async (req, res) => {
 
     if (Object.keys(updateData).length > 0) {
       await Chat.update(updateData, {
-        where: { id: chat_id },
+        // where: { id: chat_id },
+        where: {
+          [Op.and]: [
+            { id: chat_id},
+            { is_deleted: false },
+            chatOrgFilter(org_id)
+          ]
+        },
         transaction: t
       });
     }
@@ -509,7 +564,8 @@ exports.fetchGroupProfile = async (req, res) => {
   try {
     const { chat_id } = req.params;
     const currentUserId = req.user.id;
-    const orgId = req.org_id;
+    // const orgId = req.org_id;
+    const { org_id } = req.body;
 
     if (!chat_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Chat id is required!");
@@ -519,11 +575,19 @@ exports.fetchGroupProfile = async (req, res) => {
      * ✅ Validate chat (must be group)
      */
     const chat = await Chat.findOne({
+      // where: {
+      //   id: chat_id,
+      //   type: "group",
+      //   organization_id: orgId,
+      //   is_deleted: false
+      // },
       where: {
-        id: chat_id,
-        type: "group",
-        organization_id: orgId,
-        is_deleted: false
+        [Op.and]: [
+          { id: chat_id },
+          { type: 'group' },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
       },
       include: [
         {
@@ -534,9 +598,15 @@ exports.fetchGroupProfile = async (req, res) => {
             {
               model: User,
               as: "user",
+              // where: {
+              //   is_deleted: false,
+              //   ...userBelongsToOrg(orgId)
+              // },
               where: {
-                is_deleted: false,
-                ...userBelongsToOrg(orgId)
+                [Op.and]: [
+                  { is_deleted: false },
+                  userBelongsToOrg(org_id)
+                ]
               },
               attributes: ["id", "full_name"],
               required: true

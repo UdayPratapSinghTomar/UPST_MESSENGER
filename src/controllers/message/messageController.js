@@ -12,7 +12,7 @@ const { sendResponse, HttpsStatus } = require("../../utils/response");
 const { getFileType } = require("../../utils/fileType");
 const EVENTS = require("../../utils/socketEvents");
 const { notifyUser } = require('../../utils/notificationService');
-const { userBelongsToOrg } = require('../../utils/organizationFilter');
+const { userBelongsToOrg, chatOrgFilter } = require('../../utils/organizationFilter');
 const { Op } = require("sequelize");
 
 exports.sendMessage = async (req, res) => {
@@ -31,8 +31,19 @@ exports.sendMessage = async (req, res) => {
 
     // ✅ Chat + members
     const chat = await Chat.findOne({
-      where: { id: chat_id, organization_id: org_id, is_deleted: false },
-      include: [{ model: ChatMember, as: "memberships", attributes: ["user_id"] }],
+      // where: { id: chat_id, organization_id: org_id, is_deleted: false },
+      where: {
+        [Op.and]: [
+          { id: chat_id},
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
+      include: [{ 
+        model: ChatMember, 
+        as: "memberships", 
+        attributes: ["user_id"] 
+      }],
       transaction: t
     });
 
@@ -50,10 +61,17 @@ exports.sendMessage = async (req, res) => {
 
     // ✅ Sender org validation
     const sender = await User.findOne({
+      // where: {
+      //   id: sender_id,
+      //   is_deleted: false,
+      //   // ...userBelongsToOrg(org_id)
+      // },
       where: {
-        id: sender_id,
-        is_deleted: false,
-        // ...userBelongsToOrg(org_id)
+        [Op.and]: [
+          { id: sender_id },
+          { is_deleted: false },
+          ...userBelongsToOrg(org_id)
+        ]
       },
       transaction: t
     });
@@ -64,10 +82,21 @@ exports.sendMessage = async (req, res) => {
     }
 
     // ✅ Cross-org member validation
+    // const users = await User.findAll({
+    //   where: { id: memberIds },
+    //   transaction: t
+    // });
     const users = await User.findAll({
-      where: { id: memberIds },
+      where: {
+        [Op.and]: [
+          { id: memberIds },
+          { is_deleted: false },
+          ...userBelongsToOrg(org_id)
+        ]
+      },
       transaction: t
     });
+
 
     // const invalidUsers = users.filter(u => !userBelongsToOrg(u, org_id));
 
@@ -797,11 +826,18 @@ exports.editMessage = async (req, res) => {
      * 2️⃣ Validate organization chat
      */
     const chat = await Chat.findOne({
+      // where: {
+      //   id: message.chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
       where: {
-        id: message.chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+        [Op.and]: [
+          { id: message.chat_id },
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -996,7 +1032,16 @@ exports.editMessage = async (req, res) => {
       !validNewMentions.includes(id)
     );
 
-    const sender = await User.findOne({ where: {id: userId, is_deleted: false } });
+    const sender = await User.findOne({ 
+      // where: {id: userId, is_deleted: false } 
+      where: {
+        [Op.and]: [
+          { id: userId },
+          { is_deleted: false },
+          ...userBelongsToOrg(org_id)
+        ]
+      },
+    });
     
     // 🟥 Mentioned users
     if (mentionedUsers.length) {
@@ -1098,11 +1143,18 @@ exports.deleteMessage = async (req, res) => {
      * 2️⃣ Validate chat belongs to org
      */
     const chat = await Chat.findOne({
-      where: {
-        id: message.chat_id,
-        organization_id: org_id,
-        is_deleted: false
-      }
+      // where: {
+      //   id: message.chat_id,
+      //   organization_id: org_id,
+      //   is_deleted: false
+      // }
+      where : {
+        [Op.and]: [
+          { id: message.chat_id},
+          { is_deleted: false },
+          chatOrgFilter(org_id)
+        ]
+      },
     });
 
     if (!chat) {
@@ -1229,10 +1281,17 @@ exports.forwardMessage = async (req, res) => {
 
     // ✅ Sender validation (org check)
     const sender = await User.findOne({
+      // where: {
+      //   id: senderId,
+      //   is_deleted: false,
+      //   // ...userBelongsToOrg(org_id)
+      // },
       where: {
-        id: senderId,
-        is_deleted: false,
-        // ...userBelongsToOrg(org_id)
+        [Op.and]: [
+          { id: senderId },
+          { is_deleted: false },
+          ...userBelongsToOrg(org_id)
+        ]
       },
       attributes: ["id", "full_name"],
       transaction: t
@@ -1274,10 +1333,17 @@ exports.forwardMessage = async (req, res) => {
 
       // ✅ Validate chat
       const chat = await Chat.findOne({
+        // where: {
+        //   id: chat_id,
+        //   organization_id: org_id,
+        //   is_deleted: false
+        // },
         where: {
-          id: chat_id,
-          organization_id: org_id,
-          is_deleted: false
+          [Op.and]: [
+            { id: chat_id},
+            { is_deleted: false },
+            chatOrgFilter(org_id)
+          ]
         },
         include: [{
           model: ChatMember,
@@ -1298,7 +1364,14 @@ exports.forwardMessage = async (req, res) => {
        * ✅ Cross-org validation (CRITICAL)
        */
       const users = await User.findAll({
-        where: { id: memberIds, is_deleted: false },
+        // where: { id: memberIds, is_deleted: false },
+        where: {
+          [Op.and]: [
+            { id: memberIds },
+            { is_deleted: false },
+            ...userBelongsToOrg(org_id)
+          ]
+        },
         transaction: t
       });
 
