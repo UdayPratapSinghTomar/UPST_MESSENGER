@@ -1511,7 +1511,8 @@ exports.forwardMessage = async (req, res) => {
           chat_id: payload.chat_id,
           message_id: payload.message_id,
           type: "message",
-          action: "forwarded_message",
+          // action: "forwarded_message",
+          action: "new_message",
           title: chat_name,
           body: payload.content || "Attachment"
         });
