@@ -1799,6 +1799,7 @@ exports.createPrivateChat = async (req, res) => {
       HttpsStatus.CREATED,
       true,
       'Private chat created successfully!',
+      chatPayload
     );
 
   } catch (err) {
@@ -1958,8 +1959,8 @@ exports.createGroup = async (req, res) => {
       res,
       HttpsStatus.CREATED,
       true,
-      'Group created successfully!'
-      // payload
+      'Group created successfully!',
+      payload
     );
 
   } catch (err) {
@@ -2337,7 +2338,7 @@ exports.addGroupMember = async (req, res) => {
       body: 'You were added to a group'
     });
 
-    return sendResponse(res, HttpsStatus.CREATED, true, 'User added successfully in group!');
+    return sendResponse(res, HttpsStatus.CREATED, true, 'User added successfully in group!', payload);
 
   } catch (err) {
 
@@ -2451,7 +2452,7 @@ exports.removeGroupMember = async (req, res) => {
       title: chat.group_name,
       body: 'You were removed from a group'
     });
-    return sendResponse(res, HttpsStatus.OK, true, 'User removed successfully from group!');
+    return sendResponse(res, HttpsStatus.OK, true, 'User removed successfully from group!', payload);
 
   } catch (err) {
 
