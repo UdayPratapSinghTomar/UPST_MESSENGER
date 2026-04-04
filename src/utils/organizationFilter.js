@@ -21,8 +21,11 @@ const { Op } = require("sequelize");
 function userBelongsToOrg(org_id) {
 
   // ✅ CASE 1: org_id is NULL → return users with NO org at all
+  if (org_id === "null" || org_id === "" || org_id === undefined) {
+    org_id = null;
+  }
+
   if (org_id === null) {
-    console.log('inside null')
     return {
       [Op.and]: [
         { organization_id: { [Op.is]: null } },
@@ -57,7 +60,10 @@ console.log('outside null')
 }
 
 const chatOrgFilter = (org_id) => {
-  if (org_id === "null") org_id = null;
+  // if (org_id === "null") org_id = null;
+  if (org_id === "null" || org_id === "" || org_id === undefined) {
+    org_id = null;
+  }
 
   return org_id === null
     ? { organization_id: { [Op.is]: null } }
