@@ -64,13 +64,13 @@ exports.sendMessage = async (req, res) => {
       // where: {
       //   id: sender_id,
       //   is_deleted: false,
-      //   // ...userBelongsToOrg(org_id)
+      //   // userBelongsToOrg(org_id)
       // },
       where: {
         [Op.and]: [
           { id: sender_id },
           { is_deleted: false },
-          ...userBelongsToOrg(org_id)
+          userBelongsToOrg(org_id)
         ]
       },
       transaction: t
@@ -91,7 +91,7 @@ exports.sendMessage = async (req, res) => {
         [Op.and]: [
           { id: memberIds },
           { is_deleted: false },
-          ...userBelongsToOrg(org_id)
+          userBelongsToOrg(org_id)
         ]
       },
       transaction: t
@@ -1038,7 +1038,7 @@ exports.editMessage = async (req, res) => {
         [Op.and]: [
           { id: userId },
           { is_deleted: false },
-          ...userBelongsToOrg(org_id)
+          userBelongsToOrg(org_id)
         ]
       },
     });
@@ -1284,13 +1284,13 @@ exports.forwardMessage = async (req, res) => {
       // where: {
       //   id: senderId,
       //   is_deleted: false,
-      //   // ...userBelongsToOrg(org_id)
+      //   // userBelongsToOrg(org_id)
       // },
       where: {
         [Op.and]: [
           { id: senderId },
           { is_deleted: false },
-          ...userBelongsToOrg(org_id)
+          userBelongsToOrg(org_id)
         ]
       },
       attributes: ["id", "full_name"],
@@ -1369,7 +1369,7 @@ exports.forwardMessage = async (req, res) => {
           [Op.and]: [
             { id: memberIds },
             { is_deleted: false },
-            ...userBelongsToOrg(org_id)
+            userBelongsToOrg(org_id)
           ]
         },
         transaction: t

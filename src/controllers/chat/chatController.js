@@ -1689,7 +1689,7 @@ exports.createPrivateChat = async (req, res) => {
       // where: {
       //   id: user_id,
       //   is_deleted: false
-      //   // ...userBelongsToOrg(org_id)
+      //   // userBelongsToOrg(org_id)
       // }
       where: {
         [Op.and]: [
@@ -1873,7 +1873,7 @@ exports.createGroup = async (req, res) => {
       // where: {
       //   id: uniqueUserIds,
       //   is_deleted: false,
-      //   // ...userBelongsToOrg(org_id)
+      //   // userBelongsToOrg(org_id)
       // },
       where: {
         [Op.and]: [
@@ -2034,7 +2034,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: multi-org + is_deleted validation
               // where: {
               //   is_deleted: false,
-              //   // ...userBelongsToOrg(org_id)
+              //   // userBelongsToOrg(org_id)
               // },
               where: {
                 [Op.and]: [
@@ -2092,7 +2092,7 @@ exports.groupDetails = async (req, res) => {
               // ✅ FIX: uploader validation
               // where: {
               //   is_deleted: false,
-              //   // ...userBelongsToOrg(org_id)
+              //   // userBelongsToOrg(org_id)
               // },
               where: {
                 [Op.and]: [
@@ -2262,7 +2262,7 @@ exports.addGroupMember = async (req, res) => {
       // where: {
       //   id: user_id,
       //   is_deleted: false,
-      //   // ...userBelongsToOrg(org_id)
+      //   // userBelongsToOrg(org_id)
       // }
       where: {
         [Op.and]: [
@@ -2514,12 +2514,12 @@ exports.openChat = async (req, res) => {
 
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
 
@@ -2577,12 +2577,12 @@ exports.openChat = async (req, res) => {
           // ✅ multi-org + is_deleted validation
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
 
@@ -2739,12 +2739,12 @@ exports.chatList = async (req, res) => {
                   // ✅ FIX: multi-org + is_deleted
                   // where: {
                   //   is_deleted: false,
-                  //   // ...userBelongsToOrg(org_id)
+                  //   // userBelongsToOrg(org_id)
                   // },
                   where: {
                     [Op.and]: [
                       { is_deleted: false },
-                      ...userBelongsToOrg(org_id)
+                      userBelongsToOrg(org_id)
                     ]
                   },
 
@@ -2814,12 +2814,12 @@ exports.chatList = async (req, res) => {
           // ✅ FIX: sender validation
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
           required: true,
@@ -3508,12 +3508,12 @@ exports.allPrivateChats = async (req, res) => {
                   // ✅ FIX
                   // where: {
                   //   is_deleted: false,
-                  //   // ...userBelongsToOrg(org_id)
+                  //   // userBelongsToOrg(org_id)
                   // },
                   where: {
                     [Op.and]: [
                       { is_deleted: false },
-                      ...userBelongsToOrg(org_id)
+                      userBelongsToOrg(org_id)
                     ]
                   },
                   required: false,
@@ -3559,12 +3559,12 @@ exports.allPrivateChats = async (req, res) => {
           // ✅ FIX
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
           required: false,
@@ -3803,12 +3803,12 @@ exports.allGroupChats = async (req, res) => {
                   // ✅ FIX
                   // where: {
                   //   is_deleted: false,
-                  //   // ...userBelongsToOrg(org_id)
+                  //   // userBelongsToOrg(org_id)
                   // },
                   where: {
                     [Op.and]: [
                       { is_deleted: false },
-                      ...userBelongsToOrg(org_id)
+                      userBelongsToOrg(org_id)
                     ]
                   },
                   required: false,
@@ -3867,12 +3867,12 @@ exports.allGroupChats = async (req, res) => {
           // ✅ FIX
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
           required: false,
@@ -4124,12 +4124,12 @@ exports.chatHistory = async (req, res) => {
           as: 'user',
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
           required: false,
@@ -4173,12 +4173,12 @@ exports.chatHistory = async (req, res) => {
           // ✅ FIX: multi-org + is_deleted
           // where: {
           //   is_deleted: false,
-          //   // ...userBelongsToOrg(org_id)
+          //   // userBelongsToOrg(org_id)
           // },
           where: {
             [Op.and]: [
               { is_deleted: false },
-              ...userBelongsToOrg(org_id)
+              userBelongsToOrg(org_id)
             ]
           },
           required: true,
