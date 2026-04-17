@@ -35,13 +35,13 @@ app.use(express.json());
 
 // syncDatabase();
 
-db.sequelize.authenticate()
-  .then(() => {
-    console.log('✅ Connected to Supabase database\n');
-  })
-  .catch((error) => {
-    console.error('❌ Database connection error:', error);
-  });
+// db.sequelize.authenticate()
+//   .then(() => {
+//     console.log('✅ Connected to Supabase database\n');
+//   })
+//   .catch((error) => {
+//     console.error('❌ Database connection error:', error);
+//   });
 
 const io = new Server(server, {
     cors: {

@@ -1,447 +1,447 @@
-const sequelize = require('../config/database')
-const { DataTypes } = require('sequelize')
+// // const sequelize = require('../config/database')
+// // const { DataTypes } = require('sequelize')
 
-/**
- * ============================
- * MODEL IMPORTS
- * ============================
- */
-const User = require('./users')(sequelize, DataTypes);
-const Organization = require('./organizations')(sequelize, DataTypes);
-const Chat = require('./chats')(sequelize, DataTypes);
-const ChatMember = require('./chatMembers')(sequelize, DataTypes);
-const Message = require('./messages')(sequelize, DataTypes);
-const MessageStatus = require('./messageStatus')(sequelize, DataTypes);
-const MessageMention = require('./messageMentions')(sequelize, DataTypes);
-const SharedFile = require('./sharedFiles')(sequelize, DataTypes);
-const SavedMessage = require('./savedMessages')(sequelize, DataTypes);
-const Contact = require('./contacts')(sequelize, DataTypes);
-const RefreshToken = require('./refreshTokens')(sequelize, DataTypes);
-const Task = require('./tasks')(sequelize, DataTypes);
-const ProductManage = require('./productManage')(sequelize, DataTypes);
-const ActivityLog = require('./activityLogs')(sequelize, DataTypes);
-const APIUsedTable = require('./apiUsedTable')(sequelize, DataTypes);
-const Priorities = require('./priorities')(sequelize, DataTypes);
-const Assignee = require('./assignees')(sequelize, DataTypes);
-const Notification = require('./notifications')(sequelize, DataTypes);
-const UserDevice = require('./userDevices')(sequelize, DataTypes);
-const IndividualTask = require('./individualTasks')(sequelize, DataTypes);
+// /**
+//  * ============================
+//  * MODEL IMPORTS
+//  * ============================
+//  */
+// const User = require('./users')(sequelize, DataTypes);
+// const Organization = require('./organizations')(sequelize, DataTypes);
+// const Chat = require('./chats')(sequelize, DataTypes);
+// const ChatMember = require('./chatMembers')(sequelize, DataTypes);
+// const Message = require('./messages')(sequelize, DataTypes);
+// const MessageStatus = require('./messageStatus')(sequelize, DataTypes);
+// const MessageMention = require('./messageMentions')(sequelize, DataTypes);
+// const SharedFile = require('./sharedFiles')(sequelize, DataTypes);
+// const SavedMessage = require('./savedMessages')(sequelize, DataTypes);
+// const Contact = require('./contacts')(sequelize, DataTypes);
+// const RefreshToken = require('./refreshTokens')(sequelize, DataTypes);
+// const Task = require('./tasks')(sequelize, DataTypes);
+// const ProductManage = require('./productManage')(sequelize, DataTypes);
+// const ActivityLog = require('./activityLogs')(sequelize, DataTypes);
+// const APIUsedTable = require('./apiUsedTable')(sequelize, DataTypes);
+// const Priorities = require('./priorities')(sequelize, DataTypes);
+// const Assignee = require('./assignees')(sequelize, DataTypes);
+// const Notification = require('./notifications')(sequelize, DataTypes);
+// const UserDevice = require('./userDevices')(sequelize, DataTypes);
+// const IndividualTask = require('./individualTasks')(sequelize, DataTypes);
 
-/**
- * ==============================
- * RELATIONS (HEART OF CHAT APP)
- * ==============================
- */
+// /**
+//  * ==============================
+//  * RELATIONS (HEART OF CHAT APP)
+//  * ==============================
+//  */
 
-/**
- * ORGANIZATION → USERS
- * One organization can have many users
- * (Microsoft Teams / Slack style org-based users)
- */
-Organization.hasMany(User, {
-  foreignKey: 'organization_id',
-  as: 'users'
-})
-User.belongsTo(Organization, {
-  foreignKey: 'organization_id',
-  as: 'organization'
-})
+// /**
+//  * ORGANIZATION → USERS
+//  * One organization can have many users
+//  * (Microsoft Teams / Slack style org-based users)
+//  */
+// Organization.hasMany(User, {
+//   foreignKey: 'organization_id',
+//   as: 'users'
+// })
+// User.belongsTo(Organization, {
+//   foreignKey: 'organization_id',
+//   as: 'organization'
+// })
 
-/**
- * USER → CHAT (CREATOR)
- * A user can create many chats (groups or private)
- */
-User.hasMany(Chat, {
-  foreignKey: 'created_by',
-  as: 'createdChats'
-})
-Chat.belongsTo(User, {
-  foreignKey: 'created_by',
-  as: 'createdBy'
-})
+// /**
+//  * USER → CHAT (CREATOR)
+//  * A user can create many chats (groups or private)
+//  */
+// User.hasMany(Chat, {
+//   foreignKey: 'created_by',
+//   as: 'createdChats'
+// })
+// Chat.belongsTo(User, {
+//   foreignKey: 'created_by',
+//   as: 'createdBy'
+// })
 
-/**
- * USER ↔ CHAT (MEMBERSHIP)
- * Many users can join many chats
- * This is WhatsApp / Telegram core logic
- */
-User.belongsToMany(Chat, {
-  through: ChatMember,
-  foreignKey: 'user_id',
-  otherKey: 'chat_id',
-  as: 'memberChats'
-})
-Chat.belongsToMany(User, {
-  through: ChatMember,
-  foreignKey: 'chat_id',
-  otherKey: 'user_id',
-  as: 'members'
-})
+// /**
+//  * USER ↔ CHAT (MEMBERSHIP)
+//  * Many users can join many chats
+//  * This is WhatsApp / Telegram core logic
+//  */
+// User.belongsToMany(Chat, {
+//   through: ChatMember,
+//   foreignKey: 'user_id',
+//   otherKey: 'chat_id',
+//   as: 'memberChats'
+// })
+// Chat.belongsToMany(User, {
+//   through: ChatMember,
+//   foreignKey: 'chat_id',
+//   otherKey: 'user_id',
+//   as: 'members'
+// })
 
-/**
- * CHAT → CHAT MEMBERS
- * Used to store role, mute, join date, etc.
- */
-Chat.hasMany(ChatMember, {
-  foreignKey: 'chat_id',
-  as: 'memberships'
-})
-ChatMember.belongsTo(Chat, {
-  foreignKey: 'chat_id',
-  as: 'chat'
-})
+// /**
+//  * CHAT → CHAT MEMBERS
+//  * Used to store role, mute, join date, etc.
+//  */
+// Chat.hasMany(ChatMember, {
+//   foreignKey: 'chat_id',
+//   as: 'memberships'
+// })
+// ChatMember.belongsTo(Chat, {
+//   foreignKey: 'chat_id',
+//   as: 'chat'
+// })
 
-User.hasMany(ChatMember, {
-  foreignKey: 'user_id',
-  as: 'chatMemberships'
-})
-ChatMember.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'user'
-})
+// User.hasMany(ChatMember, {
+//   foreignKey: 'user_id',
+//   as: 'chatMemberships'
+// })
+// ChatMember.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'user'
+// })
 
-ChatMember.belongsTo(Message, {
-  foreignKey: 'last_read_message_id',
-  as: 'lastReadMessage'
-});
+// ChatMember.belongsTo(Message, {
+//   foreignKey: 'last_read_message_id',
+//   as: 'lastReadMessage'
+// });
 
-Chat.belongsTo(Organization, {
-  foreignKey: 'organization_id',
-  as: 'organization'
-});
-/**
- * CHAT → MESSAGES
- * A chat contains many messages
- */
-Chat.hasMany(Message, {
-  foreignKey: 'chat_id',
-  as: 'messages'
-})
-Message.belongsTo(Chat, {
-  foreignKey: 'chat_id',
-  as: 'chat'
-})
+// Chat.belongsTo(Organization, {
+//   foreignKey: 'organization_id',
+//   as: 'organization'
+// });
+// /**
+//  * CHAT → MESSAGES
+//  * A chat contains many messages
+//  */
+// Chat.hasMany(Message, {
+//   foreignKey: 'chat_id',
+//   as: 'messages'
+// })
+// Message.belongsTo(Chat, {
+//   foreignKey: 'chat_id',
+//   as: 'chat'
+// })
 
-Chat.hasMany(Notification, {
-  foreignKey: 'chat_id',
-  as: 'notifications'
-});
-/**
- * USER → MESSAGE (SENDER)
- * Every message is sent by one user
- */
-User.hasMany(Message, {
-  foreignKey: 'sender_id',
-  as: 'sentMessages'
-})
-Message.belongsTo(User, {
-  foreignKey: 'sender_id',
-  as: 'sender'
-})
+// Chat.hasMany(Notification, {
+//   foreignKey: 'chat_id',
+//   as: 'notifications'
+// });
+// /**
+//  * USER → MESSAGE (SENDER)
+//  * Every message is sent by one user
+//  */
+// User.hasMany(Message, {
+//   foreignKey: 'sender_id',
+//   as: 'sentMessages'
+// })
+// Message.belongsTo(User, {
+//   foreignKey: 'sender_id',
+//   as: 'sender'
+// })
 
-/**
- * MESSAGE → MESSAGE STATUS
- * Stores delivered/read status per user
- * WhatsApp double tick / blue tick logic
- */
-Message.hasMany(MessageStatus, {
-  foreignKey: 'message_id',
-  as: 'statuses'
-})
-MessageStatus.belongsTo(Message, {
-  foreignKey: 'message_id',
-  as: 'message'
-})
+// /**
+//  * MESSAGE → MESSAGE STATUS
+//  * Stores delivered/read status per user
+//  * WhatsApp double tick / blue tick logic
+//  */
+// Message.hasMany(MessageStatus, {
+//   foreignKey: 'message_id',
+//   as: 'statuses'
+// })
+// MessageStatus.belongsTo(Message, {
+//   foreignKey: 'message_id',
+//   as: 'message'
+// })
 
-User.hasMany(MessageStatus, {
-  foreignKey: 'user_id',
-  as: 'messageStatuses'
-})
-MessageStatus.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'user'
-})
+// User.hasMany(MessageStatus, {
+//   foreignKey: 'user_id',
+//   as: 'messageStatuses'
+// })
+// MessageStatus.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'user'
+// })
 
-Message.hasMany(Notification, {
-  foreignKey: 'message_id',
-  as: 'notifications'
-});
+// Message.hasMany(Notification, {
+//   foreignKey: 'message_id',
+//   as: 'notifications'
+// });
 
-Message.belongsTo(Message, {
-  foreignKey: 'replied_to_message_id',
-  as: 'repliedTo'
-});
+// Message.belongsTo(Message, {
+//   foreignKey: 'replied_to_message_id',
+//   as: 'repliedTo'
+// });
 
-// Message forward association
-Message.belongsTo(Message, {
-  foreignKey: 'forwarded_from_message_id',
-  as: 'forwardedFrom'
-});
+// // Message forward association
+// Message.belongsTo(Message, {
+//   foreignKey: 'forwarded_from_message_id',
+//   as: 'forwardedFrom'
+// });
 
-Message.belongsTo(User, {
-  foreignKey: 'forwarded_from_user_id',
-  as: 'forwardedFromUser'
-});
+// Message.belongsTo(User, {
+//   foreignKey: 'forwarded_from_user_id',
+//   as: 'forwardedFromUser'
+// });
 
-Message.belongsTo(Chat, {
-  foreignKey: 'forwarded_from_chat_id',
-  as: 'forwardedFromChat'
-});
-/**
- * MESSAGE → MENTIONS 
- * Used when user mentions @someone in message
- */
-Message.hasMany(MessageMention, {
-  foreignKey: 'message_id',
-  as: 'mentions'
-})
-MessageMention.belongsTo(Message, {
-  foreignKey: 'message_id',
-  as: 'message'
-})
+// Message.belongsTo(Chat, {
+//   foreignKey: 'forwarded_from_chat_id',
+//   as: 'forwardedFromChat'
+// });
+// /**
+//  * MESSAGE → MENTIONS 
+//  * Used when user mentions @someone in message
+//  */
+// Message.hasMany(MessageMention, {
+//   foreignKey: 'message_id',
+//   as: 'mentions'
+// })
+// MessageMention.belongsTo(Message, {
+//   foreignKey: 'message_id',
+//   as: 'message'
+// })
 
-User.hasMany(MessageMention, {
-  foreignKey: 'mentioned_user_id',
-  as: 'mentions'
-})
-MessageMention.belongsTo(User, {
-  foreignKey: 'mentioned_user_id',
-  as: 'mentionedUser'
-})
+// User.hasMany(MessageMention, {
+//   foreignKey: 'mentioned_user_id',
+//   as: 'mentions'
+// })
+// MessageMention.belongsTo(User, {
+//   foreignKey: 'mentioned_user_id',
+//   as: 'mentionedUser'
+// })
 
-/**
- * MESSAGE → SHARED FILES
- * Images, videos, voice notes, documents
- */
-Message.hasMany(SharedFile, {
-  foreignKey: 'message_id',
-  as: 'files'
-})
-SharedFile.belongsTo(Message, {
-  foreignKey: 'message_id',
-  as: 'message'
-})
+// /**
+//  * MESSAGE → SHARED FILES
+//  * Images, videos, voice notes, documents
+//  */
+// Message.hasMany(SharedFile, {
+//   foreignKey: 'message_id',
+//   as: 'files'
+// })
+// SharedFile.belongsTo(Message, {
+//   foreignKey: 'message_id',
+//   as: 'message'
+// })
 
-User.hasMany(SharedFile, {
-  foreignKey: 'user_id',
-  as: 'uploadedFiles'
-})
-SharedFile.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'uploader'
-})
+// User.hasMany(SharedFile, {
+//   foreignKey: 'user_id',
+//   as: 'uploadedFiles'
+// })
+// SharedFile.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'uploader'
+// })
 
-Chat.hasMany(SharedFile, {
-  foreignKey: 'chat_id',
-  as: 'files'
-})
-SharedFile.belongsTo(Chat, {
-  foreignKey: 'chat_id',
-  as: 'chat'
-})
+// Chat.hasMany(SharedFile, {
+//   foreignKey: 'chat_id',
+//   as: 'files'
+// })
+// SharedFile.belongsTo(Chat, {
+//   foreignKey: 'chat_id',
+//   as: 'chat'
+// })
 
-/**
- * USER → SAVED MESSAGES
- * Starred messages feature (WhatsApp)
- */
-User.hasMany(SavedMessage, {
-  foreignKey: 'user_id',
-  as: 'savedMessages'
-})
-SavedMessage.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'user'
-})
+// /**
+//  * USER → SAVED MESSAGES
+//  * Starred messages feature (WhatsApp)
+//  */
+// User.hasMany(SavedMessage, {
+//   foreignKey: 'user_id',
+//   as: 'savedMessages'
+// })
+// SavedMessage.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'user'
+// })
 
-Message.hasMany(SavedMessage, {
-  foreignKey: 'message_id',
-  as: 'savedBy'
-})
-SavedMessage.belongsTo(Message, {
-  foreignKey: 'message_id',
-  as: 'message'
-})
+// Message.hasMany(SavedMessage, {
+//   foreignKey: 'message_id',
+//   as: 'savedBy'
+// })
+// SavedMessage.belongsTo(Message, {
+//   foreignKey: 'message_id',
+//   as: 'message'
+// })
 
-/**
- * USER → CONTACTS
- * User address book (WhatsApp contacts)
- */
-User.hasMany(Contact, {
-  foreignKey: 'user_id',
-  as: 'contacts'
-})
-Contact.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'owner'
-})
+// /**
+//  * USER → CONTACTS
+//  * User address book (WhatsApp contacts)
+//  */
+// User.hasMany(Contact, {
+//   foreignKey: 'user_id',
+//   as: 'contacts'
+// })
+// Contact.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'owner'
+// })
 
-User.hasMany(Contact, {
-  foreignKey: 'contact_user_id',
-  as: 'asContact'
-})
+// User.hasMany(Contact, {
+//   foreignKey: 'contact_user_id',
+//   as: 'asContact'
+// })
 
-/**
- * USER → REFRESH TOKENS
- * Login & session management
- */
-User.hasMany(RefreshToken, {
-  foreignKey: 'user_id',
-  as: 'refreshTokens'
-})
-RefreshToken.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'user'
-})
+// /**
+//  * USER → REFRESH TOKENS
+//  * Login & session management
+//  */
+// User.hasMany(RefreshToken, {
+//   foreignKey: 'user_id',
+//   as: 'refreshTokens'
+// })
+// RefreshToken.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'user'
+// })
 
-/**
- * USER → TASKS
- */
-User.hasMany(Task, {
-  foreignKey: 'created_by',
-  as: 'createdTasks'
-})
-User.hasMany(Task, {
-  foreignKey: 'assigned_to',
-  as: 'assignedTasks'
-})
+// /**
+//  * USER → TASKS
+//  */
+// User.hasMany(Task, {
+//   foreignKey: 'created_by',
+//   as: 'createdTasks'
+// })
+// User.hasMany(Task, {
+//   foreignKey: 'assigned_to',
+//   as: 'assignedTasks'
+// })
 
-Task.belongsTo(User, {
-  foreignKey: 'created_by',
-  as: 'creator'
-})
-Task.belongsTo(User, {
-  foreignKey: 'assigned_to',
-  as: 'assignee'
-})
+// Task.belongsTo(User, {
+//   foreignKey: 'created_by',
+//   as: 'creator'
+// })
+// Task.belongsTo(User, {
+//   foreignKey: 'assigned_to',
+//   as: 'assignee'
+// })
 
-/**
- * USER → PRODUCTMANAGE
- */
+// /**
+//  * USER → PRODUCTMANAGE
+//  */
 
-ProductManage.belongsTo(Organization, {
-  foreignKey: 'org_id',
-  as: 'productOrganization'
-});
+// ProductManage.belongsTo(Organization, {
+//   foreignKey: 'org_id',
+//   as: 'productOrganization'
+// });
 
-Organization.hasMany(ProductManage, {
-  foreignKey: 'org_id',
-  as: 'organizationProducts'
-});
+// Organization.hasMany(ProductManage, {
+//   foreignKey: 'org_id',
+//   as: 'organizationProducts'
+// });
 
-/**
- * USER → ACTIVITYLOGS
- */
+// /**
+//  * USER → ACTIVITYLOGS
+//  */
 
-ActivityLog.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'activityUser'
-});
+// ActivityLog.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'activityUser'
+// });
 
-User.hasMany(ActivityLog, {
-  foreignKey: 'user_id',
-  as: 'userActivities'
-});
+// User.hasMany(ActivityLog, {
+//   foreignKey: 'user_id',
+//   as: 'userActivities'
+// });
 
-/**
- * APIUSEDTABLE → APIUSEDTABLE
- */
+// /**
+//  * APIUSEDTABLE → APIUSEDTABLE
+//  */
 
-APIUsedTable.belongsTo(Organization, {
-  foreignKey: 'organization_id',
-  as: 'apiUsedOrganization'
-});
+// APIUsedTable.belongsTo(Organization, {
+//   foreignKey: 'organization_id',
+//   as: 'apiUsedOrganization'
+// });
 
-Organization.hasMany(APIUsedTable, {
-  foreignKey: 'organization_id',
-  as: 'organizationActivities'
-});
+// Organization.hasMany(APIUsedTable, {
+//   foreignKey: 'organization_id',
+//   as: 'organizationActivities'
+// });
 
-/**
- * ASSIGNEE → ORGANIZATION
- */
+// /**
+//  * ASSIGNEE → ORGANIZATION
+//  */
 
-Assignee.belongsTo(Organization, {
-  foreignKey: 'org_id',
-  as: 'assignee'
-});
+// Assignee.belongsTo(Organization, {
+//   foreignKey: 'org_id',
+//   as: 'assignee'
+// });
 
-Organization.hasMany(Assignee, {
-  foreignKey: 'org_id',
-  as: 'organizationAssignees'
-});
+// Organization.hasMany(Assignee, {
+//   foreignKey: 'org_id',
+//   as: 'organizationAssignees'
+// });
 
-/**
- * Notificatons
- */
+// /**
+//  * Notificatons
+//  */
 
-Notification.belongsTo(User, { 
-  foreignKey: 'recipient_id',
-  as: 'recipient'
-});
+// Notification.belongsTo(User, { 
+//   foreignKey: 'recipient_id',
+//   as: 'recipient'
+// });
 
-Notification.belongsTo(User, {
-  foreignKey: 'sender_id',
-  as: 'sender'
-});
+// Notification.belongsTo(User, {
+//   foreignKey: 'sender_id',
+//   as: 'sender'
+// });
 
-Notification.belongsTo(Chat, {
-  foreignKey: 'chat_id',
-  as: 'chatNotification'
-});
+// Notification.belongsTo(Chat, {
+//   foreignKey: 'chat_id',
+//   as: 'chatNotification'
+// });
 
-Notification.belongsTo(Message, {
-  foreignKey: 'message_id',
-  as: 'messageNotification'
-});
+// Notification.belongsTo(Message, {
+//   foreignKey: 'message_id',
+//   as: 'messageNotification'
+// });
 
-// User devices associations
-User.hasMany(UserDevice, {
-  foreignKey: 'user_id',
-  as: 'devices'
-});
+// // User devices associations
+// User.hasMany(UserDevice, {
+//   foreignKey: 'user_id',
+//   as: 'devices'
+// });
 
-UserDevice.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'user'
-});
-
-
-// individual tasks -
-User.hasMany(IndividualTask, {
-  foreignKey: 'user_id',
-  as: 'individualUserTasks'
-})
-IndividualTask.belongsTo(User, {
-  foreignKey: 'user_id',
-  as: 'individualTask'
-})
+// UserDevice.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'user'
+// });
 
 
-/**
- * ============================
- * EXPORT
- * ============================
- */
-module.exports = {
-  sequelize,
-  User,
-  Organization,
-  Chat,
-  ChatMember,
-  Message,
-  MessageStatus,
-  MessageMention,
-  SharedFile,
-  SavedMessage,
-  Contact,
-  RefreshToken,
-  Task,
-  ProductManage,
-  ActivityLog,
-  APIUsedTable,
-  Priorities,
-  Assignee,
-  Notification,
-  UserDevice,
-  IndividualTask
-}
+// // individual tasks -
+// User.hasMany(IndividualTask, {
+//   foreignKey: 'user_id',
+//   as: 'individualUserTasks'
+// })
+// IndividualTask.belongsTo(User, {
+//   foreignKey: 'user_id',
+//   as: 'individualTask'
+// })
+
+
+// /**
+//  * ============================
+//  * EXPORT
+//  * ============================
+//  */
+// module.exports = {
+//   sequelize,
+//   User,
+//   Organization,
+//   Chat,
+//   ChatMember,
+//   Message,
+//   MessageStatus,
+//   MessageMention,
+//   SharedFile,
+//   SavedMessage,
+//   Contact,
+//   RefreshToken,
+//   Task,
+//   ProductManage,
+//   ActivityLog,
+//   APIUsedTable,
+//   Priorities,
+//   Assignee,
+//   Notification,
+//   UserDevice,
+//   IndividualTask
+// }

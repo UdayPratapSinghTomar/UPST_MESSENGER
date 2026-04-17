@@ -14,17 +14,27 @@
 
 // module.exports = sequelize
 
-const { Sequelize } = require("sequelize");
-require('dotenv').config();
-const sequelize = new Sequelize(process.env.DB_URL, {
-  dialect: "postgres",
-  logging: false,
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
-  },
-});
+// const { Sequelize } = require("sequelize");
+// require('dotenv').config();
+// const sequelize = new Sequelize(process.env.DB_URL, {
+//   dialect: "postgres",
+//   logging: false,
+//   dialectOptions: {
+//     ssl: {
+//       require: true,
+//       rejectUnauthorized: false,
+//     },
+//   },
+// });
  
-module.exports = sequelize;
+// module.exports = sequelize;
+
+
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+module.exports = { supabase };

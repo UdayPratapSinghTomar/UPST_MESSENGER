@@ -14,4 +14,7 @@ router.post('/verify-email', controller.requestPasswordOtp);
 router.post('/verify-otp', controller.verifyOtp);
 router.post('/reset-password', controller.updatePassword);
 
+
+router.post('/check-connection', controller.testconnection);
+
 module.exports = router;

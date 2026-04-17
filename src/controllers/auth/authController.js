@@ -13,6 +13,201 @@ const crypto = require('crypto');
 const sendEmail = require('../../utils/sendEmail');
 const EVENTS = require('../../utils/socketEvents');
 
+
+
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
+exports.testconnection = async (req, res) => {
+    // const { data, error } = await supabase.from('profiles').select('*');
+    const { data: user } = await supabase.auth.getUser();
+    console.log(user);
+    // if (error) {
+    //     console.error('❌ Supabase connection failed:', error.message);
+    // } else {
+    //     console.log('✅ Supabase connected successfully!');
+    //     console.log('Data:', data);
+    // }
+}
+
+
+exports.login = async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      device_id,
+      device_type,
+      fcm_token,
+      force_login = false
+    } = req.body;
+
+    const errors = {};
+
+    if (!email) errors.email = 'Email is required';
+    if (!password) errors.password = 'Password is required';
+    if (!device_id) errors.device_id = 'Device id is required';
+    if (!device_type) errors.device_type = 'Device type is required';
+    if (!fcm_token) errors.fcm_token = 'FCM token is required';
+
+    if (Object.keys(errors).length > 0) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
+    }
+
+    // =====================================================
+    // 🔐 LOGIN WITH SUPABASE
+    // =====================================================
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({ email, password });
+
+    if (authError || !authData?.user) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {
+        email: 'Invalid credentials!'
+      });
+    }
+
+    const user = authData.user;
+    const session = authData.session;
+    const userId = user.id;
+
+    // =====================================================
+    // 👤 GET PROFILE (instead of users table)
+    // =====================================================
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!');
+    }
+
+    // =====================================================
+    // 📱 CHECK EXISTING DEVICE
+    // =====================================================
+    const { data: existingSession } = await supabase
+      .from('user_devices')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (existingSession && existingSession.device_id !== device_id && !force_login) {
+      return sendResponse(
+        res,
+        HttpsStatus.FORBIDDEN,
+        false,
+        'User already logged in another device',
+        { already_logged_in: true }
+      );
+    }
+
+    // =====================================================
+    // 🔁 FORCE LOGIN
+    // =====================================================
+    if (force_login && existingSession) {
+      await supabase
+        .from('user_devices')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .neq('device_id', device_id);
+    }
+
+    // =====================================================
+    // 📱 UPSERT DEVICE
+    // =====================================================
+    await supabase
+      .from('user_devices')
+      .upsert({
+        user_id: userId,
+        device_id,
+        device_type,
+        fcm_token,
+        is_active: true,
+        last_seen_at: new Date().toISOString()
+      });
+
+    // =====================================================
+    // 🏢 GET ORGANIZATIONS (via user_roles)
+    // =====================================================
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select(`
+        organization_id,
+        role,
+        organizations (
+          id,
+          name
+        )
+      `)
+      .eq('user_id', userId);
+
+    const organizations = roles?.map(r => ({
+      id: r.organizations?.id,
+      name: r.organizations?.name
+    })).filter(o => o.id) || [];
+
+    // =====================================================
+    // 📦 SAME OLD RESPONSE FORMAT
+    // =====================================================
+    const formattedUser = {
+      id: profile.id,
+      full_name: profile.full_name,
+      email: user.email,
+      phone: profile.phone_number,
+      role: roles?.[0]?.role || null,
+      designation: profile.job_role || null,
+
+      // 🔁 SAME KEY (profile_url)
+      profile_url: profile.avatar_url || null,
+
+      bio: profile.bio,
+      status: 'active', // since not in profiles table
+      organizations
+    };
+
+    return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+      user: formattedUser
+    });
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      'Server error!',
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // exports.refreshToken = async (req, res) =>{
 //     try{
 //         const { refreshToken } = req.body;
@@ -365,199 +560,199 @@ exports.userRegister = async (req,res) => {
 }
 
 
-exports.login = async (req, res) => {
-    try{
-        const { email, password, device_id, device_type, fcm_token, force_login = false } = req.body
-        const errors = {};
+// exports.login = async (req, res) => {
+//     try{
+//         const { email, password, device_id, device_type, fcm_token, force_login = false } = req.body
+//         const errors = {};
         
-        if(!email){
-           errors.email = 'Email is required';
-        }
-        if(!password){
-            errors.password = 'Password is required';
-        }
-        if(!device_id){
-            errors.device_id = 'Device id is required';
-        }
-        if(!device_type){
-            errors.device_type = 'Device type is required';
-        }
-        if(!fcm_token){
-            errors.fcm_token = 'FCM token is required';
-        }
+//         if(!email){
+//            errors.email = 'Email is required';
+//         }
+//         if(!password){
+//             errors.password = 'Password is required';
+//         }
+//         if(!device_id){
+//             errors.device_id = 'Device id is required';
+//         }
+//         if(!device_type){
+//             errors.device_type = 'Device type is required';
+//         }
+//         if(!fcm_token){
+//             errors.fcm_token = 'FCM token is required';
+//         }
 
-        if(Object.keys(errors).length > 0){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
-        }
+//         if(Object.keys(errors).length > 0){
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Validation failed!', null, errors);
+//         }
 
-        const user = await User.findOne({
-            where: { 
-                email, 
-                is_deleted: false 
-            },
-            include: [{
-                model: SharedFile,
-                as: 'uploadedFiles',
-                attributes: ['file_url', 'chat_id', 'message_id'],
-                required: false,
-                where: { chat_id: null, message_id: null, user_id: { [Op.ne]: null } }
-            }]
-        });
+//         const user = await User.findOne({
+//             where: { 
+//                 email, 
+//                 is_deleted: false 
+//             },
+//             include: [{
+//                 model: SharedFile,
+//                 as: 'uploadedFiles',
+//                 attributes: ['file_url', 'chat_id', 'message_id'],
+//                 required: false,
+//                 where: { chat_id: null, message_id: null, user_id: { [Op.ne]: null } }
+//             }]
+//         });
 
-        // console.log(user);
-        if(!user){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Invalid credentials!'});
-        }
+//         // console.log(user);
+//         if(!user){
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!', null, {email: 'Invalid credentials!'});
+//         }
             
-        let matchPassword = await bcrypt.compare(password, user.password);
-        if(!user || !matchPassword){
-            return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!');
-        }
+//         let matchPassword = await bcrypt.compare(password, user.password);
+//         if(!user || !matchPassword){
+//             return sendResponse(res, HttpsStatus.BAD_REQUEST, false, 'Invalid credentials!');
+//         }
 
-        const existingSession = await UserDevice.findOne({
-            where: {
-                user_id: user.id,
-                is_active: true
-            }
-        });
+//         const existingSession = await UserDevice.findOne({
+//             where: {
+//                 user_id: user.id,
+//                 is_active: true
+//             }
+//         });
 
-        if(existingSession && existingSession.device_id !== device_id && !force_login){
-            return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'User already logged in another device', { already_logged_in: true });
-        }
+//         if(existingSession && existingSession.device_id !== device_id && !force_login){
+//             return sendResponse(res, HttpsStatus.FORBIDDEN, false, 'User already logged in another device', { already_logged_in: true });
+//         }
 
-        const io = req.app.get('io');
+//         const io = req.app.get('io');
         
-        if(force_login && existingSession){
+//         if(force_login && existingSession){
 
-            /**
-             * Destroy refresh tokens of previous devices
-             */
+//             /**
+//              * Destroy refresh tokens of previous devices
+//              */
 
-            await RefreshToken.destroy({
-                where: {
-                    user_id: user.id,
-                    device_id: {
-                        [Op.ne]: device_id
-                    }
-                }
-            });
+//             await RefreshToken.destroy({
+//                 where: {
+//                     user_id: user.id,
+//                     device_id: {
+//                         [Op.ne]: device_id
+//                     }
+//                 }
+//             });
 
-            /**
-             * Deactivate previous devices
-             */
+//             /**
+//              * Deactivate previous devices
+//              */
 
-            await UserDevice.update(
-                { is_active: false },
-                {
-                where: {
-                    user_id: user.id,
-                    device_id: { [Op.ne]: device_id }
-                }
-                }
-            );
+//             await UserDevice.update(
+//                 { is_active: false },
+//                 {
+//                 where: {
+//                     user_id: user.id,
+//                     device_id: { [Op.ne]: device_id }
+//                 }
+//                 }
+//             );
 
-            /**
-             * Get previously active devices except current device
-             */
+//             /**
+//              * Get previously active devices except current device
+//              */
 
-            // const previousDevices = await UserDevice.findAll({
-            //     where: {
-            //     user_id: user.id,
-            //     is_active: true,
-            //     device_id: { [Op.ne]: device_id }
-            //     }
-            // });
+//             // const previousDevices = await UserDevice.findAll({
+//             //     where: {
+//             //     user_id: user.id,
+//             //     is_active: true,
+//             //     device_id: { [Op.ne]: device_id }
+//             //     }
+//             // });
 
-            /**
-             * 4️⃣ Notify previous devices
-             */
+//             /**
+//              * 4️⃣ Notify previous devices
+//              */
 
-            // for (const device of previousDevices) {
+//             // for (const device of previousDevices) {
 
-            //     await notifyUser(io, {
-            //     recipient_id: user.id,
-            //     type: 'security',
-            //     event: EVENTS.FORCE_LOGOUT,
-            //     title: 'Logged out from another device',
-            //     body: 'Your account was logged in from another device.'
-            //     });
-            // }
-        }
+//             //     await notifyUser(io, {
+//             //     recipient_id: user.id,
+//             //     type: 'security',
+//             //     event: EVENTS.FORCE_LOGOUT,
+//             //     title: 'Logged out from another device',
+//             //     body: 'Your account was logged in from another device.'
+//             //     });
+//             // }
+//         }
 
-        const payload = {id: user.id, email: user.email};
+//         const payload = {id: user.id, email: user.email};
 
-        const accessToken = generateAccessToken(payload);
-        const refreshToken = generateRefreshToken(payload);
+//         const accessToken = generateAccessToken(payload);
+//         const refreshToken = generateRefreshToken(payload);
     
-        // const t = await sequelize.transaction();
-        // try{
-            // await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
+//         // const t = await sequelize.transaction();
+//         // try{
+//             // await RefreshToken.destroy({where: { user_id: user.id }, transaction: t });
             
-        await RefreshToken.create({
-            user_id: user.id,
-            token: refreshToken,
-            device_id,
-            expires_at: expiryDateFromNow()
-        });
+//         await RefreshToken.create({
+//             user_id: user.id,
+//             token: refreshToken,
+//             device_id,
+//             expires_at: expiryDateFromNow()
+//         });
     
-        await UserDevice.upsert({
-            user_id: user.id,
-            device_id,
-            device_type,
-            fcm_token,
-            is_active: true,
-            last_seen_at: new Date()
-        });
+//         await UserDevice.upsert({
+//             user_id: user.id,
+//             device_id,
+//             device_type,
+//             fcm_token,
+//             is_active: true,
+//             last_seen_at: new Date()
+//         });
         
-        const orgIds = [
-            user.organization_id,
-            user.org_2,
-            user.org_3,
-            user.org_4,
-            user.org_5,
-            user.org_6,
-            user.org_7,
-            user.org_8,
-            user.org_9,
-            user.org_10,
-        ].filter(Boolean);
+//         const orgIds = [
+//             user.organization_id,
+//             user.org_2,
+//             user.org_3,
+//             user.org_4,
+//             user.org_5,
+//             user.org_6,
+//             user.org_7,
+//             user.org_8,
+//             user.org_9,
+//             user.org_10,
+//         ].filter(Boolean);
 
-        const uniqueOrgIds = [...new Set(orgIds)];
+//         const uniqueOrgIds = [...new Set(orgIds)];
 
-        const organizations = await Organization.findAll({
-            where: { id: uniqueOrgIds },
-            attributes: ["id", "name"],
-        });
-        // await t.commit();
+//         const organizations = await Organization.findAll({
+//             where: { id: uniqueOrgIds },
+//             attributes: ["id", "name"],
+//         });
+//         // await t.commit();
             
-        const BASE_URL = process.env.BASE_URL;
+//         const BASE_URL = process.env.BASE_URL;
 
-        const formattedUser = {
-            id: user.id,
-            full_name: user.full_name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            designation: user.designation,
+//         const formattedUser = {
+//             id: user.id,
+//             full_name: user.full_name,
+//             email: user.email,
+//             phone: user.phone,
+//             role: user.role,
+//             designation: user.designation,
 
-            // ✅ profile image with full URL
-            profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null,
-            bio: user.bio,
-            status: user.status,
-            organizations
-        };
+//             // ✅ profile image with full URL
+//             profile_url: user.uploadedFiles?.[0]?.file_url ? BASE_URL+user.uploadedFiles?.[0]?.file_url : null,
+//             bio: user.bio,
+//             status: user.status,
+//             organizations
+//         };
 
-        // return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(), profile_image,organizations } });
-        return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: formattedUser });
-        // }catch(err){
-        //     await t.rollback();
-        //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-        // }
+//         // return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: {...user.toJSON(), profile_image,organizations } });
+//         return sendResponse(res, HttpsStatus.OK, true, 'Login successful', {accessToken,refreshToken, user: formattedUser });
+//         // }catch(err){
+//         //     await t.rollback();
+//         //     return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//         // }
 
-    }catch(err){
-        return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
-    }
-};
+//     }catch(err){
+//         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, 'Server error!', null, { server: err.message });
+//     }
+// };
 
 exports.logout = async (req, res) => {
     try {
