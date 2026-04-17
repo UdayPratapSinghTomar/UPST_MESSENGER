@@ -1,50 +1,64 @@
 module.exports = (sequelize, DataTypes) => {
-  const Project = sequelize.define('Project', {
+  const ProjectAttachment = sequelize.define('ProjectAttachment', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    user_id: {
+
+    project_id: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'profiles',
+        model: 'projects',
         key: 'id'
       }
     },
+
     organization_id: {
       type: DataTypes.UUID,
+      allowNull: false,
       references: {
         model: 'organizations',
         key: 'id'
       }
     },
-    title: {
+
+    file_path: {
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    description: DataTypes.TEXT,
-    status: {
-      type: DataTypes.ENUM('todo', 'in_progress', 'done'),
-      defaultValue: 'todo',
+
+    file_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
     },
-    position: {
+
+    file_size: {
       type: DataTypes.INTEGER,
+      allowNull: false,
       defaultValue: 0,
     },
-    due_date: DataTypes.DATEONLY,
-    archived_at: DataTypes.DATE,
-    deleted_at: DataTypes.DATE,
+
+    mime_type: DataTypes.TEXT,
+
+    uploaded_by: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      // ⚠️ Not in SQL, but SHOULD exist logically
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    }
+
   }, {
-    tableName: 'projects',
+    tableName: 'project_attachments',
     timestamps: true,
     underscored: true,
-    paranoid: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    deletedAt: 'deleted_at',
+    updatedAt: false,
   });
 
-  return Project;
+  return ProjectAttachment;
 };

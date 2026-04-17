@@ -1,50 +1,63 @@
 module.exports = (sequelize, DataTypes) => {
-  const Project = sequelize.define('Project', {
+  const TaskAttachment = sequelize.define('TaskAttachment', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    user_id: {
+
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id'
+      }
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    file_path: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_size: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      defaultValue: 0,
+    },
+
+    mime_type: DataTypes.TEXT,
+
+    uploaded_by: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: 'profiles',
         key: 'id'
       }
-    },
-    organization_id: {
-      type: DataTypes.UUID,
-      references: {
-        model: 'organizations',
-        key: 'id'
-      }
-    },
-    title: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-    },
-    description: DataTypes.TEXT,
-    status: {
-      type: DataTypes.ENUM('todo', 'in_progress', 'done'),
-      defaultValue: 'todo',
-    },
-    position: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-    },
-    due_date: DataTypes.DATEONLY,
-    archived_at: DataTypes.DATE,
-    deleted_at: DataTypes.DATE,
+    }
+
   }, {
-    tableName: 'projects',
+    tableName: 'task_attachments',
     timestamps: true,
     underscored: true,
-    paranoid: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    deletedAt: 'deleted_at',
+    updatedAt: false,
   });
 
-  return Project;
+  return TaskAttachment;
 };

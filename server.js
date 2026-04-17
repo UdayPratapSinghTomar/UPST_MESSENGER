@@ -15,25 +15,33 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-async function syncDatabase() {
-  try {
-    await db.sequelize.sync({ alter: true })
+// async function syncDatabase() {
+//   try {
+//     await db.sequelize.sync({ alter: true })
 
-    console.log('Database synced successfully\n');
+//     console.log('Database synced successfully\n');
 
-    console.log('Synced Tables:')
-    Object.keys(db)
-      .filter(model => model !== 'sequelize')
-      .forEach(model => {
-        console.log(` - ${db[model].getTableName()}`);
-      })
+//     console.log('Synced Tables:')
+//     Object.keys(db)
+//       .filter(model => model !== 'sequelize')
+//       .forEach(model => {
+//         console.log(` - ${db[model].getTableName()}`);
+//       })
 
-  } catch (error) {
-    console.error('Sync error:', error);
-  }
-}
+//   } catch (error) {
+//     console.error('Sync error:', error);
+//   }
+// }
 
-syncDatabase();
+// syncDatabase();
+
+db.sequelize.authenticate()
+  .then(() => {
+    console.log('✅ Connected to Supabase database\n');
+  })
+  .catch((error) => {
+    console.error('❌ Database connection error:', error);
+  });
 
 const io = new Server(server, {
     cors: {

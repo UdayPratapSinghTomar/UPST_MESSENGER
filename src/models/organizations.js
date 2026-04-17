@@ -4,28 +4,43 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      // autoIncrement: true
     },
     name: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: false,
     },
+    slug: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      unique: true,
+    },
     employee_size: {
-      type: DataTypes.STRING
+      type: DataTypes.TEXT,
+      allowNull: false,
     },
-    website: {
-      type: DataTypes.STRING
+    logo_url: DataTypes.TEXT,
+    scheduled_deletion_at: DataTypes.DATE,
+    is_suspended: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
-    // 🔴 ADD LATER:
-    // subscription_plan
-    // is_active
-    // billing_email
-  },
-  {
+    suspended_at: DataTypes.DATE,
+    suspended_by: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+    suspension_reason: DataTypes.TEXT
+  }, {
     tableName: 'organizations',
     timestamps: true,
     underscored: true,
-  }
-);
-return Organization;
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+  });
+
+  return Organization;
 };

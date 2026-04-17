@@ -1,0 +1,983 @@
+module.exports = (sequelize, DataTypes) => {
+  const Organization = sequelize.define('Organization', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    slug: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      unique: true,
+    },
+
+    employee_size: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    logo_url: DataTypes.TEXT,
+    scheduled_deletion_at: DataTypes.DATE,
+
+    is_suspended: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    suspended_at: DataTypes.DATE,
+
+    suspended_by: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    suspension_reason: DataTypes.TEXT
+
+  }, {
+    tableName: 'organizations',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+  });
+
+  return Organization;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const Profile = sequelize.define('Profile', {
+    id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      allowNull: false,
+      // ❌ NO defaultValue → must come from auth.users
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    full_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    job_role: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    phone_number: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    scheduled_deletion_at: DataTypes.DATE,
+
+    onboarding_completed: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    is_virtual_assistant: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    welcome_email_sent_at: DataTypes.DATE,
+
+    bio: {
+      type: DataTypes.TEXT,
+      defaultValue: '',
+    },
+
+    avatar_url: DataTypes.TEXT,
+    banner_url: DataTypes.TEXT,
+
+    onboarding_step: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+
+    onboarding_project_id: DataTypes.UUID,
+
+    onboarding_tasks_generated: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
+    onboarding_team_invited: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
+    onboarding_step_id: DataTypes.TEXT,
+
+    must_reset_password: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    }
+
+  }, {
+    tableName: 'profiles',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+  });
+
+  return Profile;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const UserRole = sequelize.define('UserRole', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      // ⚠️ Do NOT reference auth.users in Sequelize
+      // Supabase handles this constraint
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    role: {
+      type: DataTypes.ENUM(
+        'super_admin',
+        'admin',
+        'member',
+        'viewer'
+      ), // ❌ removed 'individual'
+      allowNull: false,
+      defaultValue: 'member'
+    }
+
+  }, {
+    tableName: 'user_roles',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return UserRole;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const Project = sequelize.define('Project', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+    organization_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    description: DataTypes.TEXT,
+    status: {
+      type: DataTypes.ENUM('todo', 'in_progress', 'done'),
+      defaultValue: 'todo',
+    },
+    position: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    due_date: DataTypes.DATEONLY,
+    archived_at: DataTypes.DATE,
+    deleted_at: DataTypes.DATE,
+  }, {
+    tableName: 'projects',
+    timestamps: true,
+    underscored: true,
+    paranoid: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    deletedAt: 'deleted_at',
+  });
+
+  return Project;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const Task = sequelize.define('Task', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      // NOTE: In your DB this is NOT FK → keep as is
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    assigned_user_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    created_by_user_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    project_id: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'projects',
+        key: 'id'
+      }
+    },
+
+    title: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    description: {
+      type: DataTypes.TEXT,
+      validate: { len: [0, 2000] }
+    },
+
+    status: {
+      type: DataTypes.ENUM('todo', 'complete'),
+      allowNull: false,
+      defaultValue: 'todo',
+    },
+
+    icon: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: 'ListTodo',
+    },
+
+    category: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: 'operational',
+    },
+
+    subcategory: {
+      type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'misc'),
+      allowNull: false,
+      defaultValue: 'weekly',
+    },
+
+    priority: {
+      type: DataTypes.ENUM('low', 'medium', 'high'),
+      allowNull: false,
+      defaultValue: 'medium',
+    },
+
+    position: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+
+    due_date: DataTypes.DATEONLY,
+
+    attachment_url: DataTypes.TEXT,
+    attachment_name: DataTypes.TEXT,
+
+    is_recurring: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    is_draft: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
+    assignment_status: {
+      type: DataTypes.ENUM('pending', 'accepted', 'declined'),
+      allowNull: false,
+      defaultValue: 'accepted',
+    },
+
+    completed_at: DataTypes.DATE,
+    archived_at: DataTypes.DATE,
+
+    deleted_at: DataTypes.DATE,
+
+    decline_reason: DataTypes.TEXT,
+    last_reminder_sent_at: DataTypes.DATE,
+    reassignment_reason: DataTypes.TEXT,
+
+  }, {
+    tableName: 'tasks',
+    timestamps: true,
+    underscored: true,
+    paranoid: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    deletedAt: 'deleted_at',
+  });
+
+  return Task;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const TaskAssignment = sequelize.define('TaskAssignment', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id'
+      }
+    },
+
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    assigned_by: {
+      type: DataTypes.UUID,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    assignment_status: {
+      type: DataTypes.ENUM('pending', 'accepted', 'declined'),
+      allowNull: false,
+      defaultValue: 'pending',
+    },
+
+    accepted_at: DataTypes.DATE,
+    declined_at: DataTypes.DATE,
+    decline_reason: DataTypes.TEXT,
+
+  }, {
+    tableName: 'task_assignments',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return TaskAssignment;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const TaskNote = sequelize.define('TaskNote', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id'
+      }
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    },
+
+    user_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    content: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    }
+
+  }, {
+    tableName: 'task_notes',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return TaskNote;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const TaskURL = sequelize.define('TaskURL', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id'
+      }
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    url: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    title: DataTypes.TEXT,
+
+    created_by: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    }
+
+  }, {
+    tableName: 'task_urls',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return TaskURL;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const TaskAttachment = sequelize.define('TaskAttachment', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id'
+      }
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    file_path: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_size: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      defaultValue: 0,
+    },
+
+    mime_type: DataTypes.TEXT,
+
+    uploaded_by: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    }
+
+  }, {
+    tableName: 'task_attachments',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return TaskAttachment;
+};
+
+
+module.exports = (sequelize, DataTypes) => {
+  const ProjectAttachment = sequelize.define('ProjectAttachment', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+
+    project_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'projects',
+        key: 'id'
+      }
+    },
+
+    organization_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'organizations',
+        key: 'id'
+      }
+    },
+
+    file_path: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_name: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+
+    file_size: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+
+    mime_type: DataTypes.TEXT,
+
+    uploaded_by: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      // ⚠️ Not in SQL, but SHOULD exist logically
+      references: {
+        model: 'profiles',
+        key: 'id'
+      }
+    }
+
+  }, {
+    tableName: 'project_attachments',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+  });
+
+  return ProjectAttachment;
+};
+
+//==================================================================//
+// Organization ↔ Profile
+Organization.hasMany(Profile, { foreignKey: 'organization_id' });
+Profile.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// Organization ↔ UserRole
+Organization.hasMany(UserRole, { foreignKey: 'organization_id' });
+UserRole.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// Profile ↔ Organization (M:M via roles)
+Profile.belongsToMany(Organization, {
+  through: UserRole,
+  foreignKey: 'user_id',
+  otherKey: 'organization_id'
+});
+
+Organization.belongsToMany(Profile, {
+  through: UserRole,
+  foreignKey: 'organization_id',
+  otherKey: 'user_id'
+});
+
+// Suspended by
+Organization.belongsTo(Profile, {
+  foreignKey: 'suspended_by',
+  as: 'suspendedBy'
+});
+
+
+Task.belongsTo(models.Organization, {
+  foreignKey: 'organization_id'
+});
+
+Task.belongsTo(models.Profile, {
+  foreignKey: 'assigned_user_id',
+  as: 'assignedUser'
+});
+
+Task.belongsTo(models.Profile, {
+  foreignKey: 'created_by_user_id',
+  as: 'createdBy'
+});
+
+Task.belongsTo(models.Project, {
+  foreignKey: 'project_id'
+});
+
+
+// Task ↔ TaskAssignment
+Task.hasMany(TaskAssignment, { foreignKey: 'task_id' });
+TaskAssignment.belongsTo(Task, { foreignKey: 'task_id' });
+
+// Assignee
+TaskAssignment.belongsTo(Profile, {
+  foreignKey: 'user_id',
+  as: 'assignee'
+});
+
+// Assigned By
+TaskAssignment.belongsTo(Profile, {
+  foreignKey: 'assigned_by',
+  as: 'assigner'
+});
+
+
+
+// Task ↔ Notes
+Task.hasMany(TaskNote, { foreignKey: 'task_id' });
+TaskNote.belongsTo(Task, { foreignKey: 'task_id' });
+
+// Organization ↔ Notes
+Organization.hasMany(TaskNote, { foreignKey: 'organization_id' });
+TaskNote.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// User (Profile) ↔ Notes
+Profile.hasMany(TaskNote, { foreignKey: 'user_id' });
+TaskNote.belongsTo(Profile, { foreignKey: 'user_id', as: 'author' });
+
+
+
+// Task ↔ URLs
+Task.hasMany(TaskURL, { foreignKey: 'task_id' });
+TaskURL.belongsTo(Task, { foreignKey: 'task_id' });
+
+// Organization ↔ URLs
+Organization.hasMany(TaskURL, { foreignKey: 'organization_id' });
+TaskURL.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// Profile ↔ URLs
+Profile.hasMany(TaskURL, { foreignKey: 'created_by' });
+TaskURL.belongsTo(Profile, {
+  foreignKey: 'created_by',
+  as: 'creator'
+});
+
+
+// Task ↔ Attachments
+Task.hasMany(TaskAttachment, { foreignKey: 'task_id' });
+TaskAttachment.belongsTo(Task, { foreignKey: 'task_id' });
+
+// Organization ↔ Attachments
+Organization.hasMany(TaskAttachment, { foreignKey: 'organization_id' });
+TaskAttachment.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// Profile ↔ Attachments
+Profile.hasMany(TaskAttachment, { foreignKey: 'uploaded_by' });
+TaskAttachment.belongsTo(Profile, {
+  foreignKey: 'uploaded_by',
+  as: 'uploader'
+});
+
+
+
+// Project ↔ Attachments
+Project.hasMany(ProjectAttachment, { foreignKey: 'project_id' });
+ProjectAttachment.belongsTo(Project, { foreignKey: 'project_id' });
+
+// Organization ↔ Attachments
+Organization.hasMany(ProjectAttachment, { foreignKey: 'organization_id' });
+ProjectAttachment.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+// Profile ↔ Attachments
+Profile.hasMany(ProjectAttachment, { foreignKey: 'uploaded_by' });
+ProjectAttachment.belongsTo(Profile, {
+  foreignKey: 'uploaded_by',
+  as: 'uploader'
+});
+//==================================================================//
+
+
+module.exports = (models) => {
+  const {
+    Organization,
+    Profile,
+    UserRole,
+    Project,
+    Task,
+    TaskAssignment,
+    TaskNote,
+    TaskURL,
+    TaskAttachment,
+    ProjectAttachment
+  } = models;
+
+  // =========================================================
+  // ORGANIZATION ↔ PROFILE
+  // =========================================================
+  Organization.hasMany(Profile, { foreignKey: 'organization_id' });
+  Profile.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  // =========================================================
+  // ORGANIZATION ↔ USER ROLES
+  // =========================================================
+  Organization.hasMany(UserRole, { foreignKey: 'organization_id' });
+  UserRole.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  // ⚠️ IMPORTANT:
+  // user_roles.user_id → auth.users (NOT profiles)
+  // So DO NOT create belongsToMany(Profile <-> Organization)
+
+  // =========================================================
+  // ORGANIZATION SUSPENSION
+  // =========================================================
+  Organization.belongsTo(Profile, {
+    foreignKey: 'suspended_by',
+    as: 'suspendedBy'
+  });
+
+  // =========================================================
+  // PROJECT RELATIONS
+  // =========================================================
+
+  // Organization ↔ Project
+  Organization.hasMany(Project, { foreignKey: 'organization_id' });
+  Project.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  // Profile ↔ Project
+  Project.belongsTo(Profile, { foreignKey: 'user_id', as: 'owner' });
+  Project.belongsTo(Profile, { foreignKey: 'created_by_user_id', as: 'createdBy' });
+  Project.belongsTo(Profile, { foreignKey: 'assigned_user_id', as: 'assignedUser' });
+
+  Profile.hasMany(Project, { foreignKey: 'user_id', as: 'ownedProjects' });
+  Profile.hasMany(Project, { foreignKey: 'created_by_user_id', as: 'createdProjects' });
+  Profile.hasMany(Project, { foreignKey: 'assigned_user_id', as: 'assignedProjects' });
+
+  // Project ↔ Attachments
+  Project.hasMany(ProjectAttachment, { foreignKey: 'project_id' });
+  ProjectAttachment.belongsTo(Project, { foreignKey: 'project_id' });
+
+  // =========================================================
+  // TASK RELATIONS
+  // =========================================================
+
+  // Organization ↔ Task
+  Organization.hasMany(Task, { foreignKey: 'organization_id' });
+  Task.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  // Project ↔ Task
+  Project.hasMany(Task, { foreignKey: 'project_id' });
+  Task.belongsTo(Project, { foreignKey: 'project_id' });
+
+  // Profile ↔ Task
+  Task.belongsTo(Profile, { foreignKey: 'user_id', as: 'owner' });
+  Task.belongsTo(Profile, { foreignKey: 'assigned_user_id', as: 'assignedUser' });
+  Task.belongsTo(Profile, { foreignKey: 'created_by_user_id', as: 'createdBy' });
+
+  Profile.hasMany(Task, { foreignKey: 'user_id', as: 'ownedTasks' });
+  Profile.hasMany(Task, { foreignKey: 'assigned_user_id', as: 'assignedTasks' });
+  Profile.hasMany(Task, { foreignKey: 'created_by_user_id', as: 'createdTasks' });
+
+  // =========================================================
+  // TASK ASSIGNMENTS (MULTI USER)
+  // =========================================================
+
+  Task.hasMany(TaskAssignment, { foreignKey: 'task_id' });
+  TaskAssignment.belongsTo(Task, { foreignKey: 'task_id' });
+
+  TaskAssignment.belongsTo(Profile, {
+    foreignKey: 'user_id',
+    as: 'assignee'
+  });
+
+  TaskAssignment.belongsTo(Profile, {
+    foreignKey: 'assigned_by',
+    as: 'assigner'
+  });
+
+  Profile.hasMany(TaskAssignment, {
+    foreignKey: 'user_id',
+    as: 'taskAssignments'
+  });
+
+  Profile.hasMany(TaskAssignment, {
+    foreignKey: 'assigned_by',
+    as: 'assignedByMe'
+  });
+
+  // =========================================================
+  // TASK NOTES
+  // =========================================================
+
+  Task.hasMany(TaskNote, { foreignKey: 'task_id' });
+  TaskNote.belongsTo(Task, { foreignKey: 'task_id' });
+
+  Organization.hasMany(TaskNote, { foreignKey: 'organization_id' });
+  TaskNote.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  Profile.hasMany(TaskNote, { foreignKey: 'user_id' });
+  TaskNote.belongsTo(Profile, {
+    foreignKey: 'user_id',
+    as: 'author'
+  });
+
+  // =========================================================
+  // TASK URLS
+  // =========================================================
+
+  Task.hasMany(TaskURL, { foreignKey: 'task_id' });
+  TaskURL.belongsTo(Task, { foreignKey: 'task_id' });
+
+  Organization.hasMany(TaskURL, { foreignKey: 'organization_id' });
+  TaskURL.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  Profile.hasMany(TaskURL, { foreignKey: 'created_by' });
+  TaskURL.belongsTo(Profile, {
+    foreignKey: 'created_by',
+    as: 'creator'
+  });
+
+  // =========================================================
+  // TASK ATTACHMENTS
+  // =========================================================
+
+  Task.hasMany(TaskAttachment, { foreignKey: 'task_id' });
+  TaskAttachment.belongsTo(Task, { foreignKey: 'task_id' });
+
+  Organization.hasMany(TaskAttachment, { foreignKey: 'organization_id' });
+  TaskAttachment.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  Profile.hasMany(TaskAttachment, { foreignKey: 'uploaded_by' });
+  TaskAttachment.belongsTo(Profile, {
+    foreignKey: 'uploaded_by',
+    as: 'uploader'
+  });
+
+  // =========================================================
+  // PROJECT ATTACHMENTS
+  // =========================================================
+
+  Organization.hasMany(ProjectAttachment, { foreignKey: 'organization_id' });
+  ProjectAttachment.belongsTo(Organization, { foreignKey: 'organization_id' });
+
+  Profile.hasMany(ProjectAttachment, { foreignKey: 'uploaded_by' });
+  ProjectAttachment.belongsTo(Profile, {
+    foreignKey: 'uploaded_by',
+    as: 'uploader'
+  });
+
+};
