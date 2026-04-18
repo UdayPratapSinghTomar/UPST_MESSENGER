@@ -29,12 +29,20 @@
  
 // module.exports = sequelize;
 
-
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// 🔐 For normal APIs (RLS applied)
+const supabase = createClient(
+  supabaseUrl,
+  process.env.SUPABASE_PUBLISHABLE_KEY
+);
 
-module.exports = { supabase };
+// 🔥 ADMIN CLIENT (bypass RLS)
+const supabaseAdmin = createClient(
+  supabaseUrl,
+  process.env.SUPABASE_SECRET_KEY
+);
+
+module.exports = { supabase, supabaseAdmin };

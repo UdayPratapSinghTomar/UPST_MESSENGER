@@ -8,6 +8,7 @@ router.post('/login', controller.login);
 // router.post('/refresh', controller.refreshToken);
 router.post('/admin-register',  controller.adminRegister);
 router.post('/user-register',  controller.userRegister);
+router.post('/user-delete',  controller.deleteUser);
 router.post('/logout', auth, controller.logout);
 // router.post('/logout-all', auth, controller.logoutFromAllDevice);
 router.post('/verify-email', controller.requestPasswordOtp);
