@@ -9,5 +9,26 @@ router.get('/get-projects', auth, controller.getProjects);
 router.get('/get-assignees', auth, controller.getAssignees);
 
 router.post('/check-connection', controller.testconnection);
+const cors = require('cors');
+
+// const router = express.Router();
+
+
+// Status-based routes (put BEFORE /:id to avoid conflicts)
+router.get('/assignment-status/:assignment_status', controller.getTasksByAssignmentStatus);
+router.get('/task-status/:status', controller.getTasksByStatus);
+
+// Special actions
+router.patch('/:id/accepted', controller.markTaskAssignmentAccepted);
+router.patch('/:id/complete', controller.markTaskCompleted);
+
+// Details route (more specific than /:id)
+router.get('/:id/details', controller.getTaskByIdAndStatus);
+
+// General routes
+router.get('/', controller.getTasks);
+router.get('/:id', controller.getTaskById);
+router.put('/:id', controller.updateTask);
+router.delete('/:id', controller.deleteTask);
 
 module.exports = router;
