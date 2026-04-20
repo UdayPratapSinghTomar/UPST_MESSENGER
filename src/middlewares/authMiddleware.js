@@ -45,7 +45,7 @@ module.exports = async (req, res, next) => {
     // =====================================================
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY,
+      process.env.SUPABASE_PUBLISHABLE_KEY,
       {
         global: {
           headers: {
