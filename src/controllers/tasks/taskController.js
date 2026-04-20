@@ -269,7 +269,7 @@ exports.createTask = async (req, res) => {
 exports.getProjects = async (req, res) => {
   try {
     const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.body;
+    const { org_id } = req.params;
 
     if (!org_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
@@ -307,7 +307,7 @@ exports.getProjects = async (req, res) => {
 exports.getAssignees = async (req, res) => {
   try {
     const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.body;
+    const { org_id } = req.params;
 
     if (!org_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
@@ -373,6 +373,11 @@ exports.getAssignees = async (req, res) => {
     );
   }
 };
+
+
+
+
+
 
 // Get all tasks
 exports.getTasks = async (req, res) => {

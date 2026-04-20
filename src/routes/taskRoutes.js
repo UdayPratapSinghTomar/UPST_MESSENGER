@@ -5,8 +5,9 @@ const auth = require('../middlewares/authMiddleware');
 const { uploadImage, upload } = require('../utils/multer');
 
 router.post('/create', auth, upload.any(), controller.createTask);
-router.get('/get-projects', auth, controller.getProjects);
-router.get('/get-assignees', auth, controller.getAssignees);
+router.get('/get-projects/:org_id', auth, controller.getProjects);
+router.get('/get-assignees/:org_id', auth, controller.getAssignees);
+router.get('/get-task-lists', auth, controller.getTasksByStatus);
 
 router.post('/check-connection', controller.testconnection);
 const cors = require('cors');
