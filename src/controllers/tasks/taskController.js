@@ -269,7 +269,7 @@ exports.createTask = async (req, res) => {
 exports.getProjects = async (req, res) => {
   try {
     const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.params;
+    const { org_id } = req.query;
 
     if (!org_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
@@ -307,7 +307,7 @@ exports.getProjects = async (req, res) => {
 exports.getAssignees = async (req, res) => {
   try {
     const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.params;
+    const { org_id } = req.query;
 
     if (!org_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
@@ -374,250 +374,407 @@ exports.getAssignees = async (req, res) => {
   }
 };
 
+exports.getTasksByStatus = async (req, res) => {
+  try {
+    const supabase = req.supabase;
 
+    const { org_id, status } = req.query;
+
+    if (!org_id) {
+      return sendResponse(res, 400, false, "org_id is required");
+    }
+
+    if (!status || !['todo', 'complete'].includes(status)) {
+      return sendResponse(res, 400, false, "Invalid status (todo | complete)");
+    }
+
+    // =========================
+    // 🔍 STATUS FILTER
+    // =========================
+    // const isCompleted = status === 'complete';
+
+    // =========================
+    // 📌 FETCH TASKS
+    // =========================
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select(`
+        id,
+        title,
+        description,
+        priority,
+        due_date,
+        created_at,
+        is_recurring,
+        project_id,
+        assigned_user_id,
+        created_by_user_id
+      `)
+      .eq('organization_id', org_id)
+      .eq('status', status)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!tasks || tasks.length === 0) {
+      return sendResponse(res, 200, true, "Tasks fetched", []);
+    }
+
+    const taskIds = tasks.map(t => t.id);
+    const userIds = [
+      ...new Set([
+        ...tasks.map(t => t.assigned_user_id),
+        ...tasks.map(t => t.created_by_user_id)
+      ])
+    ];
+
+    // =========================
+    // 👥 FETCH USERS (profiles)
+    // =========================
+    const { data: users } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', userIds);
+
+    const userMap = {};
+    users?.forEach(u => {
+      userMap[u.id] = u;
+    });
+
+    // =========================
+    // 📁 FETCH PROJECTS
+    // =========================
+    const projectIds = tasks.map(t => t.project_id).filter(Boolean);
+
+    let projectMap = {};
+    if (projectIds.length > 0) {
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id, title')
+        .in('id', projectIds);
+
+      projects?.forEach(p => {
+        projectMap[p.id] = p;
+      });
+    }
+
+    // =========================
+    // 📎 FETCH ATTACHMENTS COUNT
+    // =========================
+    const { data: attachments } = await supabase
+      .from('task_attachments')
+      .select('task_id')
+      .in('task_id', taskIds);
+
+    const attachmentCountMap = {};
+    attachments?.forEach(a => {
+      attachmentCountMap[a.task_id] =
+        (attachmentCountMap[a.task_id] || 0) + 1;
+    });
+
+    // =========================
+    // 👥 FETCH ASSIGNMENTS COUNT
+    // =========================
+    const { data: assignments } = await supabase
+      .from('task_assignments')
+      .select('task_id')
+      .in('task_id', taskIds);
+
+    const assignmentCountMap = {};
+    assignments?.forEach(a => {
+      assignmentCountMap[a.task_id] =
+        (assignmentCountMap[a.task_id] || 0) + 1;
+    });
+
+    // =========================
+    // 🎯 FINAL FORMAT (UI READY)
+    // =========================
+    const formatted = tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      priority: t.priority,
+      due_date: t.due_date,
+      created_at: t.created_at,
+      is_recurring: t.is_recurring,
+
+      project: t.project_id
+        ? {
+            id: t.project_id,
+            title: projectMap[t.project_id]?.title || null
+          }
+        : null,
+
+      created_by: userMap[t.created_by_user_id] || null,
+      assigned_to: userMap[t.assigned_user_id] || null,
+
+      total_assigned: assignmentCountMap[t.id] || 0,
+      total_attachments: attachmentCountMap[t.id] || 0
+    }));
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Tasks fetched",
+      formatted
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      500,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};
 
 
 
 
 // Get all tasks
-exports.getTasks = async (req, res) => {
-  try {
-    const { status, assignment_status } = req.query;
+// exports.getTasks = async (req, res) => {
+//   try {
+//     const { status, assignment_status } = req.query;
 
-    let query = supabase.from('tasks').select('*')
-      .order('created_at', { ascending: false });
+//     let query = supabase.from('tasks').select('*')
+//       .order('created_at', { ascending: false });
 
-      console.log("hnsjhfsd",query)
+//       console.log("hnsjhfsd",query)
 
-    if (status) query = query.eq('status', status);
-    if (assignment_status) query = query.eq('assignment_status', assignment_status);
+//     if (status) query = query.eq('status', status);
+//     if (assignment_status) query = query.eq('assignment_status', assignment_status);
 
-    const { data, error } = await query;
+//     const { data, error } = await query;
 
-    if (error) throw error;
+//     if (error) throw error;
 
-    res.json({ success: true,  message:"Task Retrieve Successfully", data });
+//     res.json({ success: true,  message:"Task Retrieve Successfully", data });
 
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-
-// Get single task
-exports.getTaskById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-
-    res.json({ success: true, message:"Task Retrieve Successfully", data });
-
-  } catch (err) {
-    res.status(404).json({ success: false, message: 'Task not found' });
-  }
-};
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 
-// Update task
-exports.updateTask = async (req, res) => {
-  try {
-    const { id } = req.params;
+// // Get single task
+// exports.getTaskById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
 
-    if (req.body.status && !['todo', 'completed'].includes(req.body.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status'
-      });
-    }
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .select('*')
+//       .eq('id', id)
+//       .single();
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(req.body)
-      .eq('id', id)
-      .select()
-      .single();
+//     if (error) throw error;
 
-    if (error) throw error;
+//     res.json({ success: true, message:"Task Retrieve Successfully", data });
 
-    res.json({ success: true, message:"Task Updated Successfully", data });
-
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//   } catch (err) {
+//     res.status(404).json({ success: false, message: 'Task not found' });
+//   }
+// };
 
 
-// Delete task
-exports.deleteTask = async (req, res) => {
-  try {
-    const { id } = req.params;
+// // Update task
+// exports.updateTask = async (req, res) => {
+//   try {
+//     const { id } = req.params;
 
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', id);
+//     if (req.body.status && !['todo', 'completed'].includes(req.body.status)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid status'
+//       });
+//     }
 
-    if (error) throw error;
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .update(req.body)
+//       .eq('id', id)
+//       .select()
+//       .single();
 
-    res.json({ success: true, message: 'Task deleted successfully' });
+//     if (error) throw error;
 
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//     res.json({ success: true, message:"Task Updated Successfully", data });
 
-
-// Get tasks by status
-exports.getTasksByStatus = async (req, res) => {
-  try {
-    const { status } = req.params;
-
-    if (!['todo', 'completed'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status'
-      });
-    }
-
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('status', status);
-
-    if (error) throw error;
-
-    res.json({ success: true, message:"Task Retrieve Successfully", data });
-
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 
-// Get task with details
-exports.getTaskByIdAndStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.query;
+// // Delete task
+// exports.deleteTask = async (req, res) => {
+//   try {
+//     const { id } = req.params;
 
-    let query = supabase
-      .from('tasks')
-      .select(`
-        *,
-        projects ( id, name ),
-        task_assignees ( user_id )
-      `)
-      .eq('id', id);
+//     const { error } = await supabase
+//       .from('tasks')
+//       .delete()
+//       .eq('id', id);
 
-    if (status) {
-      query = query.eq('status', status);
-    }
+//     if (error) throw error;
 
-    const { data, error } = await query.single();
+//     res.json({ success: true, message: 'Task deleted successfully' });
 
-    if (error) throw error;
-
-    res.json({ success: true, message:"Task Retrieve Successfully", data });
-
-  } catch (err) {
-    res.status(404).json({ success: false, message: 'Task not found' });
-  }
-};
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 
-// Mark task completed
-exports.markTaskCompleted = async (req, res) => {
-  try {
-    const { id } = req.params;
+// // Get tasks by status
+// exports.getTasksByStatus = async (req, res) => {
+//   try {
+//     const { status } = req.params;
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'completed',
-        completed_at: new Date()
-      })
-      .eq('id', id)
-      .eq('status', 'todo')
-      .select();
+//     if (!['todo', 'completed'].includes(status)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid status'
+//       });
+//     }
 
-    if (error) throw error;
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .select('*')
+//       .eq('status', status);
 
-    if (!data.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Task already completed or not found'
-      });
-    }
+//     if (error) throw error;
 
-    res.json({
-      success: true,
-      message: 'Task marked as completed',
-      data
-    });
+//     res.json({ success: true, message:"Task Retrieve Successfully", data });
 
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 
-// Get tasks by assignment status
-exports.getTasksByAssignmentStatus = async (req, res) => {
-  try {
-    const { assignment_status } = req.params;
+// // Get task with details
+// exports.getTaskByIdAndStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { status } = req.query;
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('assignment_status', assignment_status);
+//     let query = supabase
+//       .from('tasks')
+//       .select(`
+//         *,
+//         projects ( id, name ),
+//         task_assignees ( user_id )
+//       `)
+//       .eq('id', id);
 
-    if (error) throw error;
+//     if (status) {
+//       query = query.eq('status', status);
+//     }
 
-    res.json({ success: true, message:"Task Retrieve Successfully", data });
+//     const { data, error } = await query.single();
 
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//     if (error) throw error;
+
+//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+
+//   } catch (err) {
+//     res.status(404).json({ success: false, message: 'Task not found' });
+//   }
+// };
 
 
-// Mark assignment accepted
-exports.markTaskAssignmentAccepted = async (req, res) => {
-  try {
-    const { id } = req.params;
+// // Mark task completed
+// exports.markTaskCompleted = async (req, res) => {
+//   try {
+//     const { id } = req.params;
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({
-        assignment_status: 'accepted'
-      })
-      .eq('id', id)
-      .eq('assignment_status', 'pending')
-      .select();
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .update({
+//         status: 'completed',
+//         completed_at: new Date()
+//       })
+//       .eq('id', id)
+//       .eq('status', 'todo')
+//       .select();
 
-    if (error) throw error;
+//     if (error) throw error;
 
-    if (!data.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Already accepted or task not found'
-      });
-    }
+//     if (!data.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Task already completed or not found'
+//       });
+//     }
 
-    res.json({
-      success: true,
-      message: 'Assignment accepted',
-      data
-    });
+//     res.json({
+//       success: true,
+//       message: 'Task marked as completed',
+//       data
+//     });
 
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
+// // Get tasks by assignment status
+// exports.getTasksByAssignmentStatus = async (req, res) => {
+//   try {
+//     const { assignment_status } = req.params;
+
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .select('*')
+//       .eq('assignment_status', assignment_status);
+
+//     if (error) throw error;
+
+//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
+// // Mark assignment accepted
+// exports.markTaskAssignmentAccepted = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const { data, error } = await supabase
+//       .from('tasks')
+//       .update({
+//         assignment_status: 'accepted'
+//       })
+//       .eq('id', id)
+//       .eq('assignment_status', 'pending')
+//       .select();
+
+//     if (error) throw error;
+
+//     if (!data.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Already accepted or task not found'
+//       });
+//     }
+
+//     res.json({
+//       success: true,
+//       message: 'Assignment accepted',
+//       data
+//     });
+
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };

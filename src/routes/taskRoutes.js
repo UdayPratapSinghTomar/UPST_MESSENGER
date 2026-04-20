@@ -5,8 +5,8 @@ const auth = require('../middlewares/authMiddleware');
 const { uploadImage, upload } = require('../utils/multer');
 
 router.post('/create', auth, upload.any(), controller.createTask);
-router.get('/get-projects/:org_id', auth, controller.getProjects);
-router.get('/get-assignees/:org_id', auth, controller.getAssignees);
+router.get('/get-projects', auth, controller.getProjects);
+router.get('/get-assignees', auth, controller.getAssignees);
 router.get('/get-task-lists', auth, controller.getTasksByStatus);
 
 router.post('/check-connection', controller.testconnection);
@@ -16,20 +16,20 @@ const cors = require('cors');
 
 
 // Status-based routes (put BEFORE /:id to avoid conflicts)
-router.get('/assignment-status/:assignment_status', controller.getTasksByAssignmentStatus);
-router.get('/task-status/:status', controller.getTasksByStatus);
+// router.get('/assignment-status/:assignment_status', controller.getTasksByAssignmentStatus);
+// router.get('/task-status/:status', controller.getTasksByStatus);
 
-// Special actions
-router.patch('/:id/accepted', controller.markTaskAssignmentAccepted);
-router.patch('/:id/complete', controller.markTaskCompleted);
+// // Special actions
+// router.patch('/:id/accepted', controller.markTaskAssignmentAccepted);
+// router.patch('/:id/complete', controller.markTaskCompleted);
 
-// Details route (more specific than /:id)
-router.get('/:id/details', controller.getTaskByIdAndStatus);
+// // Details route (more specific than /:id)
+// router.get('/:id/details', controller.getTaskByIdAndStatus);
 
-// General routes
-router.get('/', controller.getTasks);
-router.get('/:id', controller.getTaskById);
-router.put('/:id', controller.updateTask);
-router.delete('/:id', controller.deleteTask);
+// // General routes
+// router.get('/', controller.getTasks);
+// router.get('/:id', controller.getTaskById);
+// router.put('/:id', controller.updateTask);
+// router.delete('/:id', controller.deleteTask);
 
 module.exports = router;
