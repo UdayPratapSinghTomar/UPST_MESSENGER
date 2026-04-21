@@ -8,6 +8,7 @@ router.post('/create', auth, upload.any(), controller.createTask);
 router.get('/get-projects', auth, controller.getProjects);
 router.get('/get-assignees', auth, controller.getAssignees);
 router.get('/get-task-lists', auth, controller.getTasksByStatus);
+router.get('/task-details/:task_id', auth, controller.getTaskDetails);
 
 router.post('/check-connection', controller.testconnection);
 const cors = require('cors');

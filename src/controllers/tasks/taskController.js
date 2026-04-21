@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
+const { getPublicFileUrl } = require('../../utils/fileUrl');
 const { generateAccessToken, generateRefreshToken, expiryDateFromNow} = require('../../utils/tokens');
 
 const { User, RefreshToken, Organization, sequelize, SharedFile, UserDevice } = require('../../models');
@@ -266,6 +267,187 @@ exports.createTask = async (req, res) => {
   }
 };
 
+exports.updateTask = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const userId = req.user_id;
+    const { task_id } = req.params;
+
+    let {
+      title,
+      description,
+      due_date,
+      priority,
+      category,
+      assigned_users = [],
+      is_recurring,
+      urls = []
+    } = req.body;
+
+    if (!task_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+    }
+
+    // =========================
+    // 🔄 PARSE
+    // =========================
+    if (typeof assigned_users === 'string') {
+      assigned_users = JSON.parse(assigned_users);
+    }
+
+    if (typeof urls === 'string') {
+      urls = JSON.parse(urls);
+    }
+
+    // =========================
+    // 📌 GET EXISTING TASK
+    // =========================
+    const { data: existingTask, error: taskError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .single();
+
+    if (taskError || !existingTask) {
+      return sendResponse(res, HttpsStatus.NOT_FOUND, false, "Task not found");
+    }
+
+    const organizationId = existingTask.organization_id;
+
+    // =========================
+    // ✅ UPDATE TASK
+    // =========================
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update({
+        title,
+        description,
+        due_date,
+        priority,
+        category,
+        is_recurring,
+        assigned_user_id: assigned_users[0] || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', task_id);
+
+    if (updateError) throw new Error(updateError.message);
+
+    // =========================
+    // 👥 UPDATE ASSIGNMENTS
+    // =========================
+    const { data: oldAssignments } = await supabase
+      .from('task_assignments')
+      .select('user_id')
+      .eq('task_id', task_id);
+
+    const oldUserIds = oldAssignments.map(a => a.user_id);
+
+    const toAdd = assigned_users.filter(id => !oldUserIds.includes(id));
+    const toRemove = oldUserIds.filter(id => !assigned_users.includes(id));
+
+    // ➕ ADD NEW USERS
+    if (toAdd.length > 0) {
+      const insertData = toAdd.map(uid => ({
+        task_id,
+        user_id: uid,
+        assigned_by: userId
+      }));
+
+      await supabase.from('task_assignments').insert(insertData);
+    }
+
+    // ➖ REMOVE USERS
+    if (toRemove.length > 0) {
+      await supabase
+        .from('task_assignments')
+        .delete()
+        .eq('task_id', task_id)
+        .in('user_id', toRemove);
+    }
+
+    // =========================
+    // 🔗 UPDATE URLS (REPLACE)
+    // =========================
+    await supabase.from('task_urls').delete().eq('task_id', task_id);
+
+    const isValidUrl = (url) => {
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const validUrls = urls.filter(isValidUrl);
+
+    if (validUrls.length > 0) {
+      const urlData = validUrls.map(url => ({
+        task_id,
+        organization_id: organizationId,
+        url,
+        created_by: userId
+      }));
+
+      await supabase.from('task_urls').insert(urlData);
+    }
+
+    // =========================
+    // 📎 ADD NEW ATTACHMENTS
+    // =========================
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+
+        const fileExt = file.originalname.split(".").pop();
+        const filePath = `${organizationId}/${task_id}_${Date.now()}.${fileExt}`;
+
+        // Upload
+        const { error: uploadError } = await supabase.storage
+          .from("task-attachments")
+          .upload(filePath, fs.readFileSync(file.path), {
+            contentType: file.mimetype
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        // Save DB
+        await supabase
+          .from('task_attachments')
+          .insert({
+            task_id,
+            organization_id: organizationId,
+            file_path: filePath,
+            file_name: file.originalname,
+            file_size: file.size,
+            mime_type: file.mimetype,
+            uploaded_by: userId
+          });
+      }
+    }
+
+    // =========================
+    // ✅ SUCCESS
+    // =========================
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Task updated successfully"
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};
+
 exports.getProjects = async (req, res) => {
   try {
     const supabase = req.supabase; // ✅ RLS client
@@ -374,24 +556,202 @@ exports.getAssignees = async (req, res) => {
   }
 };
 
+// exports.getTasksByStatus = async (req, res) => {
+//   try {
+//     const supabase = req.supabase;
+//     const { org_id, status } = req.query;
+
+//     if (!org_id) {
+//       return sendResponse(res, 400, false, "org_id is required");
+//     }
+
+//     if (!status || !['todo', 'complete'].includes(status)) {
+//       return sendResponse(res, 400, false, "Invalid status");
+//     }
+
+//     // =========================
+//     // 📌 TASKS
+//     // =========================
+//     const { data: tasks, error } = await supabase
+//       .from('tasks')
+//       .select(`
+//         id, title, description, priority,
+//         due_date, created_at, is_recurring,
+//         project_id, created_by_user_id
+//       `)
+//       .eq('organization_id', org_id)
+//       .eq('status', status)
+//       .is('deleted_at', null)
+//       .order('created_at', { ascending: false });
+
+//     if (error) throw error;
+
+//     if (!tasks?.length) {
+//       return sendResponse(res, 200, true, "Tasks fetched", []);
+//     }
+
+//     const taskIds = tasks.map(t => t.id);
+
+//     // =========================
+//     // 👥 ASSIGNMENTS
+//     // =========================
+//     const { data: assignments } = await supabase
+//       .from('task_assignments')
+//       .select('task_id, user_id')
+//       .in('task_id', taskIds);
+
+//     const allUserIds = [
+//       ...new Set([
+//         ...(assignments || []).map(a => a.user_id),
+//         ...tasks.map(t => t.created_by_user_id)
+//       ])
+//     ];
+
+//     const { data: users } = await supabase
+//       .from('profiles')
+//       .select('id, full_name, avatar_url')
+//       .in('id', allUserIds);
+
+//     const userMap = {};
+//     users?.forEach(u => userMap[u.id] = u);
+
+//     const assignmentMap = {};
+//     assignments?.forEach(a => {
+//       if (!assignmentMap[a.task_id]) {
+//         assignmentMap[a.task_id] = [];
+//       }
+
+//       if (userMap[a.user_id]) {
+//         assignmentMap[a.task_id].push(userMap[a.user_id]);
+//       }
+//     });
+
+//     // =========================
+//     // 📎 ATTACHMENTS (FIXED URL)
+//     // =========================
+//     const { data: attachments } = await supabase
+//       .from('task_attachments')
+//       .select('task_id, file_name, file_path, file_size, mime_type')
+//       .in('task_id', taskIds);
+
+//     const attachmentMap = {};
+//     attachments?.forEach(a => {
+//       if (!attachmentMap[a.task_id]) {
+//         attachmentMap[a.task_id] = [];
+//       }
+
+//       attachmentMap[a.task_id].push({
+//         ...a,
+//         file_url: getPublicFileUrl(a.file_path) // ✅ FIX
+//       });
+//     });
+
+//     // =========================
+//     // 🎯 FINAL
+//     // =========================
+//     const formatted = tasks.map(t => ({
+//       id: t.id,
+//       title: t.title,
+//       description: t.description,
+//       priority: t.priority,
+//       due_date: t.due_date,
+//       created_at: t.created_at,
+//       is_recurring: t.is_recurring,
+
+//       created_by: userMap[t.created_by_user_id] || null,
+//       assigned_to: assignmentMap[t.id] || [],
+//       total_assigned: (assignmentMap[t.id] || []).length,
+
+//       attachments: attachmentMap[t.id] || [],
+//       total_attachments: (attachmentMap[t.id] || []).length
+//     }));
+
+//     return sendResponse(res, 200, true, "Tasks fetched", formatted);
+
+//   } catch (err) {
+//     return sendResponse(res, 500, false, "Error", null, {
+//       server: err.message
+//     });
+//   }
+// };
+
+// exports.getTaskDetails = async (req, res) => {
+//   try {
+//     const supabase = req.supabase;
+//     const { task_id } = req.params;
+
+//     if (!task_id) {
+//       return sendResponse(res, 400, false, "task_id is required");
+//     }
+
+//     // =========================
+//     // 📌 TASK
+//     // =========================
+//     const { data: task } = await supabase
+//       .from('tasks')
+//       .select('*')
+//       .eq('id', task_id)
+//       .single();
+
+//     // =========================
+//     // 👥 ASSIGNMENTS
+//     // =========================
+//     const { data: assignments } = await supabase
+//       .from('task_assignments')
+//       .select('user_id')
+//       .eq('task_id', task_id);
+
+//     const userIds = assignments.map(a => a.user_id);
+
+//     const { data: users } = await supabase
+//       .from('profiles')
+//       .select('id, full_name, avatar_url')
+//       .in('id', userIds);
+
+//     const userMap = {};
+//     users?.forEach(u => userMap[u.id] = u);
+
+//     // =========================
+//     // 📎 ATTACHMENTS (FIXED)
+//     // =========================
+//     const { data: attachments } = await supabase
+//       .from('task_attachments')
+//       .select('*')
+//       .eq('task_id', task_id);
+
+//     const formattedAttachments = attachments.map(a => ({
+//       ...a,
+//       file_url: getPublicFileUrl(a.file_path) // ✅ FIX
+//     }));
+
+//     return sendResponse(res, 200, true, "Task details fetched", {
+//       ...task,
+//       assigned_to: userIds.map(id => userMap[id]).filter(Boolean),
+//       attachments: formattedAttachments
+//     });
+
+//   } catch (err) {
+//     return sendResponse(res, 500, false, "Error", null, {
+//       server: err.message
+//     });
+//   }
+// };
+
 exports.getTasksByStatus = async (req, res) => {
   try {
     const supabase = req.supabase;
 
-    const { org_id, status } = req.query;
+    let { org_id, status } = req.query;
 
     if (!org_id) {
-      return sendResponse(res, 400, false, "org_id is required");
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
     }
 
-    if (!status || !['todo', 'complete'].includes(status)) {
-      return sendResponse(res, 400, false, "Invalid status (todo | complete)");
+    if (!status || !['todo', 'complete'].includes(status.trim())) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid status (todo | complete)");
     }
 
-    // =========================
-    // 🔍 STATUS FILTER
-    // =========================
-    // const isCompleted = status === 'complete';
+    const cleanStatus = status.trim();
 
     // =========================
     // 📌 FETCH TASKS
@@ -407,124 +767,100 @@ exports.getTasksByStatus = async (req, res) => {
         created_at,
         is_recurring,
         project_id,
-        assigned_user_id,
-        created_by_user_id
+        created_by_user_id,
+        status
       `)
       .eq('organization_id', org_id)
-      .eq('status', status)
+      .eq('status', cleanStatus)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    if (!tasks || tasks.length === 0) {
-      return sendResponse(res, 200, true, "Tasks fetched", []);
+    if (!tasks?.length) {
+      return sendResponse(res, HttpsStatus.OK, true, "Tasks fetched", []);
     }
 
     const taskIds = tasks.map(t => t.id);
-    const userIds = [
-      ...new Set([
-        ...tasks.map(t => t.assigned_user_id),
-        ...tasks.map(t => t.created_by_user_id)
-      ])
-    ];
 
     // =========================
-    // 👥 FETCH USERS (profiles)
-    // =========================
-    const { data: users } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .in('id', userIds);
-
-    const userMap = {};
-    users?.forEach(u => {
-      userMap[u.id] = u;
-    });
-
-    // =========================
-    // 📁 FETCH PROJECTS
-    // =========================
-    const projectIds = tasks.map(t => t.project_id).filter(Boolean);
-
-    let projectMap = {};
-    if (projectIds.length > 0) {
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id, title')
-        .in('id', projectIds);
-
-      projects?.forEach(p => {
-        projectMap[p.id] = p;
-      });
-    }
-
-    // =========================
-    // 📎 FETCH ATTACHMENTS COUNT
+    // 📎 FETCH ATTACHMENTS
     // =========================
     const { data: attachments } = await supabase
       .from('task_attachments')
-      .select('task_id')
+      .select(`
+        task_id,
+        file_name,
+        file_path,
+        file_size,
+        mime_type
+      `)
       .in('task_id', taskIds);
 
-    const attachmentCountMap = {};
-    attachments?.forEach(a => {
-      attachmentCountMap[a.task_id] =
-        (attachmentCountMap[a.task_id] || 0) + 1;
+    // =========================
+    // 🔥 GENERATE SIGNED URLS (WITH DEBUG)
+    // =========================
+    const attachmentsWithUrls = await Promise.all(
+      (attachments || []).map(async (file) => {
+        if (!file.file_path) return { ...file, file_url: null };
+
+        const { data, error } = await supabase.storage
+          .from('task-attachments')
+          .createSignedUrl(file.file_path, 3600);
+
+        if (error) {
+          console.error("SIGNED URL ERROR:", error.message, file.file_path);
+        }
+
+        return {
+          ...file,
+          file_url: data?.signedUrl || null
+        };
+      })
+    );
+
+    // =========================
+    // 📎 GROUP BY TASK
+    // =========================
+    const attachmentMap = {};
+
+    attachmentsWithUrls.forEach(a => {
+      if (!attachmentMap[a.task_id]) {
+        attachmentMap[a.task_id] = [];
+      }
+      attachmentMap[a.task_id].push(a);
     });
 
     // =========================
-    // 👥 FETCH ASSIGNMENTS COUNT
-    // =========================
-    const { data: assignments } = await supabase
-      .from('task_assignments')
-      .select('task_id')
-      .in('task_id', taskIds);
-
-    const assignmentCountMap = {};
-    assignments?.forEach(a => {
-      assignmentCountMap[a.task_id] =
-        (assignmentCountMap[a.task_id] || 0) + 1;
-    });
-
-    // =========================
-    // 🎯 FINAL FORMAT (UI READY)
+    // 🎯 FINAL RESPONSE
     // =========================
     const formatted = tasks.map(t => ({
       id: t.id,
       title: t.title,
       description: t.description,
       priority: t.priority,
+      status: t.status,
       due_date: t.due_date,
       created_at: t.created_at,
       is_recurring: t.is_recurring,
 
-      project: t.project_id
-        ? {
-            id: t.project_id,
-            title: projectMap[t.project_id]?.title || null
-          }
-        : null,
-
-      created_by: userMap[t.created_by_user_id] || null,
-      assigned_to: userMap[t.assigned_user_id] || null,
-
-      total_assigned: assignmentCountMap[t.id] || 0,
-      total_attachments: attachmentCountMap[t.id] || 0
+      attachments: attachmentMap[t.id] || [],
+      total_attachments: (attachmentMap[t.id] || []).length
     }));
 
     return sendResponse(
       res,
-      200,
+      HttpsStatus.OK,
       true,
       "Tasks fetched",
       formatted
     );
 
   } catch (err) {
+    console.error("ERROR:", err);
     return sendResponse(
       res,
-      500,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
       false,
       "Error",
       null,
@@ -533,7 +869,175 @@ exports.getTasksByStatus = async (req, res) => {
   }
 };
 
+exports.getTaskDetails = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const { task_id } = req.params;
 
+    if (!task_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+    }
+
+    // =========================
+    // 📌 FETCH TASK
+    // =========================
+    const { data: task, error } = await supabase
+      .from('tasks')
+      .select(`
+        id,
+        title,
+        description,
+        priority,
+        due_date,
+        created_at,
+        is_recurring,
+        category,
+        project_id,
+        created_by_user_id,
+        status
+      `)
+      .eq('id', task_id)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !task) {
+      throw new Error("Task not found");
+    }
+
+    // =========================
+    // 👥 FETCH ASSIGNMENTS
+    // =========================
+    const { data: assignments } = await supabase
+      .from('task_assignments')
+      .select('user_id')
+      .eq('task_id', task_id);
+
+    const assignedUserIds = assignments?.map(a => a.user_id) || [];
+
+    // =========================
+    // 👤 FETCH USERS
+    // =========================
+    const allUserIds = [
+      ...new Set([
+        ...assignedUserIds,
+        task.created_by_user_id
+      ])
+    ];
+
+    let userMap = {};
+
+    if (allUserIds.length > 0) {
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', allUserIds);
+
+      users?.forEach(u => {
+        userMap[u.id] = u;
+      });
+    }
+
+    // =========================
+    // 📁 FETCH PROJECT
+    // =========================
+    let project = null;
+
+    if (task.project_id) {
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('id, title')
+        .eq('id', task.project_id)
+        .single();
+
+      if (proj) project = proj;
+    }
+
+    // =========================
+    // 📎 FETCH ATTACHMENTS
+    // =========================
+    const { data: attachments } = await supabase
+      .from('task_attachments')
+      .select(`
+        file_name,
+        file_path,
+        file_size,
+        mime_type
+      `)
+      .eq('task_id', task_id);
+
+    // 🔥 ADD THIS: generate signed URLs
+    const attachmentsWithUrls = await Promise.all(
+      (attachments || []).map(async (file) => {
+        const { data, error } = await supabase.storage
+          .from('task-attachments')
+          .createSignedUrl(file.file_path, 3600); // 1 hour
+
+        return {
+          ...file,
+          file_url: error ? null : data?.signedUrl
+        };
+      })
+    );
+
+    // =========================
+    // 🔗 FETCH URLS
+    // =========================
+    const { data: urls } = await supabase
+      .from('task_urls')
+      .select('url')
+      .eq('task_id', task_id);
+
+    // =========================
+    // 🎯 FINAL RESPONSE
+    // =========================
+    const response = {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      status: task.status,
+      due_date: task.due_date,
+      created_at: task.created_at,
+      is_recurring: task.is_recurring,
+      category: task.category, // 🔥 BOARD (Product)
+
+      project: project,
+
+      created_by: userMap[task.created_by_user_id] || null,
+
+      assigned_to: assignedUserIds.map(uid => {
+        return userMap[uid] || {
+          id: uid,
+          full_name: null,
+          avatar_url: null
+        };
+      }),
+
+      attachments: attachmentsWithUrls,
+      total_attachments: attachmentsWithUrls.length,
+
+      urls: urls?.map(u => u.url) || []
+    };
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Task details fetched",
+      response
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};
 
 
 // Get all tasks
