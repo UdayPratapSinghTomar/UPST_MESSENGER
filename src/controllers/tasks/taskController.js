@@ -44,8 +44,9 @@ exports.createTask = async (req, res) => {
       project_id,
       new_project_title,
       due_date,
-      priority = 'medium',
-      category = 'product', // ✅ from request
+      priority,
+      category,
+      subcategory,
       assigned_users = [],
       is_recurring = false,
       is_draft = false,
@@ -64,6 +65,13 @@ exports.createTask = async (req, res) => {
       urls = JSON.parse(urls);
     }
 
+    if (!is_recurring) {
+      subcategory = 'weekly'; // ✅ DEFAULT
+    }
+
+    if (is_recurring && !subcategory) {
+      return sendResponse(res, 400, false, "subcategory is required for recurring task");
+    }
     // =========================
     // ✅ VALIDATION
     // =========================
@@ -134,7 +142,8 @@ exports.createTask = async (req, res) => {
       .insert({
         title,
         description,
-        category, // ✅ FROM REQUEST
+        category,
+        subcategory,
         user_id: userId,
         organization_id: organizationId,
         project_id: finalProjectId,
@@ -279,18 +288,19 @@ exports.updateTask = async (req, res) => {
       due_date,
       priority,
       category,
+      subcategory,
       assigned_users = [],
       is_recurring,
       urls = []
     } = req.body;
 
+    // =========================
+    // ❌ VALIDATION
+    // =========================
     if (!task_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+      return sendResponse(res, 400, false, "task_id is required");
     }
 
-    // =========================
-    // 🔄 PARSE
-    // =========================
     if (typeof assigned_users === 'string') {
       assigned_users = JSON.parse(assigned_users);
     }
@@ -299,49 +309,71 @@ exports.updateTask = async (req, res) => {
       urls = JSON.parse(urls);
     }
 
+    if (!assigned_users || assigned_users.length === 0) {
+      return sendResponse(res, 400, false, "At least one assigned user required");
+    }
+
+    if (!is_recurring) {
+      subcategory = 'weekly';
+    }
+
+    if (is_recurring && !subcategory) {
+      return sendResponse(res, 400, false, "subcategory is required for recurring task");
+    }
+
     // =========================
     // 📌 GET EXISTING TASK
     // =========================
-    const { data: existingTask, error: taskError } = await supabase
+    const { data: existingTask, error: fetchError } = await supabase
       .from('tasks')
       .select('*')
       .eq('id', task_id)
       .single();
 
-    if (taskError || !existingTask) {
-      return sendResponse(res, HttpsStatus.NOT_FOUND, false, "Task not found");
+    if (fetchError || !existingTask) {
+      return sendResponse(res, 404, false, "Task not found");
     }
 
     const organizationId = existingTask.organization_id;
 
     // =========================
-    // ✅ UPDATE TASK
+    // ✅ UPDATE TASK (FIXED)
     // =========================
-    const { error: updateError } = await supabase
+    const { data: updatedTask, error: updateError } = await supabase
       .from('tasks')
       .update({
         title,
         description,
         due_date,
         priority,
-        category,
         is_recurring,
+        category,
+        subcategory,
         assigned_user_id: assigned_users[0] || null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', task_id);
+      .eq('id', task_id)
+      .select()
+      .single();
 
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) {
+      console.error("UPDATE ERROR:", updateError);
+      throw new Error(updateError.message);
+    }
+
+    if (!updatedTask) {
+      return sendResponse(res, 403, false, "Update failed (RLS issue)");
+    }
 
     // =========================
-    // 👥 UPDATE ASSIGNMENTS
+    // 👥 SYNC ASSIGNMENTS
     // =========================
     const { data: oldAssignments } = await supabase
       .from('task_assignments')
       .select('user_id')
       .eq('task_id', task_id);
 
-    const oldUserIds = oldAssignments.map(a => a.user_id);
+    const oldUserIds = oldAssignments?.map(a => a.user_id) || [];
 
     const toAdd = assigned_users.filter(id => !oldUserIds.includes(id));
     const toRemove = oldUserIds.filter(id => !assigned_users.includes(id));
@@ -351,36 +383,38 @@ exports.updateTask = async (req, res) => {
       const insertData = toAdd.map(uid => ({
         task_id,
         user_id: uid,
-        assigned_by: userId
+        assigned_by: userId,
+        assignment_status: 'pending'
       }));
 
-      await supabase.from('task_assignments').insert(insertData);
+      const { error } = await supabase.from('task_assignments').insert(insertData);
+      if (error) throw new Error(error.message);
     }
 
-    // ➖ REMOVE USERS
+    // ➖ REMOVE USERS (SOFT DELETE RECOMMENDED)
     if (toRemove.length > 0) {
-      await supabase
+      const { error } = await supabase
         .from('task_assignments')
         .delete()
         .eq('task_id', task_id)
         .in('user_id', toRemove);
+
+      if (error) throw new Error(error.message);
     }
 
     // =========================
-    // 🔗 UPDATE URLS (REPLACE)
+    // 🔗 REPLACE URLS
     // =========================
     await supabase.from('task_urls').delete().eq('task_id', task_id);
 
-    const isValidUrl = (url) => {
+    const validUrls = (urls || []).filter(url => {
       try {
         new URL(url);
         return true;
       } catch {
         return false;
       }
-    };
-
-    const validUrls = urls.filter(isValidUrl);
+    });
 
     if (validUrls.length > 0) {
       const urlData = validUrls.map(url => ({
@@ -390,19 +424,18 @@ exports.updateTask = async (req, res) => {
         created_by: userId
       }));
 
-      await supabase.from('task_urls').insert(urlData);
+      const { error } = await supabase.from('task_urls').insert(urlData);
+      if (error) throw new Error(error.message);
     }
 
     // =========================
     // 📎 ADD NEW ATTACHMENTS
     // =========================
-    if (req.files && req.files.length > 0) {
+    if (req.files?.length > 0) {
       for (const file of req.files) {
-
         const fileExt = file.originalname.split(".").pop();
         const filePath = `${organizationId}/${task_id}_${Date.now()}.${fileExt}`;
 
-        // Upload
         const { error: uploadError } = await supabase.storage
           .from("task-attachments")
           .upload(filePath, fs.readFileSync(file.path), {
@@ -411,8 +444,7 @@ exports.updateTask = async (req, res) => {
 
         if (uploadError) throw new Error(uploadError.message);
 
-        // Save DB
-        await supabase
+        const { error: dbError } = await supabase
           .from('task_attachments')
           .insert({
             task_id,
@@ -423,325 +455,119 @@ exports.updateTask = async (req, res) => {
             mime_type: file.mimetype,
             uploaded_by: userId
           });
+
+        if (dbError) throw new Error(dbError.message);
       }
     }
 
     // =========================
     // ✅ SUCCESS
     // =========================
-    return sendResponse(
-      res,
-      HttpsStatus.OK,
-      true,
-      "Task updated successfully"
-    );
-
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Error",
-      null,
-      { server: err.message }
-    );
-  }
-};
-
-exports.getProjects = async (req, res) => {
-  try {
-    const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.query;
-
-    if (!org_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
-    }
-
-    const { data, error } = await supabase
-      .from('projects')
-      .select('id, title')
-      .eq('organization_id', org_id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    return sendResponse(
-      res,
-      HttpsStatus.OK,
-      true,
-      "Projects fetched",
-      data
-    );
-
-  } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Error",
-      null,
-      { server: err.message }
-    );
-  }
-};
-
-exports.getAssignees = async (req, res) => {
-  try {
-    const supabase = req.supabase; // ✅ RLS client
-    const { org_id } = req.query;
-
-    if (!org_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
-    }
-
-    // =========================
-    // 1️⃣ GET USER ROLES
-    // =========================
-    const { data: roles, error: roleError } = await supabase
-      .from('user_roles')
-      .select('user_id, role')
-      .eq('organization_id', org_id);
-
-    if (roleError) throw roleError;
-
-    if (!roles || roles.length === 0) {
-      return sendResponse(res, HttpsStatus.OK, true, "Users fetched", []);
-    }
-
-    // =========================
-    // 2️⃣ GET PROFILES
-    // =========================
-    const userIds = roles.map(r => r.user_id);
-
-    const { data: profiles, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .in('id', userIds);
-
-    if (profileError) throw profileError;
-
-    // =========================
-    // 3️⃣ MERGE DATA
-    // =========================
-    const profileMap = {};
-    profiles.forEach(p => {
-      profileMap[p.id] = p;
+    return sendResponse(res, 200, true, "Task updated successfully", {
+      task_id: updatedTask.id
     });
 
-    const formatted = roles.map(r => ({
-      user_id: r.user_id,
-      role: r.role,
-      full_name: profileMap[r.user_id]?.full_name || null,
-      avatar_url: profileMap[r.user_id]?.avatar_url || null
-    }));
-
-    return sendResponse(
-      res,
-      HttpsStatus.OK,
-      true,
-      "Users fetched",
-      formatted
-    );
-
   } catch (err) {
-    return sendResponse(
-      res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
-      false,
-      "Error",
-      null,
-      { server: err.message }
-    );
+    console.error("UPDATE TASK ERROR:", err);
+
+    return sendResponse(res, 500, false, "Error", null, {
+      server: err.message
+    });
   }
 };
 
-// exports.getTasksByStatus = async (req, res) => {
-//   try {
-//     const supabase = req.supabase;
-//     const { org_id, status } = req.query;
+exports.deleteTaskAttachment = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const userId = req.user_id;
+    const { attachment_id } = req.params;
 
-//     if (!org_id) {
-//       return sendResponse(res, 400, false, "org_id is required");
-//     }
+    if (!attachment_id) {
+      return sendResponse(res, 400, false, "attachment_id is required");
+    }
 
-//     if (!status || !['todo', 'complete'].includes(status)) {
-//       return sendResponse(res, 400, false, "Invalid status");
-//     }
+    // =========================
+    // 👤 GET USER ROLE
+    // =========================
+    const { data: user, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
 
-//     // =========================
-//     // 📌 TASKS
-//     // =========================
-//     const { data: tasks, error } = await supabase
-//       .from('tasks')
-//       .select(`
-//         id, title, description, priority,
-//         due_date, created_at, is_recurring,
-//         project_id, created_by_user_id
-//       `)
-//       .eq('organization_id', org_id)
-//       .eq('status', status)
-//       .is('deleted_at', null)
-//       .order('created_at', { ascending: false });
+    if (userError || !user) {
+      return sendResponse(res, 401, false, "User not found");
+    }
 
-//     if (error) throw error;
+    // =========================
+    // 📌 GET ATTACHMENT
+    // =========================
+    const { data: file, error: fetchError } = await supabase
+      .from('task_attachments')
+      .select('id, file_path, uploaded_by')
+      .eq('id', attachment_id)
+      .single();
 
-//     if (!tasks?.length) {
-//       return sendResponse(res, 200, true, "Tasks fetched", []);
-//     }
+    if (fetchError || !file) {
+      return sendResponse(res, 404, false, "Attachment not found");
+    }
 
-//     const taskIds = tasks.map(t => t.id);
+    // =========================
+    // 🔐 AUTHORIZATION CHECK
+    // =========================
+    // const isOwner = file.uploaded_by === userId;
+    // const isAdmin = user.role === 'admin';
+    // const isModerator = user.role === 'moderator';
 
-//     // =========================
-//     // 👥 ASSIGNMENTS
-//     // =========================
-//     const { data: assignments } = await supabase
-//       .from('task_assignments')
-//       .select('task_id, user_id')
-//       .in('task_id', taskIds);
+    // if (!isOwner && !isAdmin && !isModerator) {
+    //   return sendResponse(res, 403, false, "You are not allowed to delete this attachment");
+    // }
 
-//     const allUserIds = [
-//       ...new Set([
-//         ...(assignments || []).map(a => a.user_id),
-//         ...tasks.map(t => t.created_by_user_id)
-//       ])
-//     ];
+    // =========================
+    // 🗑 DELETE FROM STORAGE
+    // =========================
+    const { error: storageError } = await supabase.storage
+      .from('task-attachments')
+      .remove([file.file_path]);
 
-//     const { data: users } = await supabase
-//       .from('profiles')
-//       .select('id, full_name, avatar_url')
-//       .in('id', allUserIds);
+    if (storageError) {
+      console.error("STORAGE DELETE ERROR:", storageError);
+      throw new Error("Failed to delete file from storage");
+    }
 
-//     const userMap = {};
-//     users?.forEach(u => userMap[u.id] = u);
+    // =========================
+    // 🗑 DELETE FROM DB
+    // =========================
+    const { error: dbError } = await supabase
+      .from('task_attachments')
+      .delete()
+      .eq('id', attachment_id);
 
-//     const assignmentMap = {};
-//     assignments?.forEach(a => {
-//       if (!assignmentMap[a.task_id]) {
-//         assignmentMap[a.task_id] = [];
-//       }
+    if (dbError) {
+      console.error("DB DELETE ERROR:", dbError);
+      throw new Error("Failed to delete attachment from database");
+    }
 
-//       if (userMap[a.user_id]) {
-//         assignmentMap[a.task_id].push(userMap[a.user_id]);
-//       }
-//     });
+    // =========================
+    // ✅ SUCCESS
+    // =========================
+    return sendResponse(res, 200, true, "Attachment deleted successfully");
 
-//     // =========================
-//     // 📎 ATTACHMENTS (FIXED URL)
-//     // =========================
-//     const { data: attachments } = await supabase
-//       .from('task_attachments')
-//       .select('task_id, file_name, file_path, file_size, mime_type')
-//       .in('task_id', taskIds);
+  } catch (err) {
+    console.error("DELETE ATTACHMENT ERROR:", err);
 
-//     const attachmentMap = {};
-//     attachments?.forEach(a => {
-//       if (!attachmentMap[a.task_id]) {
-//         attachmentMap[a.task_id] = [];
-//       }
-
-//       attachmentMap[a.task_id].push({
-//         ...a,
-//         file_url: getPublicFileUrl(a.file_path) // ✅ FIX
-//       });
-//     });
-
-//     // =========================
-//     // 🎯 FINAL
-//     // =========================
-//     const formatted = tasks.map(t => ({
-//       id: t.id,
-//       title: t.title,
-//       description: t.description,
-//       priority: t.priority,
-//       due_date: t.due_date,
-//       created_at: t.created_at,
-//       is_recurring: t.is_recurring,
-
-//       created_by: userMap[t.created_by_user_id] || null,
-//       assigned_to: assignmentMap[t.id] || [],
-//       total_assigned: (assignmentMap[t.id] || []).length,
-
-//       attachments: attachmentMap[t.id] || [],
-//       total_attachments: (attachmentMap[t.id] || []).length
-//     }));
-
-//     return sendResponse(res, 200, true, "Tasks fetched", formatted);
-
-//   } catch (err) {
-//     return sendResponse(res, 500, false, "Error", null, {
-//       server: err.message
-//     });
-//   }
-// };
-
-// exports.getTaskDetails = async (req, res) => {
-//   try {
-//     const supabase = req.supabase;
-//     const { task_id } = req.params;
-
-//     if (!task_id) {
-//       return sendResponse(res, 400, false, "task_id is required");
-//     }
-
-//     // =========================
-//     // 📌 TASK
-//     // =========================
-//     const { data: task } = await supabase
-//       .from('tasks')
-//       .select('*')
-//       .eq('id', task_id)
-//       .single();
-
-//     // =========================
-//     // 👥 ASSIGNMENTS
-//     // =========================
-//     const { data: assignments } = await supabase
-//       .from('task_assignments')
-//       .select('user_id')
-//       .eq('task_id', task_id);
-
-//     const userIds = assignments.map(a => a.user_id);
-
-//     const { data: users } = await supabase
-//       .from('profiles')
-//       .select('id, full_name, avatar_url')
-//       .in('id', userIds);
-
-//     const userMap = {};
-//     users?.forEach(u => userMap[u.id] = u);
-
-//     // =========================
-//     // 📎 ATTACHMENTS (FIXED)
-//     // =========================
-//     const { data: attachments } = await supabase
-//       .from('task_attachments')
-//       .select('*')
-//       .eq('task_id', task_id);
-
-//     const formattedAttachments = attachments.map(a => ({
-//       ...a,
-//       file_url: getPublicFileUrl(a.file_path) // ✅ FIX
-//     }));
-
-//     return sendResponse(res, 200, true, "Task details fetched", {
-//       ...task,
-//       assigned_to: userIds.map(id => userMap[id]).filter(Boolean),
-//       attachments: formattedAttachments
-//     });
-
-//   } catch (err) {
-//     return sendResponse(res, 500, false, "Error", null, {
-//       server: err.message
-//     });
-//   }
-// };
+    return sendResponse(res, 500, false, "Error", null, {
+      server: err.message
+    });
+  }
+};
 
 exports.getTasksByStatus = async (req, res) => {
   try {
     const supabase = req.supabase;
 
-    let { org_id, status } = req.query;
+    let { status, category } = req.query;
+    let { org_id } = req.params;
 
     if (!org_id) {
       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
@@ -763,6 +589,7 @@ exports.getTasksByStatus = async (req, res) => {
         title,
         description,
         priority,
+        category,
         due_date,
         created_at,
         is_recurring,
@@ -789,11 +616,7 @@ exports.getTasksByStatus = async (req, res) => {
     const { data: attachments } = await supabase
       .from('task_attachments')
       .select(`
-        task_id,
-        file_name,
-        file_path,
-        file_size,
-        mime_type
+        *
       `)
       .in('task_id', taskIds);
 
@@ -839,6 +662,7 @@ exports.getTasksByStatus = async (req, res) => {
       title: t.title,
       description: t.description,
       priority: t.priority,
+      category: t.category,
       status: t.status,
       due_date: t.due_date,
       created_at: t.created_at,
@@ -958,10 +782,7 @@ exports.getTaskDetails = async (req, res) => {
     const { data: attachments } = await supabase
       .from('task_attachments')
       .select(`
-        file_name,
-        file_path,
-        file_size,
-        mime_type
+        *
       `)
       .eq('task_id', task_id);
 
@@ -1039,246 +860,394 @@ exports.getTaskDetails = async (req, res) => {
   }
 };
 
+exports.getMultipleSignedUrls = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const { files } = req.body; // array of file_paths
 
-// Get all tasks
-// exports.getTasks = async (req, res) => {
-//   try {
-//     const { status, assignment_status } = req.query;
+    if (!files || !Array.isArray(files)) {
+      return sendResponse(res, 400, false, "files array required");
+    }
 
-//     let query = supabase.from('tasks').select('*')
-//       .order('created_at', { ascending: false });
+    const result = await Promise.all(
+      files.map(async (file_path) => {
+        const { data, error } = await supabase.storage
+          .from('task-attachments')
+          .createSignedUrl(file_path, 3600);
 
-//       console.log("hnsjhfsd",query)
+        return {
+          file_path,
+          signed_url: error ? null : data?.signedUrl
+        };
+      })
+    );
 
-//     if (status) query = query.eq('status', status);
-//     if (assignment_status) query = query.eq('assignment_status', assignment_status);
+    return sendResponse(res, 200, true, "URLs generated", result);
 
-//     const { data, error } = await query;
+  } catch (err) {
+    return sendResponse(res, 500, false, "Error", null, {
+      server: err.message
+    });
+  }
+};
 
-//     if (error) throw error;
+exports.handleTaskResponse = async (req, res) => {
+  try {
+    const supabase = req.supabase;
 
-//     res.json({ success: true,  message:"Task Retrieve Successfully", data });
+    const {
+      task_id,
+      action, // accept | decline | reassign
+      user_id, // current user
+      new_user_id, // only for reassign
+      reason
+    } = req.body;
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+    if (!task_id || !action || !user_id) {
+      return sendResponse(res, 400, false, "task_id, action, user_id required");
+    }
 
+    // =========================
+    // 📌 VALID ACTION
+    // =========================
+    if (!['accept', 'decline', 'reassign'].includes(action)) {
+      return sendResponse(res, 400, false, "Invalid action");
+    }
 
-// // Get single task
-// exports.getTaskById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+    // =========================
+    // 📌 ACCEPT TASK
+    // =========================
+    if (action === 'accept') {
+      const { error } = await supabase
+        .from('task_assignments')
+        .update({
+          assignment_status: 'accepted',
+          accepted_at: new Date().toISOString(),
+          decline_reason: null
+        })
+        .eq('task_id', task_id)
+        .eq('user_id', user_id);
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .select('*')
-//       .eq('id', id)
-//       .single();
+      if (error) throw error;
 
-//     if (error) throw error;
+      await supabase
+        .from('tasks')
+        .update({
+          assignment_status: 'accepted'
+        })
+        .eq('id', task_id);
 
-//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+      return sendResponse(res, 200, true, "Task accepted");
+    }
 
-//   } catch (err) {
-//     res.status(404).json({ success: false, message: 'Task not found' });
-//   }
-// };
+    // =========================
+    // 📌 DECLINE TASK
+    // =========================
+    if (action === 'decline') {
+      if (!reason) {
+        return sendResponse(res, 400, false, "Decline reason required");
+      }
 
+      const { error } = await supabase
+        .from('task_assignments')
+        .update({
+          assignment_status: 'declined',
+          declined_at: new Date().toISOString(),
+          decline_reason: reason
+        })
+        .eq('task_id', task_id)
+        .eq('user_id', user_id);
 
-// // Update task
-// exports.updateTask = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+      if (error) throw error;
 
-//     if (req.body.status && !['todo', 'completed'].includes(req.body.status)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid status'
-//       });
-//     }
+      await supabase
+        .from('tasks')
+        .update({
+          assignment_status: 'declined',
+          decline_reason: reason
+        })
+        .eq('id', task_id);
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .update(req.body)
-//       .eq('id', id)
-//       .select()
-//       .single();
+      return sendResponse(res, 200, true, "Task declined");
+    }
 
-//     if (error) throw error;
+    // =========================
+    // 📌 REASSIGN TASK
+    // =========================
+    if (action === 'reassign') {
+      if (!new_user_id || !reason) {
+        return sendResponse(res, 400, false, "new_user_id & reason required");
+      }
 
-//     res.json({ success: true, message:"Task Updated Successfully", data });
+      // 1️⃣ DELETE OLD ASSIGNMENT
+      const { error: deleteError } = await supabase
+        .from('task_assignments')
+        .delete()
+        .eq('task_id', task_id)
+        .eq('user_id', user_id);
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+      if (deleteError) throw deleteError;
 
+      // 2️⃣ INSERT NEW ASSIGNMENT
+      const { error: insertError } = await supabase
+        .from('task_assignments')
+        .insert({
+          task_id,
+          user_id: new_user_id,
+          assigned_by: user_id,
+          assignment_status: 'pending'
+        });
 
-// // Delete task
-// exports.deleteTask = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+      if (insertError) throw insertError;
 
-//     const { error } = await supabase
-//       .from('tasks')
-//       .delete()
-//       .eq('id', id);
+      // 3️⃣ UPDATE TASK TABLE
+      await supabase
+        .from('tasks')
+        .update({
+          assigned_user_id: new_user_id,
+          assignment_status: 'pending',
+          reassignment_reason: reason
+        })
+        .eq('id', task_id);
 
-//     if (error) throw error;
+      return sendResponse(res, 200, true, "Task reassigned");
+    }
 
-//     res.json({ success: true, message: 'Task deleted successfully' });
+  } catch (err) {
+    return sendResponse(
+      res,
+      500,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+exports.updateTaskStatus = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const user = req.user; // assuming auth middleware
 
+    const { task_id } = req.params;
+    const { status } = req.body;
 
-// // Get tasks by status
-// exports.getTasksByStatus = async (req, res) => {
-//   try {
-//     const { status } = req.params;
+    // =========================
+    // ❌ VALIDATIONS
+    // =========================
+    if (!task_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+    }
 
-//     if (!['todo', 'completed'].includes(status)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid status'
-//       });
-//     }
+    if (!status || !["todo", "complete"].includes(status)) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid status (todo | complete)");
+    }
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .select('*')
-//       .eq('status', status);
+    // =========================
+    // 📌 PREPARE UPDATE DATA
+    // =========================
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
 
-//     if (error) throw error;
+    // if marking complete → set completed_at
+    if (status === "complete") {
+      updateData.completed_at = new Date().toISOString();
+    } else {
+      updateData.completed_at = null;
+    }
 
-//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+    // =========================
+    // 🔄 UPDATE TASK
+    // =========================
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(updateData)
+      .eq("id", task_id)
+      .select()
+      .single();
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+    if (error) throw error;
 
+    // =========================
+    // ✅ RESPONSE
+    // =========================
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Task status updated successfully",
+      data
+    );
 
-// // Get task with details
-// exports.getTaskByIdAndStatus = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { status } = req.query;
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error updating task status",
+      null,
+      { server: err.message }
+    );
+  }
+};
 
-//     let query = supabase
-//       .from('tasks')
-//       .select(`
-//         *,
-//         projects ( id, name ),
-//         task_assignees ( user_id )
-//       `)
-//       .eq('id', id);
+exports.filterTasks = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const user = req.user;
 
-//     if (status) {
-//       query = query.eq('status', status);
-//     }
+    const {
+      org_id,
+      priority,
+      due_type,
+      start_date,
+      end_date,
+      assigned_to
+    } = req.query;
 
-//     const { data, error } = await query.single();
+    if (!org_id) {
+      return sendResponse(res, 400, false, "org_id is required");
+    }
 
-//     if (error) throw error;
+    // =========================
+    // 📌 BASE QUERY
+    // =========================
+    let query = supabase
+      .from("tasks")
+      .select(`
+        id,
+        title,
+        description,
+        priority,
+        due_date,
+        created_at,
+        assigned_user_id,
+        created_by_user_id,
+        project_id
+      `)
+      .eq("organization_id", org_id)
+      .is("deleted_at", null);
 
-//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+    // =========================
+    // 🎯 PRIORITY FILTER
+    // =========================
+    if (priority && priority !== "all") {
+      query = query.eq("priority", priority);
+    }
 
-//   } catch (err) {
-//     res.status(404).json({ success: false, message: 'Task not found' });
-//   }
-// };
+    // =========================
+    // 📅 DUE DATE FILTER
+    // =========================
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
 
+    if (due_type && due_type !== "all") {
+      if (due_type === "overdue") {
+        query = query.lt("due_date", todayStr);
+      }
 
-// // Mark task completed
-// exports.markTaskCompleted = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+      if (due_type === "today") {
+        query = query.eq("due_date", todayStr);
+      }
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .update({
-//         status: 'completed',
-//         completed_at: new Date()
-//       })
-//       .eq('id', id)
-//       .eq('status', 'todo')
-//       .select();
+      if (due_type === "week") {
+        const weekEnd = new Date();
+        weekEnd.setDate(today.getDate() + 7);
 
-//     if (error) throw error;
+        query = query
+          .gte("due_date", todayStr)
+          .lte("due_date", weekEnd.toISOString().split("T")[0]);
+      }
 
-//     if (!data.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Task already completed or not found'
-//       });
-//     }
+      if (due_type === "month") {
+        const monthEnd = new Date();
+        monthEnd.setMonth(today.getMonth() + 1);
 
-//     res.json({
-//       success: true,
-//       message: 'Task marked as completed',
-//       data
-//     });
+        query = query
+          .gte("due_date", todayStr)
+          .lte("due_date", monthEnd.toISOString().split("T")[0]);
+      }
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+      if (due_type === "no_due") {
+        query = query.is("due_date", null);
+      }
 
+      if (due_type === "custom" && start_date && end_date) {
+        query = query
+          .gte("due_date", start_date)
+          .lte("due_date", end_date);
+      }
+    }
 
-// // Get tasks by assignment status
-// exports.getTasksByAssignmentStatus = async (req, res) => {
-//   try {
-//     const { assignment_status } = req.params;
+    // =========================
+    // 👤 ASSIGNED FILTER
+    // =========================
+    if (assigned_to && assigned_to !== "all") {
+      if (assigned_to === "me") {
+        query = query.eq("assigned_user_id", user.id);
+      } else {
+        query = query.eq("assigned_user_id", assigned_to);
+      }
+    }
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .select('*')
-//       .eq('assignment_status', assignment_status);
+    // =========================
+    // 🚀 EXECUTE QUERY
+    // =========================
+    const { data: tasks, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
-//     if (error) throw error;
+    if (error) throw error;
 
-//     res.json({ success: true, message:"Task Retrieve Successfully", data });
+    const taskIds = tasks.map(t => t.id);
 
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+    // =========================
+    // 📎 FETCH ATTACHMENTS
+    // =========================
+    const { data: attachments } = await supabase
+      .from("task_attachments")
+      .select("task_id, file_name, file_path")
+      .in("task_id", taskIds);
 
+    // 🔥 SIGNED URL
+    const attachmentsWithUrls = await Promise.all(
+      (attachments || []).map(async (file) => {
+        const { data, error } = await supabase.storage
+          .from("task-attachments")
+          .createSignedUrl(file.file_path, 3600);
 
-// // Mark assignment accepted
-// exports.markTaskAssignmentAccepted = async (req, res) => {
-//   try {
-//     const { id } = req.params;
+        return {
+          file_name: file.file_name,
+          file_url: error ? null : data?.signedUrl,
+        };
+      })
+    );
 
-//     const { data, error } = await supabase
-//       .from('tasks')
-//       .update({
-//         assignment_status: 'accepted'
-//       })
-//       .eq('id', id)
-//       .eq('assignment_status', 'pending')
-//       .select();
+    const attachmentMap = {};
+    attachmentsWithUrls.forEach(a => {
+      if (!attachmentMap[a.task_id]) {
+        attachmentMap[a.task_id] = [];
+      }
+      attachmentMap[a.task_id].push(a);
+    });
 
-//     if (error) throw error;
+    // =========================
+    // 🎯 FINAL RESPONSE
+    // =========================
+    const formatted = tasks.map(t => ({
+      ...t,
+      attachments: attachmentMap[t.id] || [],
+      total_attachments: (attachmentMap[t.id] || []).length,
+    }));
 
-//     if (!data.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Already accepted or task not found'
-//       });
-//     }
+    return sendResponse(res, 200, true, "Filtered tasks", formatted);
 
-//     res.json({
-//       success: true,
-//       message: 'Assignment accepted',
-//       data
-//     });
-
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+  } catch (err) {
+    return sendResponse(res, 500, false, "Error", null, {
+      server: err.message,
+    });
+  }
+};

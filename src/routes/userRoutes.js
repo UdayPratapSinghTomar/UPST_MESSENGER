@@ -10,4 +10,5 @@ router.put('/update-profile', auth, uploadImage.single('file'), controller.updat
 router.put('/update-group-profile', auth, uploadImage.single('file'), controller.updateGroupProfile);
 router.get('/fetch-profile/:user_id', auth, controller.fetchProfile);
 router.get('/fetch-group-profile/:chat_id', auth, controller.fetchGroupProfile);
+router.get('/assignees/:org_id', auth, controller.getAssignees);
 module.exports = router;

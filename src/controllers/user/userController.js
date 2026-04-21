@@ -700,3 +700,73 @@ exports.fetchGroupProfile = async (req, res) => {
     );
   }
 };
+
+exports.getAssignees = async (req, res) => {
+  try {
+    const supabase = req.supabase; // ✅ RLS client
+    const { org_id } = req.params;
+
+    if (!org_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
+    }
+
+    // =========================
+    // 1️⃣ GET USER ROLES
+    // =========================
+    const { data: roles, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('organization_id', org_id);
+
+    if (roleError) throw roleError;
+
+    if (!roles || roles.length === 0) {
+      return sendResponse(res, HttpsStatus.OK, true, "Users fetched", []);
+    }
+
+    // =========================
+    // 2️⃣ GET PROFILES
+    // =========================
+    const userIds = roles.map(r => r.user_id);
+
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', userIds);
+
+    if (profileError) throw profileError;
+
+    // =========================
+    // 3️⃣ MERGE DATA
+    // =========================
+    const profileMap = {};
+    profiles.forEach(p => {
+      profileMap[p.id] = p;
+    });
+
+    const formatted = roles.map(r => ({
+      user_id: r.user_id,
+      role: r.role,
+      full_name: profileMap[r.user_id]?.full_name || null,
+      avatar_url: profileMap[r.user_id]?.avatar_url || null
+    }));
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Users fetched",
+      formatted
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};

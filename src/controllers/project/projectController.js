@@ -79,3 +79,41 @@ exports.createProject = async (req, res) => {
         return sendResponse(res, HttpsStatus.INTERNAL_SERVER_ERROR, false, "Server error!", null, { server: err.message });
     }
 }
+
+exports.getProjects = async (req, res) => {
+  try {
+    const supabase = req.supabase; // ✅ RLS client
+    const { org_id } = req.params;
+
+    if (!org_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
+    }
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, title')
+      .eq('organization_id', org_id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Projects fetched",
+      data
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};

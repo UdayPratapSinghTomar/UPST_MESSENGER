@@ -3,290 +3,6 @@ const { Op } = require('sequelize');
 const { sendResponse, HttpsStatus } = require('../../utils/response');
 const BASE_URL = process.env.BASE_URL;
 const { userBelongsToOrg, chatOrgFilter } = require("../../utils/organizationFilter");
-// exports.searchAll = async (req, res) => {
-//   try {
-
-//     const user_id = req.user.id;
-//     const org_id = req.org_id;
-//     const { search } = req.query;
-//     const q = search.trim();
-
-//     if (!q) {
-//       return sendResponse(
-//         res,
-//         HttpsStatus.BAD_REQUEST,
-//         false,
-//         "Search bar is empty!",
-//         { users: [], groups: [], messages: [], files: [] }
-//       );
-//     }
-
-//     /**
-//      * 1️⃣ USERS + PRIVATE CHAT SEARCH
-//      */
-
-//     const usersRaw = await User.findAll({
-//       where: {
-//         id: { [Op.ne]: user_id },
-//         is_deleted: false,
-
-//         // ✅ Group search condition properly
-//         [Op.and]: [
-
-//           {
-//             // full_name OR email
-//             [Op.or]: [
-//               { full_name: { [Op.iLike]: `%${q}%` } },
-//               { email: { [Op.iLike]: `%${q}%` } }
-//             ]
-//           },
-
-//           {
-//             // organization must match
-//             [Op.or]: [
-//               { organization_id: org_id },
-//               utils/multer,
-//               { org_3: org_id },
-//               { org_4: org_id },
-//               { org_5: org_id },
-//               { org_6: org_id },
-//               { org_7: org_id },
-//               { org_8: org_id },
-//               { org_9: org_id },
-//               { org_10: org_id }
-//             ]
-//           }
-
-//         ]
-//       },
-
-//       attributes: ["id", "full_name"],
-
-//       include: [
-//         {
-//           model: SharedFile,
-//           as: "uploadedFiles",
-//           attributes: ["file_url"],
-//           required: false
-//         }
-//       ]
-//     });
-
-//     const users = [];
-
-//     for (const u of usersRaw) {
-
-//       const privateChat = await ChatMember.findOne({
-//         attributes: ["chat_id"],
-
-//         where: {
-//           user_id: { [Op.in]: [user_id, u.id] }
-//         },
-
-//         group: ["chat_id"],
-
-//         having: sequelize.literal(`COUNT(DISTINCT "user_id") = 2`),
-
-//         raw: true
-//       });
-
-//       users.push({
-//         user_id: u.id,
-//         name: u.full_name,
-//         profile_image: u.uploadedFiles?.[0]?.file_url ?? null,
-//         chat_id: privateChat?.chat_id ?? null,
-//         chat_type: "private"
-//       });
-
-//     }
-
-//     /**
-//      * 2️⃣ GROUP SEARCH
-//      */
-//     const groupsRaw = await Chat.findAll({
-//       where: {
-//         type: "group",
-//         organization_id: org_id,
-//         group_name: { [Op.iLike]: `%${q}%` },
-//         is_deleted: false
-//       },
-
-//       include: [
-//         {
-//           model: ChatMember,
-//           as: "memberships",
-//           where: { user_id },
-//           attributes: []
-//         },
-
-//         {
-//           model: SharedFile,
-//           as: "files",
-//           attributes: ["file_url"],
-//           required: false,
-//           // where: { file_type: "image" }
-//         }
-//       ],
-
-//       attributes: ["id", "group_name"],
-//       distinct: true
-//     });
-
-//     const groups = groupsRaw.map(g => ({
-//       group_id: g.id,
-//       group_name: g.group_name,
-//       group_image: g.files?.[0]?.file_url ?? null,
-//       chat_id: g.id,
-//       chat_type: "group"
-//     }));
-
-
-//     /**
-//      * 3️⃣ MESSAGE SEARCH
-//      */
-//     const messagesRaw = await Message.findAll({
-
-//       where: {
-//         content: { [Op.iLike]: `%${q}%` }
-//       },
-
-//       include: [
-//         {
-//           model: Chat,
-//           as: "chat",
-//           attributes: ["id", "type", "group_name"],
-
-//           where: {
-//             organization_id: org_id,
-//             is_deleted: false
-//           },
-
-//           include: [
-//             {
-//               model: ChatMember,
-//               as: "memberships",
-//               where: { user_id },
-//               attributes: []
-//             }
-//           ]
-//         },
-
-//         {
-//           model: User,
-//           as: "sender",
-//           attributes: ["id", "full_name"]
-//         }
-//       ],
-
-//       attributes: [
-//         "id",
-//         "chat_id",
-//         "sender_id",
-//         "content",
-//         "message_type",
-//         "created_at"
-//       ],
-
-//       order: [["created_at", "DESC"]],
-//       distinct: true
-//     });
-
-//     const messages = messagesRaw.map(m => ({
-//       message_id: m.id,
-//       chat_id: m.chat_id,
-//       chat_type: m.chat?.type,
-//       sender_id: m.sender_id,
-//       sender_name: m.sender?.full_name ?? null,
-//       message: m.content,
-//       message_type: m.message_type,
-//       created_at: m.created_at
-//     }));
-
-
-//     /**
-//      * 4️⃣ FILE SEARCH
-//      */
-//     const filesRaw = await SharedFile.findAll({
-
-//       where: {
-//         file_name: { [Op.iLike]: `%${q}%` }
-//       },
-
-//       include: [
-//         {
-//           model: Chat,
-//           as: "chat",
-//           attributes: ["id", "type"],
-
-//           where: {
-//             organization_id: org_id,
-//             is_deleted: false
-//           },
-
-//           include: [
-//             {
-//               model: ChatMember,
-//               as: "memberships",
-//               where: { user_id },
-//               attributes: []
-//             }
-//           ]
-//         }
-//       ],
-
-//       attributes: [
-//         "message_id",
-//         "chat_id",
-//         "file_name",
-//         "file_url",
-//         "file_type",
-//         "user_id",
-//         "created_at"
-//       ],
-//       distinct: true 
-//     });
-
-//     const files = filesRaw.map(f => ({
-//       message_id: f.message_id,
-//       chat_id: f.chat_id,
-//       chat_type: f.chat?.type,
-//       file_name: f.file_name,
-//       file_url: f.file_url,
-//       file_type: f.file_type,
-//       uploaded_by: f.user_id,
-//       created_at: f.created_at
-//     }));
-
-
-//     /**
-//      * FINAL RESPONSE
-//      */
-//     return res.json({
-//       status: true,
-//       query: q,
-//       data: {
-//         users,
-//         groups,
-//         messages,
-//         files
-//       }
-//     });
-
-//   } catch (err) {
-
-//     console.error("searchAll error:", err);
-
-//     return sendResponse(
-//       res,
-//       HttpsStatus.INTERNAL_SERVER_ERROR,
-//       false,
-//       "Server error!",
-//       null,
-//       { server: err.message }
-//     );
-
-//   }
-// };
 
 exports.searchAll = async (req, res) => {
   try {
@@ -741,111 +457,6 @@ const messages = messagesRaw
   }
 };
 
-// exports.searchChatMessages = async (req, res) => {
-//   try {
-
-//     const { chat_id } = req.params;
-//     const { search } = req.query;
-//     const q = search.trim();
-//     const user_id = req.user.id;
-//     const org_id = req.org_id;
-
-//     if (!q) {
-//       return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is empty!", []);
-//     }
-
-//     /**
-//      * Check chat belongs to organization
-//      */
-//     const chat = await Chat.findOne({
-//       where: {
-//         id: chat_id,
-//         organization_id: org_id,
-//         is_deleted: false
-//       }
-//     });
-
-//     if (!chat) {
-//       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "Invalid organization chat");
-//     }
-
-//     /**
-//      * Check membership
-//      */
-//     const membership = await ChatMember.findOne({
-//       where: { chat_id, user_id }
-//     });
-
-//     if (!membership) {
-//       return sendResponse(res, HttpsStatus.FORBIDDEN, false, "You are not a member of this chat");
-//     }
-
-//     /**
-//      * Search messages
-//      */
-//     const messages = await Message.findAll({
-//       where: {
-//         chat_id,
-//         [Op.or]: [
-//           { content: { [Op.iLike]: `%${q}%` } },
-//           { "$files.file_name$": { [Op.iLike]: `%${q}%` } } // ✅ key fix
-//         ]
-//       },
-
-//       include: [
-//         {
-//           model: SharedFile,
-//           as: "files",
-//           attributes: ["file_name", "file_url"],
-//           required: false,
-//           // where: {
-//           //   file_name: { [Op.iLike]: `%${q}%` }
-//           // }
-//         },
-
-//         {
-//           model: User,
-//           as: "sender",
-//           attributes: ["id", "full_name"],
-//           include: [
-//             {
-//               model: SharedFile,
-//               as: "uploadedFiles",
-//               attributes: ["file_url"],
-//               required: false,
-//               // where: { file_type: "image" }
-//             }
-//           ]
-//         }
-//       ],
-
-//       attributes: ["id", "chat_id", "sender_id", "content", "created_at"],
-//       order: [["created_at", "DESC"]],
-//       distinct: true,
-//       subQuery: false
-//     });
-
-//     return sendResponse(
-//       res,
-//       HttpsStatus.OK,
-//       true,
-//       "Chat messages retrieved successfully!",
-//       messages
-//     );
-
-//   } catch (err) {
-
-//     return sendResponse(
-//       res,
-//       HttpsStatus.INTERNAL_SERVER_ERROR,
-//       false,
-//       "Server error!",
-//       null,
-//       { server: err.message }
-//     );
-//   }
-// };
-
 exports.searchChatMessages = async (req, res) => {
   try {
 
@@ -1096,5 +707,161 @@ exports.searchUsers = async (req, res) => {
       { server: err.message }
     );
 
+  }
+};
+
+exports.searchTasks = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const { org_id } = req.params;
+    const q = req.query.search?.trim();
+
+    // =========================
+    // ✅ VALIDATION
+    // =========================
+    if (!org_id) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
+    }
+
+    if (!q) {
+      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Search query is required");
+    }
+
+    const searchText = q.trim();
+
+    // =========================
+    // 📌 FETCH TASKS
+    // =========================
+    const { data: tasks, error } = await supabase
+      .from("tasks")
+      .select(`
+        id,
+        title,
+        description,
+        priority,
+        status,
+        due_date,
+        created_at,
+        project_id,
+        created_by_user_id
+      `)
+      .eq("organization_id", org_id)
+      .is("deleted_at", null)
+      .or(`title.ilike.%${searchText}%,description.ilike.%${searchText}%`)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!tasks || tasks.length === 0) {
+      return sendResponse(res, HttpsStatus.OK, true, "No tasks found", []);
+    }
+
+    const taskIds = tasks.map(t => t.id);
+
+    // =========================
+    // 👥 ASSIGNMENTS
+    // =========================
+    const { data: assignments } = await supabase
+      .from("task_assignments")
+      .select("task_id, user_id")
+      .in("task_id", taskIds);
+
+    const allUserIds = [
+      ...new Set([
+        ...(assignments || []).map(a => a.user_id),
+        ...tasks.map(t => t.created_by_user_id)
+      ])
+    ];
+
+    // =========================
+    // 👤 USERS
+    // =========================
+    const { data: users } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .in("id", allUserIds);
+
+    const userMap = {};
+    users?.forEach(u => {
+      userMap[u.id] = u;
+    });
+
+    // =========================
+    // 👥 GROUP ASSIGNEES
+    // =========================
+    const assignmentMap = {};
+    assignments?.forEach(a => {
+      if (!assignmentMap[a.task_id]) {
+        assignmentMap[a.task_id] = [];
+      }
+
+      if (userMap[a.user_id]) {
+        assignmentMap[a.task_id].push({
+          id: userMap[a.user_id].id,
+          full_name: userMap[a.user_id].full_name,
+          avatar_url: userMap[a.user_id].avatar_url
+        });
+      }
+    });
+
+    // =========================
+    // 📁 PROJECTS
+    // =========================
+    const projectIds = tasks.map(t => t.project_id).filter(Boolean);
+
+    let projectMap = {};
+    if (projectIds.length > 0) {
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, title")
+        .in("id", projectIds);
+
+      projects?.forEach(p => {
+        projectMap[p.id] = p;
+      });
+    }
+
+    // =========================
+    // 🎯 FINAL RESPONSE
+    // =========================
+    const formatted = tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      priority: t.priority,
+      status: t.status,
+      due_date: t.due_date,
+      created_at: t.created_at,
+
+      project: t.project_id
+        ? {
+            id: t.project_id,
+            title: projectMap[t.project_id]?.title || null
+          }
+        : null,
+
+      created_by: userMap[t.created_by_user_id] || null,
+
+      assigned_to: assignmentMap[t.id] || [],
+      total_assigned: (assignmentMap[t.id] || []).length
+    }));
+
+    return sendResponse(
+      res,
+      HttpsStatus.OK,
+      true,
+      "Tasks fetched",
+      formatted
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      HttpsStatus.INTERNAL_SERVER_ERROR,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
   }
 };

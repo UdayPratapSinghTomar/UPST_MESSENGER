@@ -5,10 +5,15 @@ const auth = require('../middlewares/authMiddleware');
 const { uploadImage, upload } = require('../utils/multer');
 
 router.post('/create', auth, upload.any(), controller.createTask);
-router.get('/get-projects', auth, controller.getProjects);
-router.get('/get-assignees', auth, controller.getAssignees);
-router.get('/get-task-lists', auth, controller.getTasksByStatus);
-router.get('/task-details/:task_id', auth, controller.getTaskDetails);
+router.get('/lists/:org_id', auth, controller.getTasksByStatus);
+router.get('/details/:task_id', auth, controller.getTaskDetails);
+
+router.patch('/update/:task_id', auth, controller.updateTask);
+router.patch('/status/:task_id', auth, controller.updateTaskStatus);
+router.post('/assignment-action/:task_id', auth, controller.handleTaskResponse);
+router.post('/get-dynamic-url', auth, controller.getMultipleSignedUrls);
+
+router.delete('/attachment/:attachment_id', auth, controller.deleteTaskAttachment)
 
 router.post('/check-connection', controller.testconnection);
 const cors = require('cors');
