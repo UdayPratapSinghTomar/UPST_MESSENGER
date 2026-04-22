@@ -7,10 +7,11 @@ const { uploadImage, upload } = require('../utils/multer');
 router.post('/create', auth, upload.any(), controller.createTask);
 router.get('/lists/:org_id', auth, controller.getTasksByStatus);
 router.get('/details/:task_id', auth, controller.getTaskDetails);
+router.get('/filter/:org_id', auth, controller.filterTasks);
 
 router.patch('/update/:task_id', auth, controller.updateTask);
-router.patch('/status/:task_id', auth, controller.updateTaskStatus);
-router.post('/assignment-action/:task_id', auth, controller.handleTaskResponse);
+router.patch('/status-update/:task_id', auth, controller.updateTaskStatus);
+router.post('/assignment-action', auth, controller.handleTaskResponse);
 router.post('/get-dynamic-url', auth, controller.getMultipleSignedUrls);
 
 router.delete('/attachment/:attachment_id', auth, controller.deleteTaskAttachment)
