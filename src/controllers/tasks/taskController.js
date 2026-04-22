@@ -1314,10 +1314,10 @@ exports.updateTaskStatus = async (req, res) => {
 
     if (status === "complete") {
       updateData.completed_at = new Date().toISOString();
-      updateData.postion = 2;
+      updateData.position = 2;
     } else {
       updateData.completed_at = null;
-      updateData.postion = 6;
+      updateData.position = 6;
     }
 
     // =========================
