@@ -10,7 +10,7 @@ router.get('/details/:task_id', auth, controller.getTaskDetails);
 router.get('/pending/:org_id', auth, controller.getPendingTaskRequests);
 router.get('/filter/:org_id', auth, controller.filterTasks);
 
-router.patch('/update/:task_id', auth, controller.updateTask);
+router.patch('/update/:task_id', auth, upload.any(), controller.updateTask);
 router.patch('/status-update/:task_id', auth, controller.updateTaskStatus);
 router.post('/assignment-action', auth, controller.handleTaskResponse);
 router.post('/get-dynamic-url', auth, controller.getMultipleSignedUrls);

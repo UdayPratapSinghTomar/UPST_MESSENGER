@@ -431,11 +431,13 @@ exports.updateTask = async (req, res) => {
     // =========================
     // 📎 ADD NEW ATTACHMENTS
     // =========================
-    if (req.files?.length > 0) {
+    if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileExt = file.originalname.split(".").pop();
-        const filePath = `${organizationId}/${task_id}_${Date.now()}.${fileExt}`;
 
+        const fileExt = file.originalname.split(".").pop();
+        const filePath = `${organizationId || 'individual'}/${createdTaskId}_${Date.now()}.${fileExt}`;
+
+        // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
           .from("task-attachments")
           .upload(filePath, fs.readFileSync(file.path), {
@@ -444,10 +446,13 @@ exports.updateTask = async (req, res) => {
 
         if (uploadError) throw new Error(uploadError.message);
 
+        uploadedFiles.push(filePath);
+
+        // Insert DB record
         const { error: dbError } = await supabase
           .from('task_attachments')
           .insert({
-            task_id,
+            task_id: createdTaskId,
             organization_id: organizationId,
             file_path: filePath,
             file_name: file.originalname,
@@ -1323,7 +1328,7 @@ exports.updateTaskStatus = async (req, res) => {
     // =========================
     // 🔄 UPDATE TASK (SAFE)
     // =========================
-    const { data, error } = await supabase
+    const { data, error } = await supabase  
       .from("tasks")
       .update(updateData)
       .eq("id", task_id)
