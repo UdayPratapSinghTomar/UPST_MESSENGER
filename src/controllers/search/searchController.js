@@ -714,6 +714,7 @@ exports.searchTasks = async (req, res) => {
   try {
     const supabase = req.supabase;
     const { org_id } = req.params;
+    const category  = req.query.category?.trim();
     const q = req.query.search?.trim();
 
     // =========================
@@ -746,6 +747,7 @@ exports.searchTasks = async (req, res) => {
         created_by_user_id
       `)
       .eq("organization_id", org_id)
+      .eq("category", category)
       .is("deleted_at", null)
       .or(`title.ilike.%${searchText}%,description.ilike.%${searchText}%`)
       .order("created_at", { ascending: false });

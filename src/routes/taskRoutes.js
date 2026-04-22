@@ -7,6 +7,7 @@ const { uploadImage, upload } = require('../utils/multer');
 router.post('/create', auth, upload.any(), controller.createTask);
 router.get('/lists/:org_id', auth, controller.getTasksByStatus);
 router.get('/details/:task_id', auth, controller.getTaskDetails);
+router.get('/pending/:org_id', auth, controller.getPendingTaskRequests);
 router.get('/filter/:org_id', auth, controller.filterTasks);
 
 router.patch('/update/:task_id', auth, controller.updateTask);

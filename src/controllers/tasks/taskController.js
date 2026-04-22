@@ -565,22 +565,23 @@ exports.deleteTaskAttachment = async (req, res) => {
 exports.getTasksByStatus = async (req, res) => {
   try {
     const supabase = req.supabase;
+    const user_id = req.user.id;
 
-    let { status, category } = req.query;
+    let { status } = req.query;
     let { org_id } = req.params;
 
     if (!org_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "org_id is required");
+      return sendResponse(res, 400, false, "org_id is required");
     }
 
     if (!status || !['todo', 'complete'].includes(status.trim())) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid status (todo | complete)");
+      return sendResponse(res, 400, false, "Invalid status (todo | complete)");
     }
 
     const cleanStatus = status.trim();
 
     // =========================
-    // 📌 FETCH TASKS
+    // 📌 FETCH TASKS + ASSIGNMENTS
     // =========================
     const { data: tasks, error } = await supabase
       .from('tasks')
@@ -595,7 +596,13 @@ exports.getTasksByStatus = async (req, res) => {
         is_recurring,
         project_id,
         created_by_user_id,
-        status
+        status,
+
+        task_assignments (
+          id,
+          user_id,
+          assignment_status
+        )
       `)
       .eq('organization_id', org_id)
       .eq('status', cleanStatus)
@@ -605,35 +612,48 @@ exports.getTasksByStatus = async (req, res) => {
     if (error) throw error;
 
     if (!tasks?.length) {
-      return sendResponse(res, HttpsStatus.OK, true, "Tasks fetched", []);
+      return sendResponse(res, 200, true, "Tasks fetched", []);
     }
 
-    const taskIds = tasks.map(t => t.id);
+    // =========================
+    // 🎯 FILTER LOGIC (IMPORTANT)
+    // =========================
+    const filteredTasks = tasks.filter(task => {
+      const isOwner = task.created_by_user_id === user_id;
+
+      // OWNER → show all
+      if (isOwner) return true;
+
+      // NOT OWNER → check assignment
+      const myAssignment = task.task_assignments.find(
+        a => a.user_id === user_id
+      );
+
+      if (!myAssignment) return false;
+
+      return ['pending', 'accepted'].includes(myAssignment.assignment_status);
+    });
+
+    const taskIds = filteredTasks.map(t => t.id);
 
     // =========================
     // 📎 FETCH ATTACHMENTS
     // =========================
     const { data: attachments } = await supabase
       .from('task_attachments')
-      .select(`
-        *
-      `)
+      .select(`*`)
       .in('task_id', taskIds);
 
     // =========================
-    // 🔥 GENERATE SIGNED URLS (WITH DEBUG)
+    // 🔗 SIGNED URLS
     // =========================
     const attachmentsWithUrls = await Promise.all(
       (attachments || []).map(async (file) => {
         if (!file.file_path) return { ...file, file_url: null };
 
-        const { data, error } = await supabase.storage
+        const { data } = await supabase.storage
           .from('task-attachments')
           .createSignedUrl(file.file_path, 3600);
-
-        if (error) {
-          console.error("SIGNED URL ERROR:", error.message, file.file_path);
-        }
 
         return {
           ...file,
@@ -643,7 +663,7 @@ exports.getTasksByStatus = async (req, res) => {
     );
 
     // =========================
-    // 📎 GROUP BY TASK
+    // 📎 GROUP ATTACHMENTS
     // =========================
     const attachmentMap = {};
 
@@ -657,24 +677,32 @@ exports.getTasksByStatus = async (req, res) => {
     // =========================
     // 🎯 FINAL RESPONSE
     // =========================
-    const formatted = tasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      priority: t.priority,
-      category: t.category,
-      status: t.status,
-      due_date: t.due_date,
-      created_at: t.created_at,
-      is_recurring: t.is_recurring,
+    const formatted = filteredTasks.map(t => {
+      const myAssignment = t.task_assignments.find(
+        a => a.user_id === user_id
+      );
 
-      attachments: attachmentMap[t.id] || [],
-      total_attachments: (attachmentMap[t.id] || []).length
-    }));
+      return {
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        priority: t.priority,
+        category: t.category,
+        status: t.status,
+        due_date: t.due_date,
+        created_at: t.created_at,
+        is_recurring: t.is_recurring,
+
+        assignment_status: myAssignment?.assignment_status || null,
+
+        attachments: attachmentMap[t.id] || [],
+        total_attachments: (attachmentMap[t.id] || []).length
+      };
+    });
 
     return sendResponse(
       res,
-      HttpsStatus.OK,
+      200,
       true,
       "Tasks fetched",
       formatted
@@ -684,7 +712,7 @@ exports.getTasksByStatus = async (req, res) => {
     console.error("ERROR:", err);
     return sendResponse(
       res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
+      500,
       false,
       "Error",
       null,
@@ -697,9 +725,10 @@ exports.getTaskDetails = async (req, res) => {
   try {
     const supabase = req.supabase;
     const { task_id } = req.params;
+    const user_id = req.user.id;
 
     if (!task_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+      return sendResponse(res, 400, false, "task_id is required");
     }
 
     // =========================
@@ -729,14 +758,20 @@ exports.getTaskDetails = async (req, res) => {
     }
 
     // =========================
-    // 👥 FETCH ASSIGNMENTS
+    // 👥 FETCH ASSIGNMENTS (UPDATED)
     // =========================
     const { data: assignments } = await supabase
       .from('task_assignments')
-      .select('user_id')
+      .select(`
+        user_id,
+        assignment_status
+      `)
       .eq('task_id', task_id);
 
     const assignedUserIds = assignments?.map(a => a.user_id) || [];
+
+    // 🔥 CURRENT USER STATUS
+    const myAssignment = assignments?.find(a => a.user_id === user_id);
 
     // =========================
     // 👤 FETCH USERS
@@ -781,17 +816,14 @@ exports.getTaskDetails = async (req, res) => {
     // =========================
     const { data: attachments } = await supabase
       .from('task_attachments')
-      .select(`
-        *
-      `)
+      .select(`*`)
       .eq('task_id', task_id);
 
-    // 🔥 ADD THIS: generate signed URLs
     const attachmentsWithUrls = await Promise.all(
       (attachments || []).map(async (file) => {
         const { data, error } = await supabase.storage
           .from('task-attachments')
-          .createSignedUrl(file.file_path, 3600); // 1 hour
+          .createSignedUrl(file.file_path, 3600);
 
         return {
           ...file,
@@ -820,19 +852,24 @@ exports.getTaskDetails = async (req, res) => {
       due_date: task.due_date,
       created_at: task.created_at,
       is_recurring: task.is_recurring,
-      category: task.category, // 🔥 BOARD (Product)
+      category: task.category,
 
       project: project,
 
       created_by: userMap[task.created_by_user_id] || null,
 
-      assigned_to: assignedUserIds.map(uid => {
-        return userMap[uid] || {
-          id: uid,
+      // 🔥 UPDATED: include assignment_status per user
+      assigned_to: (assignments || []).map(a => ({
+        ...(userMap[a.user_id] || {
+          id: a.user_id,
           full_name: null,
           avatar_url: null
-        };
-      }),
+        }),
+        assignment_status: a.assignment_status
+      })),
+
+      // 🔥 IMPORTANT: current user assignment status
+      my_assignment_status: myAssignment?.assignment_status || null,
 
       attachments: attachmentsWithUrls,
       total_attachments: attachmentsWithUrls.length,
@@ -842,7 +879,7 @@ exports.getTaskDetails = async (req, res) => {
 
     return sendResponse(
       res,
-      HttpsStatus.OK,
+      200,
       true,
       "Task details fetched",
       response
@@ -851,7 +888,115 @@ exports.getTaskDetails = async (req, res) => {
   } catch (err) {
     return sendResponse(
       res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
+      500,
+      false,
+      "Error",
+      null,
+      { server: err.message }
+    );
+  }
+};
+
+exports.getPendingTaskRequests = async (req, res) => {
+  try {
+    const supabase = req.supabase;
+    const user_id = req.user.id;
+    const { org_id } = req.params;
+
+    if (!org_id) {
+      return sendResponse(res, 400, false, "org_id is required");
+    }
+
+    // =========================
+    // 📌 FETCH PENDING ASSIGNMENTS + TASK DATA
+    // =========================
+    const { data, error } = await supabase
+      .from("task_assignments")
+      .select(`
+        id,
+        task_id,
+        assignment_status,
+        created_at,
+
+        assigned_by_user:profiles!task_assignments_assigned_by_fkey(
+          id,
+          full_name
+        ),
+
+        task:tasks!task_assignments_task_id_fkey(
+          id,
+          title,
+          description,
+          priority,
+          due_date,
+          category,
+          project_id,
+          created_by_user_id,
+          organization_id,
+          status,
+          deleted_at,
+
+          project:projects!tasks_project_id_fkey(
+            id,
+            title
+          ),
+
+          created_by_user:profiles!tasks_created_by_user_id_fkey(
+            id,
+            full_name
+          )
+        )
+      `)
+      .eq("user_id", user_id)
+      .eq("assignment_status", "pending")
+      .eq("task.organization_id", org_id)
+      .is("task.deleted_at", null)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    // =========================
+    // 🎯 FORMAT RESPONSE
+    // =========================
+    const response = (data || []).map((item) => {
+      const task = item.task;
+
+      return {
+        id: item.id,
+        task_id: item.task_id,
+
+        // 🟡 LIST DATA
+        title: task.title,
+        priority: task.priority,
+        due_date: task.due_date,
+        created_at: item.created_at,
+
+        assigned_by_user: item.assigned_by_user,
+
+        // 🟢 DETAIL (SHEET DATA)
+        description: task.description,
+        category: task.category,
+
+        project: task.project || null,
+
+        created_by_user: task.created_by_user || null,
+
+        assignment_status: item.assignment_status
+      };
+    });
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Pending task requests fetched",
+      response
+    );
+
+  } catch (err) {
+    return sendResponse(
+      res,
+      500,
       false,
       "Error",
       null,
@@ -891,6 +1036,140 @@ exports.getMultipleSignedUrls = async (req, res) => {
   }
 };
 
+// exports.handleTaskResponse = async (req, res) => {
+//   try {
+//     const supabase = req.supabase;
+
+//     const {
+//       task_id,
+//       action, // accept | decline | reassign
+//       new_user_id, // only for reassign
+//       reason
+//     } = req.body;
+
+//     const user_id = req.user.id // current user
+//     if (!task_id || !action) {
+//       return sendResponse(res, 400, false, "task_id, action required");
+//     }
+
+//     // =========================
+//     // 📌 VALID ACTION
+//     // =========================
+//     if (!['accept', 'decline', 'reassign'].includes(action)) {
+//       return sendResponse(res, 400, false, "Invalid action");
+//     }
+
+//     // =========================
+//     // 📌 ACCEPT TASK
+//     // =========================
+//     if (action === 'accept') {
+//       const { error } = await supabase
+//         .from('task_assignments')
+//         .update({
+//           assignment_status: 'accepted',
+//           accepted_at: new Date().toISOString(),
+//           decline_reason: null
+//         })
+//         .eq('task_id', task_id)
+//         .eq('user_id', user_id);
+
+//       if (error) throw error;
+
+//       await supabase
+//         .from('tasks')
+//         .update({
+//           assignment_status: 'accepted'
+//         })
+//         .eq('id', task_id);
+
+//       return sendResponse(res, 200, true, "Task accepted");
+//     }
+
+//     // =========================
+//     // 📌 DECLINE TASK
+//     // =========================
+//     if (action === 'decline') {
+//       if (!reason) {
+//         return sendResponse(res, 400, false, "Decline reason required");
+//       }
+
+//       const { error } = await supabase
+//         .from('task_assignments')
+//         .update({
+//           assignment_status: 'declined',
+//           declined_at: new Date().toISOString(),
+//           decline_reason: reason
+//         })
+//         .eq('task_id', task_id)
+//         .eq('user_id', user_id);
+
+//       if (error) throw error;
+
+//       await supabase
+//         .from('tasks')
+//         .update({
+//           assignment_status: 'declined',
+//           decline_reason: reason
+//         })
+//         .eq('id', task_id);
+
+//       return sendResponse(res, 200, true, "Task declined");
+//     }
+
+//     // =========================
+//     // 📌 REASSIGN TASK
+//     // =========================
+//     if (action === 'reassign') {
+//       if (!new_user_id || !reason) {
+//         return sendResponse(res, 400, false, "new_user_id & reason required");
+//       }
+
+//       // 1️⃣ DELETE OLD ASSIGNMENT
+//       const { error: deleteError } = await supabase
+//         .from('task_assignments')
+//         .delete()
+//         .eq('task_id', task_id)
+//         .eq('user_id', user_id);
+
+//       if (deleteError) throw deleteError;
+
+//       // 2️⃣ INSERT NEW ASSIGNMENT
+//       const { error: insertError } = await supabase
+//         .from('task_assignments')
+//         .insert({
+//           task_id,
+//           user_id: new_user_id,
+//           assigned_by: user_id,
+//           assignment_status: 'pending'
+//         });
+
+//       if (insertError) throw insertError;
+
+//       // 3️⃣ UPDATE TASK TABLE
+//       await supabase
+//         .from('tasks')
+//         .update({
+//           assigned_user_id: new_user_id,
+//           assignment_status: 'pending',
+//           reassignment_reason: reason
+//         })
+//         .eq('id', task_id);
+
+//       return sendResponse(res, 200, true, "Task reassigned");
+//     }
+
+//   } catch (err) {
+//     return sendResponse(
+//       res,
+//       500,
+//       false,
+//       "Error",
+//       null,
+//       { server: err.message }
+//     );
+//   }
+// };
+
 exports.handleTaskResponse = async (req, res) => {
   try {
     const supabase = req.supabase;
@@ -898,122 +1177,105 @@ exports.handleTaskResponse = async (req, res) => {
     const {
       task_id,
       action, // accept | decline | reassign
-      user_id, // current user
-      new_user_id, // only for reassign
+      new_user_id, // required for reassign
       reason
     } = req.body;
 
-    if (!task_id || !action || !user_id) {
-      return sendResponse(res, 400, false, "task_id, action, user_id required");
-    }
+    const user_id = req.user.id;
 
     // =========================
-    // 📌 VALID ACTION
+    // ❌ VALIDATION
     // =========================
+    if (!task_id || !action) {
+      return sendResponse(res, 400, false, "task_id and action are required");
+    }
+
     if (!['accept', 'decline', 'reassign'].includes(action)) {
       return sendResponse(res, 400, false, "Invalid action");
     }
 
     // =========================
-    // 📌 ACCEPT TASK
+    // ✅ ACCEPT TASK (RPC)
     // =========================
     if (action === 'accept') {
-      const { error } = await supabase
-        .from('task_assignments')
-        .update({
-          assignment_status: 'accepted',
-          accepted_at: new Date().toISOString(),
-          decline_reason: null
-        })
-        .eq('task_id', task_id)
-        .eq('user_id', user_id);
+      const { error } = await supabase.rpc('accept_task_assignment', {
+        p_task_id: task_id
+      });
 
       if (error) throw error;
 
-      await supabase
-        .from('tasks')
-        .update({
-          assignment_status: 'accepted'
-        })
-        .eq('id', task_id);
-
-      return sendResponse(res, 200, true, "Task accepted");
+      return sendResponse(res, 200, true, "Task accepted successfully");
     }
 
     // =========================
-    // 📌 DECLINE TASK
+    // ❌ DECLINE TASK (RPC)
     // =========================
     if (action === 'decline') {
-      if (!reason) {
-        return sendResponse(res, 400, false, "Decline reason required");
+      if (!reason || !reason.trim()) {
+        return sendResponse(res, 400, false, "Decline reason is required");
       }
 
-      const { error } = await supabase
-        .from('task_assignments')
-        .update({
-          assignment_status: 'declined',
-          declined_at: new Date().toISOString(),
-          decline_reason: reason
-        })
-        .eq('task_id', task_id)
-        .eq('user_id', user_id);
+      const { error } = await supabase.rpc('decline_task_assignment', {
+        p_task_id: task_id,
+        p_decline_reason: reason.trim()
+      });
 
       if (error) throw error;
 
-      await supabase
-        .from('tasks')
-        .update({
-          assignment_status: 'declined',
-          decline_reason: reason
-        })
-        .eq('id', task_id);
-
-      return sendResponse(res, 200, true, "Task declined");
+      return sendResponse(res, 200, true, "Task declined successfully");
     }
 
     // =========================
-    // 📌 REASSIGN TASK
+    // 🔁 REASSIGN TASK
     // =========================
     if (action === 'reassign') {
-      if (!new_user_id || !reason) {
-        return sendResponse(res, 400, false, "new_user_id & reason required");
-      }
-
-      // 1️⃣ DELETE OLD ASSIGNMENT
-      const { error: deleteError } = await supabase
-        .from('task_assignments')
-        .delete()
-        .eq('task_id', task_id)
-        .eq('user_id', user_id);
-
-      if (deleteError) throw deleteError;
-
-      // 2️⃣ INSERT NEW ASSIGNMENT
-      const { error: insertError } = await supabase
-        .from('task_assignments')
-        .insert({
-          task_id,
-          user_id: new_user_id,
-          assigned_by: user_id,
-          assignment_status: 'pending'
-        });
-
-      if (insertError) throw insertError;
-
-      // 3️⃣ UPDATE TASK TABLE
-      await supabase
-        .from('tasks')
-        .update({
-          assigned_user_id: new_user_id,
-          assignment_status: 'pending',
-          reassignment_reason: reason
-        })
-        .eq('id', task_id);
-
-      return sendResponse(res, 200, true, "Task reassigned");
+    if (!new_user_id || !reason || !reason.trim()) {
+      return sendResponse(res, 400, false, "new_user_id and reason are required");
     }
 
+    // =========================
+    // 1️⃣ DELETE CURRENT ASSIGNMENT
+    // =========================
+    const { error: deleteError } = await supabase
+      .from('task_assignments')
+      .delete()
+      .eq('task_id', task_id)
+      .eq('user_id', user_id);
+
+    if (deleteError) throw deleteError;
+
+    // =========================
+    // 2️⃣ INSERT NEW ASSIGNMENT
+    // =========================
+    const { error: insertError } = await supabase
+      .from('task_assignments')
+      .insert({
+        task_id,
+        user_id: new_user_id,
+        assigned_by: user_id,
+        assignment_status: 'pending'
+      });
+
+    if (insertError) throw insertError;
+
+    // =========================
+    // 3️⃣ UPDATE TASK (REASON)
+    // =========================
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update({
+        reassignment_reason: reason.trim()
+      })
+      .eq('id', task_id);
+
+    if (updateError) throw updateError;
+
+    return sendResponse(res, 200, true, "Task reassigned successfully");
+  }
+
   } catch (err) {
+    console.error("TASK RESPONSE ERROR:", err);
+
     return sendResponse(
       res,
       500,
@@ -1028,39 +1290,38 @@ exports.handleTaskResponse = async (req, res) => {
 exports.updateTaskStatus = async (req, res) => {
   try {
     const supabase = req.supabase;
-    const user = req.user; // assuming auth middleware
-
     const { task_id } = req.params;
     const { status } = req.body;
 
     // =========================
-    // ❌ VALIDATIONS
+    // ❌ VALIDATION
     // =========================
     if (!task_id) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "task_id is required");
+      return sendResponse(res, 400, false, "task_id is required");
     }
 
     if (!status || !["todo", "complete"].includes(status)) {
-      return sendResponse(res, HttpsStatus.BAD_REQUEST, false, "Invalid status (todo | complete)");
+      return sendResponse(res, 400, false, "Invalid status (todo | complete)");
     }
 
     // =========================
-    // 📌 PREPARE UPDATE DATA
+    // 📌 BUILD UPDATE OBJECT (ONLY REQUIRED FIELDS)
     // =========================
     const updateData = {
       status,
       updated_at: new Date().toISOString()
     };
 
-    // if marking complete → set completed_at
     if (status === "complete") {
       updateData.completed_at = new Date().toISOString();
+      updateData.postion = 2;
     } else {
       updateData.completed_at = null;
+      updateData.postion = 6;
     }
 
     // =========================
-    // 🔄 UPDATE TASK
+    // 🔄 UPDATE TASK (SAFE)
     // =========================
     const { data, error } = await supabase
       .from("tasks")
@@ -1076,7 +1337,7 @@ exports.updateTaskStatus = async (req, res) => {
     // =========================
     return sendResponse(
       res,
-      HttpsStatus.OK,
+      200,
       true,
       "Task status updated successfully",
       data
@@ -1085,7 +1346,7 @@ exports.updateTaskStatus = async (req, res) => {
   } catch (err) {
     return sendResponse(
       res,
-      HttpsStatus.INTERNAL_SERVER_ERROR,
+      500,
       false,
       "Error updating task status",
       null,
@@ -1098,9 +1359,10 @@ exports.filterTasks = async (req, res) => {
   try {
     const supabase = req.supabase;
     const user = req.user;
+    const { org_id } = req.params;
 
     const {
-      org_id,
+      category,
       priority,
       due_type,
       start_date,
@@ -1113,7 +1375,7 @@ exports.filterTasks = async (req, res) => {
     }
 
     // =========================
-    // 📌 BASE QUERY
+    // 📌 BASE QUERY WITH ASSIGNMENTS
     // =========================
     let query = supabase
       .from("tasks")
@@ -1126,10 +1388,20 @@ exports.filterTasks = async (req, res) => {
         created_at,
         assigned_user_id,
         created_by_user_id,
-        project_id
+        project_id,
+        category,
+
+        task_assignments (
+          user_id,
+          assignment_status
+        )
       `)
       .eq("organization_id", org_id)
       .is("deleted_at", null);
+
+    if (category && category !== "all") {
+      query = query.eq("category", category);
+    }
 
     // =========================
     // 🎯 PRIORITY FILTER
@@ -1183,17 +1455,6 @@ exports.filterTasks = async (req, res) => {
     }
 
     // =========================
-    // 👤 ASSIGNED FILTER
-    // =========================
-    if (assigned_to && assigned_to !== "all") {
-      if (assigned_to === "me") {
-        query = query.eq("assigned_user_id", user.id);
-      } else {
-        query = query.eq("assigned_user_id", assigned_to);
-      }
-    }
-
-    // =========================
     // 🚀 EXECUTE QUERY
     // =========================
     const { data: tasks, error } = await query.order("created_at", {
@@ -1202,7 +1463,47 @@ exports.filterTasks = async (req, res) => {
 
     if (error) throw error;
 
-    const taskIds = tasks.map(t => t.id);
+    // =========================
+    // 🎯 APPLY ASSIGNMENT LOGIC (CRITICAL)
+    // =========================
+    let filteredTasks = tasks.filter(task => {
+      const isOwner = task.created_by_user_id === user.id;
+
+      if (isOwner) return true;
+
+      const myAssignment = task.task_assignments?.find(
+        a => a.user_id === user.id
+      );
+
+      if (!myAssignment) return false;
+
+      return ['pending', 'accepted'].includes(myAssignment.assignment_status);
+    });
+
+    // =========================
+    // 👤 ASSIGNED FILTER (UI MATCH)
+    // =========================
+    if (assigned_to && assigned_to !== "all") {
+      if (assigned_to === "me") {
+        filteredTasks = filteredTasks.filter(task => {
+          const isDirect = task.assigned_user_id === user.id;
+          const isAssigned = task.task_assignments?.some(
+            a => a.user_id === user.id
+          );
+          return isDirect || isAssigned;
+        });
+      } else {
+        filteredTasks = filteredTasks.filter(task => {
+          const isDirect = task.assigned_user_id === assigned_to;
+          const isAssigned = task.task_assignments?.some(
+            a => a.user_id === assigned_to
+          );
+          return isDirect || isAssigned;
+        });
+      }
+    }
+
+    const taskIds = filteredTasks.map(t => t.id);
 
     // =========================
     // 📎 FETCH ATTACHMENTS
@@ -1212,16 +1513,16 @@ exports.filterTasks = async (req, res) => {
       .select("task_id, file_name, file_path")
       .in("task_id", taskIds);
 
-    // 🔥 SIGNED URL
     const attachmentsWithUrls = await Promise.all(
       (attachments || []).map(async (file) => {
-        const { data, error } = await supabase.storage
+        const { data } = await supabase.storage
           .from("task-attachments")
           .createSignedUrl(file.file_path, 3600);
 
         return {
+          task_id: file.task_id,
           file_name: file.file_name,
-          file_url: error ? null : data?.signedUrl,
+          file_url: data?.signedUrl || null,
         };
       })
     );
@@ -1237,11 +1538,18 @@ exports.filterTasks = async (req, res) => {
     // =========================
     // 🎯 FINAL RESPONSE
     // =========================
-    const formatted = tasks.map(t => ({
-      ...t,
-      attachments: attachmentMap[t.id] || [],
-      total_attachments: (attachmentMap[t.id] || []).length,
-    }));
+    const formatted = filteredTasks.map(t => {
+      const myAssignment = t.task_assignments?.find(
+        a => a.user_id === user.id
+      );
+
+      return {
+        ...t,
+        assignment_status: myAssignment?.assignment_status || null,
+        attachments: attachmentMap[t.id] || [],
+        total_attachments: (attachmentMap[t.id] || []).length,
+      };
+    });
 
     return sendResponse(res, 200, true, "Filtered tasks", formatted);
 
